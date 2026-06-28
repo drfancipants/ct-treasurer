@@ -5,8 +5,9 @@ import { getContributions } from '@/actions/donations'
 import { getExpenditures } from '@/actions/expenses'
 import BankPageClient from '@/components/bank/BankPageClient'
 
-export default async function BankPage({ params }: { params: { committeeSlug: string } }) {
-  const committee = await getCommitteeBySlug(params.committeeSlug)
+export default async function BankPage({ params }: { params: Promise<{ committeeSlug: string }> }) {
+  const { committeeSlug } = await params
+  const committee = await getCommitteeBySlug(committeeSlug)
   if (!committee) notFound()
 
   const accounts = await getBankAccounts(committee.id)
@@ -19,7 +20,7 @@ export default async function BankPage({ params }: { params: { committeeSlug: st
   return (
     <BankPageClient
       committeeId={committee.id}
-      committeeSlug={params.committeeSlug}
+      committeeSlug={committeeSlug}
       accounts={accounts}
       transactions={transactions}
       contributions={contributions}

@@ -13,6 +13,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'public_token and committeeId required' }, { status: 400 })
   }
 
+  const membership = await prisma.committeeMembership.findFirst({
+    where: { userId: user.id, committeeId },
+  })
+  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   try {
     const exchangeRes = await plaidClient.itemPublicTokenExchange({ public_token })
     const { access_token, item_id } = exchangeRes.data

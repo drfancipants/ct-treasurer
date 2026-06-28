@@ -6,7 +6,7 @@ import type { Committee } from '@/lib/types'
 
 interface Props {
   children: React.ReactNode
-  params: { committeeSlug: string }
+  params: Promise<{ committeeSlug: string }>
 }
 
 function mapCommittee(c: {
@@ -31,6 +31,7 @@ function mapCommittee(c: {
 }
 
 export default async function CommitteeLayout({ children, params }: Props) {
+  const { committeeSlug } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) notFound()
@@ -42,7 +43,7 @@ export default async function CommitteeLayout({ children, params }: Props) {
   })
 
   const committees = memberships.map((m: { committee: Parameters<typeof mapCommittee>[0] }) => mapCommittee(m.committee))
-  const activeCommittee = committees.find((c: { slug: string }) => c.slug === params.committeeSlug)
+  const activeCommittee = committees.find((c: { slug: string }) => c.slug === committeeSlug)
   if (!activeCommittee) notFound()
 
   return (

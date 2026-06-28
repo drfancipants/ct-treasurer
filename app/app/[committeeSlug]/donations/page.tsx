@@ -5,11 +5,12 @@ import DonationSummaryCards from '@/components/donations/DonationSummaryCards'
 import DonationsTable from '@/components/donations/DonationsTable'
 
 interface Props {
-  params: { committeeSlug: string }
+  params: Promise<{ committeeSlug: string }>
 }
 
 export default async function DonationsPage({ params }: Props) {
-  const committee = await getCommitteeBySlug(params.committeeSlug)
+  const { committeeSlug } = await params
+  const committee = await getCommitteeBySlug(committeeSlug)
   if (!committee) notFound()
 
   const contributions = await getContributions(committee.id)
@@ -18,7 +19,7 @@ export default async function DonationsPage({ params }: Props) {
     <div className="p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <DonationSummaryCards contributions={contributions} />
-        <DonationsTable contributions={contributions} committeeId={committee.id} committeeSlug={params.committeeSlug} />
+        <DonationsTable contributions={contributions} committeeId={committee.id} committeeSlug={committeeSlug} />
       </div>
     </div>
   )

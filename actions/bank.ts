@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
+import { requireCommitteeMember } from '@/lib/auth'
 import type { BankAccount, BankTransaction, TransactionMatchType } from '@/lib/types'
 
 // ─── Mappers ──────────────────────────────────────────────────────────────────
@@ -76,6 +77,10 @@ export async function getTransactions(bankAccountIds: string[]): Promise<BankTra
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export async function removeBankAccount(accountId: string, committeeSlug: string) {
+  const { committeeId } = await requireCommitteeMember(committeeSlug)
+  const account = await prisma.bankAccount.findFirst({ where: { id: accountId, committeeId } })
+  if (!account) throw new Error('Forbidden')
+
   await prisma.$transaction([
     prisma.transaction.deleteMany({ where: { bankAccountId: accountId } }),
     prisma.bankAccount.delete({ where: { id: accountId } }),
@@ -89,6 +94,12 @@ export async function reconcileTransaction(
   matchedId: string | undefined,
   committeeSlug: string
 ) {
+  const { committeeId } = await requireCommitteeMember(committeeSlug)
+  const tx = await prisma.transaction.findFirst({
+    where: { id: transactionId, bankAccount: { committeeId } },
+  })
+  if (!tx) throw new Error('Forbidden')
+
   await prisma.transaction.update({
     where: { id: transactionId },
     data: {

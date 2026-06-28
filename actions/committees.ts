@@ -79,6 +79,14 @@ export async function createCommittee(data: {
   const existing = await prisma.committee.findUnique({ where: { slug: data.slug } })
   if (existing) throw new Error('That URL is already taken — choose a different one')
 
+  // Ensure a User row exists in the public schema (self-serve signup only
+  // creates auth.users — the FK on CommitteeMembership requires this row).
+  await prisma.user.upsert({
+    where: { id: user.id },
+    create: { id: user.id, email: user.email!, name: user.user_metadata?.name ?? null },
+    update: {},
+  })
+
   const committee = await prisma.committee.create({
     data: {
       name: data.name,

@@ -15,11 +15,12 @@ import RecentActivity from '@/components/dashboard/RecentActivity'
 import SeecWidget from '@/components/dashboard/SeecWidget'
 
 interface Props {
-  params: { committeeSlug: string }
+  params: Promise<{ committeeSlug: string }>
 }
 
 export default async function DashboardPage({ params }: Props) {
-  const committee = await getCommitteeBySlug(params.committeeSlug)
+  const { committeeSlug } = await params
+  const committee = await getCommitteeBySlug(committeeSlug)
   if (!committee) notFound()
 
   const [contributions, expenditures] = await Promise.all([
@@ -54,9 +55,9 @@ export default async function DashboardPage({ params }: Props) {
         <CumulativeBalanceChart data={cumulative} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ExpenseCategoryChart data={categories} />
-          <RecentActivity items={activity} committeeSlug={params.committeeSlug} />
+          <RecentActivity items={activity} committeeSlug={committeeSlug} />
         </div>
-        <SeecWidget summary={seec} committeeSlug={params.committeeSlug} />
+        <SeecWidget summary={seec} committeeSlug={committeeSlug} />
       </div>
     </div>
   )

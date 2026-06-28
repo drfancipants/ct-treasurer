@@ -2,8 +2,9 @@ import { notFound } from 'next/navigation'
 import { getCommitteeBySlug } from '@/actions/committees'
 import CommitteeSettingsForm from '@/components/settings/CommitteeSettingsForm'
 
-export default async function SettingsPage({ params }: { params: { committeeSlug: string } }) {
-  const committee = await getCommitteeBySlug(params.committeeSlug)
+export default async function SettingsPage({ params }: { params: Promise<{ committeeSlug: string }> }) {
+  const { committeeSlug } = await params
+  const committee = await getCommitteeBySlug(committeeSlug)
   if (!committee) notFound()
 
   return (

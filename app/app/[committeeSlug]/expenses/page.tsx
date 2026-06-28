@@ -6,11 +6,12 @@ import ExpenseSummaryCards from '@/components/expenses/ExpenseSummaryCards'
 import ExpensesTable from '@/components/expenses/ExpensesTable'
 
 interface Props {
-  params: { committeeSlug: string }
+  params: Promise<{ committeeSlug: string }>
 }
 
 export default async function ExpensesPage({ params }: Props) {
-  const committee = await getCommitteeBySlug(params.committeeSlug)
+  const { committeeSlug } = await params
+  const committee = await getCommitteeBySlug(committeeSlug)
   if (!committee) notFound()
 
   const [expenditures, contributions] = await Promise.all([
@@ -22,7 +23,7 @@ export default async function ExpensesPage({ params }: Props) {
     <div className="p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <ExpenseSummaryCards expenditures={expenditures} contributions={contributions} />
-        <ExpensesTable expenditures={expenditures} committeeId={committee.id} committeeSlug={params.committeeSlug} />
+        <ExpensesTable expenditures={expenditures} committeeId={committee.id} committeeSlug={committeeSlug} />
       </div>
     </div>
   )

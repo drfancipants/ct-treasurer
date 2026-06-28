@@ -39,10 +39,11 @@ interface Props {
   transactions: BankTransaction[]
   contributions: Contribution[]
   expenditures: Expenditure[]
+  committeeId: string
   committeeSlug: string
 }
 
-export default function TransactionsTable({ transactions: initial, contributions, expenditures, committeeSlug }: Props) {
+export default function TransactionsTable({ transactions: initial, contributions, expenditures, committeeId, committeeSlug }: Props) {
   const [transactions, setTransactions] = useState(initial)
   const [tab, setTab] = useState<Tab>('ALL')
   const [search, setSearch] = useState('')
@@ -101,7 +102,7 @@ export default function TransactionsTable({ transactions: initial, contributions
           ? {
               ...t,
               matchType,
-              isReconciled: true,
+              isReconciled: matchType !== 'IGNORED',
               matchedContributionId:
                 matchType === 'CONTRIBUTION' ? matchedId : undefined,
               matchedExpenditureId:
@@ -299,9 +300,12 @@ export default function TransactionsTable({ transactions: initial, contributions
       </div>
 
       <ReconcileDialog
+        key={reconciling?.id ?? 'none'}
         transaction={reconciling}
         contributions={contributions}
         expenditures={expenditures}
+        committeeId={committeeId}
+        committeeSlug={committeeSlug}
         onClose={() => setReconciling(null)}
         onReconcile={handleReconcile}
       />

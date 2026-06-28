@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -36,7 +36,11 @@ export async function middleware(request: NextRequest) {
 
   // Public paths — never redirect these
   const isPublic =
+    pathname === '/' ||
     pathname.startsWith('/login') ||
+    pathname.startsWith('/signup') ||
+    pathname.startsWith('/terms') ||
+    pathname.startsWith('/privacy') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/accept-invite') ||
     pathname.startsWith('/api/webhooks') ||

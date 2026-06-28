@@ -24,6 +24,7 @@ import { formatCurrency, formatDate, formatAddress, cn } from '@/lib/utils'
 import AddDonationDialog from './AddDonationDialog'
 import { deleteContribution } from '@/actions/donations'
 import AnedotImportDialog from './AnedotImportDialog'
+import ErrorBanner from '@/components/ui/ErrorBanner'
 
 const METHOD_COLORS: Record<PaymentMethod, string> = {
   CHECK: 'bg-slate-100 text-slate-700',
@@ -56,6 +57,7 @@ export default function DonationsTable({ contributions: initial, committeeId, co
   const [sourceFilter, setSourceFilter] = useState<ContributionSource | 'ALL'>('ALL')
   const [seecFilter, setSeecFilter] = useState<'ALL' | 'compliant' | 'issues'>('ALL')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [error, setError] = useState('')
 
   const filtered = useMemo(() => {
     return contributions
@@ -97,9 +99,15 @@ export default function DonationsTable({ contributions: initial, committeeId, co
   }
 
   async function handleDelete(id: string) {
+    const snapshot = contributions
     setContributions((prev) => prev.filter((c) => c.id !== id))
     setOpenMenu(null)
-    await deleteContribution(id, committeeSlug)
+    try {
+      await deleteContribution(id, committeeSlug)
+    } catch {
+      setContributions(snapshot)
+      setError('Failed to delete donation. Please try again.')
+    }
   }
 
   return (
@@ -129,6 +137,8 @@ export default function DonationsTable({ contributions: initial, committeeId, co
           </button>
         </div>
       </div>
+
+      {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 mt-4">

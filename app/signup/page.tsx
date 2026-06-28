@@ -133,8 +133,8 @@ export default function SignupPage() {
         </p>
         <p className="mt-3 text-center text-xs text-slate-400">
           By signing up you agree to our{' '}
-          <span className="underline cursor-pointer">Terms of Service</span> and{' '}
-          <span className="underline cursor-pointer">Privacy Policy</span>.
+          <Link href="/terms" className="underline hover:text-slate-600">Terms of Service</Link> and{' '}
+          <Link href="/privacy" className="underline hover:text-slate-600">Privacy Policy</Link>.
         </p>
       </div>
     </div>

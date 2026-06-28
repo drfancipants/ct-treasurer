@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
+import { requireCommitteeMember } from '@/lib/auth'
 import type { Expenditure, PaymentMethod, ExpenseCategory } from '@/lib/types'
 
 type PrismaExpenditure = {
@@ -89,6 +90,10 @@ export async function updateExpenditure(
   },
   committeeSlug: string
 ): Promise<Expenditure> {
+  const { committeeId } = await requireCommitteeMember(committeeSlug)
+  const existing = await prisma.expenditure.findFirst({ where: { id, committeeId } })
+  if (!existing) throw new Error('Forbidden')
+
   const expenditure = await prisma.expenditure.update({
     where: { id },
     data: {
@@ -108,6 +113,10 @@ export async function updateExpenditure(
 }
 
 export async function deleteExpenditure(id: string, committeeSlug: string) {
+  const { committeeId } = await requireCommitteeMember(committeeSlug)
+  const existing = await prisma.expenditure.findFirst({ where: { id, committeeId } })
+  if (!existing) throw new Error('Forbidden')
+
   await prisma.expenditure.delete({ where: { id } })
   revalidatePath(`/app/${committeeSlug}/expenses`)
   revalidatePath(`/app/${committeeSlug}/dashboard`)

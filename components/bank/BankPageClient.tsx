@@ -1,12 +1,14 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { Building2 } from 'lucide-react'
 import type { BankAccount, BankTransaction, Contribution, Expenditure } from '@/lib/types'
 import BankAccountCard from './BankAccountCard'
 import PlaidLinkButton from './PlaidLinkButton'
 import TransactionsTable from './TransactionsTable'
 import { removeBankAccount } from '@/actions/bank'
+import ErrorBanner from '@/components/ui/ErrorBanner'
 
 interface Props {
   committeeId: string
@@ -26,29 +28,38 @@ export default function BankPageClient({
   expenditures,
 }: Props) {
   const router = useRouter()
+  const [error, setError] = useState('')
 
   async function handleSync(accountId: string) {
+    setError('')
     const res = await fetch('/api/plaid/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bankAccountId: accountId }),
     })
     if (!res.ok) {
-      const data = await res.json()
-      console.error('[sync]', data.error)
+      const data = await res.json().catch(() => ({}))
+      setError(data.error ?? 'Sync failed. Please try again.')
       return
     }
     router.refresh()
   }
 
   async function handleRemove(accountId: string) {
-    await removeBankAccount(accountId, committeeSlug)
-    router.refresh()
+    setError('')
+    try {
+      await removeBankAccount(accountId, committeeSlug)
+      router.refresh()
+    } catch {
+      setError('Failed to remove account. Please try again.')
+    }
   }
 
   return (
     <div className="p-8">
       <div className="max-w-5xl mx-auto space-y-8">
+        {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -82,6 +93,7 @@ export default function BankPageClient({
             transactions={transactions}
             contributions={contributions}
             expenditures={expenditures}
+            committeeId={committeeId}
             committeeSlug={committeeSlug}
           />
         )}

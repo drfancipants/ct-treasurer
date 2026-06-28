@@ -263,6 +263,8 @@ function Footer() {
           <Link href="#features" className="hover:text-slate-600 transition-colors">Features</Link>
           <Link href="#pricing" className="hover:text-slate-600 transition-colors">Pricing</Link>
           <Link href="/login" className="hover:text-slate-600 transition-colors">Sign in</Link>
+          <Link href="/terms" className="hover:text-slate-600 transition-colors">Terms</Link>
+          <Link href="/privacy" className="hover:text-slate-600 transition-colors">Privacy</Link>
           <a href="https://seec.ct.gov" target="_blank" rel="noopener noreferrer" className="hover:text-slate-600 transition-colors">
             SEEC ↗
           </a>

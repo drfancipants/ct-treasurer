@@ -11,6 +11,7 @@ import {
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import AddExpenseDialog from './AddExpenseDialog'
 import { deleteExpenditure } from '@/actions/expenses'
+import ErrorBanner from '@/components/ui/ErrorBanner'
 
 const METHOD_COLORS: Record<PaymentMethod, string> = {
   CHECK: 'bg-slate-100 text-slate-700',
@@ -35,6 +36,7 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
   const [categoryFilter, setCategoryFilter] = useState<ExpenseCategory | 'ALL'>('ALL')
   const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'ALL'>('ALL')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [error, setError] = useState('')
 
   const filtered = useMemo(() => {
     return expenditures
@@ -69,9 +71,15 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
   }
 
   async function handleDelete(id: string) {
+    const snapshot = expenditures
     setExpenditures((prev) => prev.filter((e) => e.id !== id))
     setOpenMenu(null)
-    await deleteExpenditure(id, committeeSlug)
+    try {
+      await deleteExpenditure(id, committeeSlug)
+    } catch {
+      setExpenditures(snapshot)
+      setError('Failed to delete expense. Please try again.')
+    }
   }
 
   return (
@@ -93,6 +101,8 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
           Add expense
         </button>
       </div>
+
+      {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 mt-4">

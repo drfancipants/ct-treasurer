@@ -6,11 +6,12 @@ import { getFilings } from '@/actions/filings'
 import FilingsList from '@/components/filings/FilingsList'
 
 interface Props {
-  params: { committeeSlug: string }
+  params: Promise<{ committeeSlug: string }>
 }
 
 export default async function FilingsPage({ params }: Props) {
-  const committee = await getCommitteeBySlug(params.committeeSlug)
+  const { committeeSlug } = await params
+  const committee = await getCommitteeBySlug(committeeSlug)
   if (!committee) notFound()
 
   const [contributions, expenditures, filings] = await Promise.all([

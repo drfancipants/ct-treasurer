@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
+import { requireCommitteeMember } from '@/lib/auth'
 
 export interface SeecFilingRecord {
   id: string
@@ -16,6 +17,9 @@ export async function markFiled(
   periodEnd: string,
   committeeSlug: string
 ): Promise<SeecFilingRecord> {
+  const { committeeId: verifiedId } = await requireCommitteeMember(committeeSlug)
+  if (verifiedId !== committeeId) throw new Error('Forbidden')
+
   const filing = await prisma.seecFiling.upsert({
     where: {
       committeeId_formType_periodStart_periodEnd: {

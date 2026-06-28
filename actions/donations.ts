@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
+import { requireCommitteeMember } from '@/lib/auth'
 import type { Contribution, PaymentMethod, ContributionSource } from '@/lib/types'
 import type { ParsedRow } from '@/lib/anedot-csv'
 
@@ -165,35 +166,39 @@ export async function updateContribution(
   },
   committeeSlug: string
 ): Promise<Contribution> {
-  const [contribution] = await prisma.$transaction([
-    prisma.contribution.update({
-      where: { id: contributionId },
-      data: {
-        amount: data.amount,
-        date: new Date(data.date),
-        method: data.method,
-        checkNumber: data.checkNumber ?? null,
-        memo: data.memo ?? null,
-        isItemized: data.isItemized,
-      },
-      include: { contributor: true },
-    }),
-    prisma.contributor.update({
-      where: { id: contributorId },
-      data: {
-        firstName: data.contributor.firstName,
-        lastName: data.contributor.lastName,
-        email: data.contributor.email ?? null,
-        address1: data.contributor.address1,
-        address2: data.contributor.address2 ?? null,
-        city: data.contributor.city,
-        state: data.contributor.state,
-        zip: data.contributor.zip,
-        employer: data.contributor.employer ?? null,
-        occupation: data.contributor.occupation ?? null,
-      },
-    }),
-  ])
+  const { committeeId } = await requireCommitteeMember(committeeSlug)
+  const existing = await prisma.contribution.findFirst({ where: { id: contributionId, committeeId } })
+  if (!existing) throw new Error('Forbidden')
+
+  // Update contributor first so the subsequent contribution fetch returns fresh data
+  await prisma.contributor.update({
+    where: { id: contributorId },
+    data: {
+      firstName: data.contributor.firstName,
+      lastName: data.contributor.lastName,
+      email: data.contributor.email ?? null,
+      address1: data.contributor.address1,
+      address2: data.contributor.address2 ?? null,
+      city: data.contributor.city,
+      state: data.contributor.state,
+      zip: data.contributor.zip,
+      employer: data.contributor.employer ?? null,
+      occupation: data.contributor.occupation ?? null,
+    },
+  })
+
+  const contribution = await prisma.contribution.update({
+    where: { id: contributionId },
+    data: {
+      amount: data.amount,
+      date: new Date(data.date),
+      method: data.method,
+      checkNumber: data.checkNumber ?? null,
+      memo: data.memo ?? null,
+      isItemized: data.isItemized,
+    },
+    include: { contributor: true },
+  })
 
   revalidatePath(`/app/${committeeSlug}/donations`)
   revalidatePath(`/app/${committeeSlug}/dashboard`)
@@ -201,6 +206,10 @@ export async function updateContribution(
 }
 
 export async function deleteContribution(id: string, committeeSlug: string) {
+  const { committeeId } = await requireCommitteeMember(committeeSlug)
+  const existing = await prisma.contribution.findFirst({ where: { id, committeeId } })
+  if (!existing) throw new Error('Forbidden')
+
   await prisma.contribution.delete({ where: { id } })
   revalidatePath(`/app/${committeeSlug}/donations`)
   revalidatePath(`/app/${committeeSlug}/dashboard`)
