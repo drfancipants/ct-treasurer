@@ -1,0 +1,63 @@
+import { notFound } from 'next/navigation'
+import { getCommitteeBySlug } from '@/actions/committees'
+import { getContributions } from '@/actions/donations'
+import { getExpenditures } from '@/actions/expenses'
+import {
+  getMonthlyData, getCumulativeData, getPaymentMethodBreakdown,
+  getExpenseCategoryBreakdown, getSeecSummary, getRecentActivity,
+} from '@/lib/analytics'
+import DashboardSummaryCards from '@/components/dashboard/DashboardSummaryCards'
+import MonthlyChart from '@/components/dashboard/MonthlyChart'
+import PaymentMethodsChart from '@/components/dashboard/PaymentMethodsChart'
+import CumulativeBalanceChart from '@/components/dashboard/CumulativeBalanceChart'
+import ExpenseCategoryChart from '@/components/dashboard/ExpenseCategoryChart'
+import RecentActivity from '@/components/dashboard/RecentActivity'
+import SeecWidget from '@/components/dashboard/SeecWidget'
+
+interface Props {
+  params: { committeeSlug: string }
+}
+
+export default async function DashboardPage({ params }: Props) {
+  const committee = await getCommitteeBySlug(params.committeeSlug)
+  if (!committee) notFound()
+
+  const [contributions, expenditures] = await Promise.all([
+    getContributions(committee.id),
+    getExpenditures(committee.id),
+  ])
+
+  const totalRaised = contributions.reduce((s, c) => s + c.amount, 0)
+  const totalSpent = expenditures.reduce((s, e) => s + e.amount, 0)
+
+  const monthly = getMonthlyData(contributions, expenditures)
+  const cumulative = getCumulativeData(monthly)
+  const methods = getPaymentMethodBreakdown(contributions)
+  const categories = getExpenseCategoryBreakdown(expenditures)
+  const seec = getSeecSummary(contributions)
+  const activity = getRecentActivity(contributions, expenditures, 8)
+
+  return (
+    <div className="p-8">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Dashboard</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {committee.name} · {committee.electionYear} election cycle
+          </p>
+        </div>
+        <DashboardSummaryCards totalRaised={totalRaised} totalSpent={totalSpent} seec={seec} contributionCount={contributions.length} expenditureCount={expenditures.length} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2"><MonthlyChart data={monthly} /></div>
+          <div><PaymentMethodsChart data={methods} total={totalRaised} /></div>
+        </div>
+        <CumulativeBalanceChart data={cumulative} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ExpenseCategoryChart data={categories} />
+          <RecentActivity items={activity} committeeSlug={params.committeeSlug} />
+        </div>
+        <SeecWidget summary={seec} committeeSlug={params.committeeSlug} />
+      </div>
+    </div>
+  )
+}

@@ -1,0 +1,29 @@
+import { notFound } from 'next/navigation'
+import { getCommitteeBySlug } from '@/actions/committees'
+import { getExpenditures } from '@/actions/expenses'
+import { getContributions } from '@/actions/donations'
+import ExpenseSummaryCards from '@/components/expenses/ExpenseSummaryCards'
+import ExpensesTable from '@/components/expenses/ExpensesTable'
+
+interface Props {
+  params: { committeeSlug: string }
+}
+
+export default async function ExpensesPage({ params }: Props) {
+  const committee = await getCommitteeBySlug(params.committeeSlug)
+  if (!committee) notFound()
+
+  const [expenditures, contributions] = await Promise.all([
+    getExpenditures(committee.id),
+    getContributions(committee.id),
+  ])
+
+  return (
+    <div className="p-8">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <ExpenseSummaryCards expenditures={expenditures} contributions={contributions} />
+        <ExpensesTable expenditures={expenditures} committeeId={committee.id} committeeSlug={params.committeeSlug} />
+      </div>
+    </div>
+  )
+}

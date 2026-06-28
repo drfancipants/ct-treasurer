@@ -1,0 +1,308 @@
+'use client'
+
+import { useState, useMemo } from 'react'
+import { Plus, Search, ChevronDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import type { Expenditure, ExpenseCategory, PaymentMethod } from '@/lib/types'
+import {
+  EXPENSE_CATEGORY_LABELS,
+  EXPENSE_CATEGORY_COLORS,
+  PAYMENT_METHOD_LABELS,
+} from '@/lib/types'
+import { formatCurrency, formatDate, cn } from '@/lib/utils'
+import AddExpenseDialog from './AddExpenseDialog'
+import { deleteExpenditure } from '@/actions/expenses'
+
+const METHOD_COLORS: Record<PaymentMethod, string> = {
+  CHECK: 'bg-slate-100 text-slate-700',
+  CASH: 'bg-green-50 text-green-700',
+  CREDIT_CARD: 'bg-blue-50 text-blue-700',
+  DEBIT_CARD: 'bg-indigo-50 text-indigo-700',
+  ONLINE: 'bg-purple-50 text-purple-700',
+  OTHER: 'bg-slate-100 text-slate-600',
+}
+
+interface Props {
+  expenditures: Expenditure[]
+  committeeId: string
+  committeeSlug: string
+}
+
+export default function ExpensesTable({ expenditures: initial, committeeId, committeeSlug }: Props) {
+  const [expenditures, setExpenditures] = useState(initial)
+  const [showAdd, setShowAdd] = useState(false)
+  const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<ExpenseCategory | 'ALL'>('ALL')
+  const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'ALL'>('ALL')
+  const [openMenu, setOpenMenu] = useState<string | null>(null)
+
+  const filtered = useMemo(() => {
+    return expenditures
+      .filter((e) => {
+        if (
+          search &&
+          !e.payee.toLowerCase().includes(search.toLowerCase()) &&
+          !e.purpose.toLowerCase().includes(search.toLowerCase())
+        )
+          return false
+        if (categoryFilter !== 'ALL' && e.category !== categoryFilter) return false
+        if (methodFilter !== 'ALL' && e.method !== methodFilter) return false
+        return true
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }, [expenditures, search, categoryFilter, methodFilter])
+
+  const filteredTotal = filtered.reduce((s, e) => s + e.amount, 0)
+
+  function handleAdd(expenditure: Expenditure) {
+    setExpenditures((prev) => [expenditure, ...prev])
+    setShowAdd(false)
+  }
+
+  async function handleDelete(id: string) {
+    setExpenditures((prev) => prev.filter((e) => e.id !== id))
+    setOpenMenu(null)
+    await deleteExpenditure(id, committeeSlug)
+  }
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Expenses</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {expenditures.length} {expenditures.length === 1 ? 'expenditure' : 'expenditures'} ·{' '}
+            {formatCurrency(expenditures.reduce((s, e) => s + e.amount, 0))} total
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Add expense
+        </button>
+      </div>
+
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2 mt-4">
+        <div className="relative flex-1 min-w-48">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search payee or purpose…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+          />
+        </div>
+
+        <FilterSelect
+          value={categoryFilter}
+          onChange={(v) => setCategoryFilter(v as ExpenseCategory | 'ALL')}
+          label="Category"
+        >
+          <option value="ALL">All categories</option>
+          {(Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategory[]).map((c) => (
+            <option key={c} value={c}>
+              {EXPENSE_CATEGORY_LABELS[c]}
+            </option>
+          ))}
+        </FilterSelect>
+
+        <FilterSelect
+          value={methodFilter}
+          onChange={(v) => setMethodFilter(v as PaymentMethod | 'ALL')}
+          label="Method"
+        >
+          <option value="ALL">All methods</option>
+          {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map((m) => (
+            <option key={m} value={m}>
+              {PAYMENT_METHOD_LABELS[m]}
+            </option>
+          ))}
+        </FilterSelect>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">
+                Date
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">
+                Payee &amp; purpose
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide hidden md:table-cell">
+                Category
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wide">
+                Amount
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide hidden sm:table-cell">
+                Method
+              </th>
+              <th className="px-4 py-3 w-10" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filtered.map((expense) => (
+              <tr key={expense.id} className="table-row-hover group">
+                {/* Date */}
+                <td className="px-4 py-3.5">
+                  <span className="text-sm text-slate-900 tabular whitespace-nowrap">
+                    {formatDate(expense.date)}
+                  </span>
+                </td>
+
+                {/* Payee + purpose */}
+                <td className="px-4 py-3.5">
+                  <p className="text-sm font-medium text-slate-900">{expense.payee}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{expense.purpose}</p>
+                </td>
+
+                {/* Category */}
+                <td className="px-4 py-3.5 hidden md:table-cell">
+                  <span
+                    className={cn(
+                      'inline-flex px-2 py-0.5 rounded-md text-xs font-medium',
+                      EXPENSE_CATEGORY_COLORS[expense.category]
+                    )}
+                  >
+                    {EXPENSE_CATEGORY_LABELS[expense.category]}
+                  </span>
+                </td>
+
+                {/* Amount */}
+                <td className="px-4 py-3.5 text-right">
+                  <span className="text-sm font-semibold text-rose-700 tabular">
+                    ({formatCurrency(expense.amount)})
+                  </span>
+                </td>
+
+                {/* Method */}
+                <td className="px-4 py-3.5 hidden sm:table-cell">
+                  <span
+                    className={cn(
+                      'inline-flex px-2 py-0.5 rounded-md text-xs font-medium',
+                      METHOD_COLORS[expense.method]
+                    )}
+                  >
+                    {PAYMENT_METHOD_LABELS[expense.method]}
+                    {expense.checkNumber && (
+                      <span className="ml-1 opacity-60">#{expense.checkNumber}</span>
+                    )}
+                  </span>
+                </td>
+
+                {/* Actions */}
+                <td className="px-4 py-3.5 relative">
+                  <button
+                    onClick={() =>
+                      setOpenMenu(openMenu === expense.id ? null : expense.id)
+                    }
+                    className="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100"
+                    aria-label="Expense actions"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+
+                  {openMenu === expense.id && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
+                      <div className="absolute right-2 top-full mt-1 z-20 w-36 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+                        <button
+                          className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                          onClick={() => { /* TODO: open edit dialog */ setOpenMenu(null) }}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          Edit
+                        </button>
+                        <div className="border-t border-slate-100">
+                          <button
+                            onClick={() => handleDelete(expense.id)}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Empty state */}
+        {filtered.length === 0 && (
+          <div className="py-16 text-center">
+            <p className="text-sm text-slate-500">
+              {expenditures.length === 0
+                ? 'No expenses recorded yet'
+                : 'No expenses match your filters'}
+            </p>
+            {expenditures.length === 0 && (
+              <button
+                onClick={() => setShowAdd(true)}
+                className="mt-3 text-sm text-blue-600 hover:underline"
+              >
+                Record the first expense →
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Footer total */}
+        {filtered.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50">
+            <p className="text-xs text-slate-500">
+              Showing {filtered.length} of {expenditures.length} expenditures
+            </p>
+            <p className="text-sm font-semibold text-rose-700 tabular">
+              ({formatCurrency(filteredTotal)})
+            </p>
+          </div>
+        )}
+      </div>
+
+      <AddExpenseDialog
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        onAdd={handleAdd}
+        committeeId={committeeId}
+        committeeSlug={committeeSlug}
+      />
+    </>
+  )
+}
+
+function FilterSelect({
+  value,
+  onChange,
+  label,
+  children,
+}: {
+  value: string
+  onChange: (v: string) => void
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+        aria-label={label}
+      >
+        {children}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+    </div>
+  )
+}

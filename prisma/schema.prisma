@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Committees (tenants) ────────────────────────────────────────────────────
+
+model Committee {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  seecId       String?  // SEEC registration ID (e.g. CT-DTC-20240142)
+  address1     String?
+  address2     String?
+  city         String?
+  state        String   @default("CT")
+  zip          String?
+  phone        String?
+  email        String?
+  electionYear Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships   CommitteeMembership[]
+  contributions Contribution[]
+  expenditures  Expenditure[]
+  bankAccounts  BankAccount[]
+  seecFilings   SeecFiling[]
+}
+
+// ─── Users & membership ──────────────────────────────────────────────────────
+
+model User {
+  id        String   @id // Matches Supabase auth.users.id
+  email     String   @unique
+  name      String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships CommitteeMembership[]
+}
+
+model CommitteeMembership {
+  id          String     @id @default(cuid())
+  userId      String
+  committeeId String
+  role        MemberRole @default(MEMBER)
+  joinedAt    DateTime   @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, committeeId])
+  @@index([committeeId])
+}
+
+enum MemberRole {
+  TREASURER
+  ASSISTANT_TREASURER
+  CHAIRPERSON
+  SECRETARY
+  MEMBER
+  VIEWER
+}
+
+// ─── Donors & contributions ──────────────────────────────────────────────────
+
+model Contributor {
+  id         String   @id @default(cuid())
+  firstName  String
+  lastName   String
+  email      String?
+  phone      String?
+  address1   String
+  address2   String?
+  city       String
+  state      String   @default("CT")
+  zip        String
+  employer   String?  // Required by SEEC for itemized contributions
+  occupation String?  // Required by SEEC for itemized contributions
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  contributions Contribution[]
+}
+
+model Contribution {
+  id            String             @id @default(cuid())
+  committeeId   String
+  contributorId String
+  amount        Decimal            @db.Decimal(10, 2)
+  date          DateTime           @db.Date
+  method        PaymentMethod
+  checkNumber   String?
+  memo          String?
+  source        ContributionSource @default(MANUAL)
+  anedotId      String?            @unique // Deduplication key for Anedot imports
+  isItemized    Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  committee   Committee   @relation(fields: [committeeId], references: [id])
+  contributor Contributor @relation(fields: [contributorId], references: [id])
+
+  @@index([committeeId, date])
+  @@index([contributorId])
+}
+
+enum PaymentMethod {
+  CHECK
+  CASH
+  CREDIT_CARD
+  DEBIT_CARD
+  ONLINE
+  OTHER
+}
+
+enum ContributionSource {
+  MANUAL
+  ANEDOT
+  BANK_IMPORT
+}
+
+// ─── Expenditures ────────────────────────────────────────────────────────────
+
+enum ExpenseCategory {
+  PRINTING
+  ADVERTISING
+  EVENT
+  POSTAGE
+  OFFICE_SUPPLIES
+  TECHNOLOGY
+  PROFESSIONAL_SERVICES
+  HEADQUARTERS
+  SIGNAGE
+  OTHER
+}
+
+model Expenditure {
+  id          String        @id @default(cuid())
+  committeeId String
+  amount      Decimal       @db.Decimal(10, 2)
+  date        DateTime      @db.Date
+  payee       String
+  purpose     String
+  category    ExpenseCategory @default(OTHER)
+  method      PaymentMethod
+  checkNumber String?
+  memo        String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  committee Committee @relation(fields: [committeeId], references: [id])
+
+  @@index([committeeId, date])
+}
+
+// ─── Bank accounts & transactions ────────────────────────────────────────────
+
+model BankAccount {
+  id             String    @id @default(cuid())
+  committeeId    String
+  plaidAccountId String?   @unique
+  name           String
+  institution    String?
+  accountType    String?
+  lastFour       String?
+  currentBalance Decimal?  @db.Decimal(10, 2)
+  lastSyncedAt   DateTime?
+  createdAt      DateTime  @default(now())
+
+  committee    Committee     @relation(fields: [committeeId], references: [id])
+  transactions Transaction[]
+}
+
+model Transaction {
+  id                    String   @id @default(cuid())
+  bankAccountId         String
+  plaidTransactionId    String?  @unique
+  amount                Decimal  @db.Decimal(10, 2)
+  date                  DateTime @db.Date
+  description           String
+  category              String?
+  matchedContributionId String?
+  matchedExpenditureId  String?
+  isReconciled          Boolean  @default(false)
+  createdAt             DateTime @default(now())
+
+  bankAccount BankAccount @relation(fields: [bankAccountId], references: [id])
+
+  @@index([bankAccountId, date])
+}
+
+// ─── SEEC filings ────────────────────────────────────────────────────────────
+
+model SeecFiling {
+  id          String       @id @default(cuid())
+  committeeId String
+  formType    SeecFormType
+  periodStart DateTime     @db.Date
+  periodEnd   DateTime     @db.Date
+  status      FilingStatus @default(DRAFT)
+  pdfUrl      String?
+  notes       String?
+  filedAt     DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  committee Committee @relation(fields: [committeeId], references: [id])
+
+  @@index([committeeId])
+}
+
+enum SeecFormType {
+  FORM_1    // Committee registration
+  FORM_20   // Campaign finance disclosure
+  FORM_21   // Related party expenditure
+  FORM_30   // Dissolution
+}
+
+enum FilingStatus {
+  DRAFT
+  READY
+  FILED
+  AMENDED
+}

@@ -1,0 +1,182 @@
+import * as XLSX from 'xlsx'
+import type { Contribution, Expenditure } from './types'
+import { getSeecStatus } from './types'
+
+// ─── SEEC eCRIS code mappings (from the Code List sheet) ─────────────────────
+
+/** Section B – Method of Contribution codes */
+const CONTRIBUTION_METHOD: Record<string, string> = {
+  CHECK:       'PC',  // Personal Check
+  CASH:        'CA',  // Cash
+  CREDIT_CARD: 'CD',  // Credit/Debit Card
+  DEBIT_CARD:  'CD',  // Credit/Debit Card
+  ONLINE:      'CD',  // Treat online as CD (ACH would be separate)
+  OTHER:       'PC',  // Default to check
+}
+
+/** Section P – Method of Payment codes (different from Section B) */
+const EXPENDITURE_METHOD: Record<string, string> = {
+  CHECK:       'CH',  // Check
+  CASH:        'CH',  // No cash code in Section P; CH is closest
+  CREDIT_CARD: 'DC',  // Debit Card (credit card charges go in Section R)
+  DEBIT_CARD:  'DC',  // Debit Card
+  ONLINE:      'EFT', // Electronic Funds Transfer
+  OTHER:       'CH',
+}
+
+/** Section P – Purpose of Expenditure codes */
+const EXPENSE_PURPOSE: Record<string, string> = {
+  PRINTING:             'PRNT',
+  ADVERTISING:          'A-NEWS',
+  EVENT:                'FNDR',
+  POSTAGE:              'POST',
+  OFFICE_SUPPLIES:      'OFFICE',
+  TECHNOLOGY:           'WEB',
+  PROFESSIONAL_SERVICES:'CNSLT',
+  HEADQUARTERS:         'OVHD',
+  SIGNAGE:              'A-SIGN',
+  OTHER:                'MISC',
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Convert YYYY-MM-DD → mm/dd/yyyy (SEEC required format) */
+function seecDate(iso: string): string {
+  if (!iso || iso.length < 10) return ''
+  const [y, m, d] = iso.split('-')
+  return `${m}/${d}/${y}`
+}
+
+function inPeriod(date: string, start: string, end: string): boolean {
+  return date >= start && date <= end
+}
+
+// ─── Main export function ─────────────────────────────────────────────────────
+
+/**
+ * Loads the official eCRIS Form 20 template, populates Sections A, B, and P
+ * with the supplied data, and returns the modified workbook as a Uint8Array
+ * ready for download as an .xls file.
+ */
+export function populateForm20(
+  templateBuffer: ArrayBuffer,
+  contributions: Contribution[],
+  expenditures: Expenditure[],
+  periodStart: string,
+  periodEnd: string
+): Uint8Array {
+  const wb = XLSX.read(new Uint8Array(templateBuffer), { type: 'array' })
+
+  const contribs = contributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
+  const expends  = expenditures.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
+
+  const itemized    = contribs.filter((c) => c.isItemized)
+  const nonItemized = contribs.filter((c) => !c.isItemized)
+  const smallTotal  = nonItemized.reduce((s, c) => s + c.amount, 0)
+
+  // ── Section A: aggregate small-contributor total ─────────────────────────
+  {
+    const ws = wb.Sheets['Section A']
+    if (ws && smallTotal > 0) {
+      XLSX.utils.sheet_add_aoa(ws, [[smallTotal]], { origin: 'A2' })
+    }
+  }
+
+  // ── Section B: itemized individual contributions ──────────────────────────
+  {
+    const ws = wb.Sheets['Section B']
+    if (ws && itemized.length > 0) {
+      const rows = itemized.map((c, i) => [
+        i + 1,                                            //  0 Transaction ID
+        c.contributor.lastName,                           //  1 Last Name
+        c.contributor.firstName,                          //  2 First Name
+        '',                                               //  3 Middle Initials
+        c.contributor.address1,                           //  4 Street Address
+        c.contributor.city,                               //  5 City
+        c.contributor.state,                              //  6 State
+        c.contributor.zip,                                //  7 Zip
+        c.contributor.employer  ?? '',                    //  8 Employer
+        c.contributor.occupation ?? '',                   //  9 Occupation
+        seecDate(c.date),                                 // 10 Date Received
+        c.amount,                                         // 11 Amount
+        CONTRIBUTION_METHOD[c.method] ?? 'PC',            // 12 Method code
+        'N',                                              // 13 State contractor?
+        '',                                               // 14 Which branch?
+        'N',                                              // 15 L1 event?
+        '',                                               // 16 Event date
+        '',                                               // 17 Event letter
+        'N',                                              // 18 Lobbyist?
+        'N',                                              // 19 Municipality contract?
+        '',                                               // 20 Aggregate correction
+      ])
+      XLSX.utils.sheet_add_aoa(ws, rows, { origin: 'A2' })
+    }
+  }
+
+  // ── Section P: expenses paid by committee ─────────────────────────────────
+  {
+    const ws = wb.Sheets['Section P']
+    if (ws && expends.length > 0) {
+      const rows = expends.map((e, i) => [
+        i + 1,                                            //  0 Transaction ID
+        e.payee,                                          //  1 Payee Name
+        '',                                               //  2 Street Address (optional)
+        '',                                               //  3 City
+        '',                                               //  4 State
+        '',                                               //  5 Zip
+        seecDate(e.date),                                 //  6 Date of Payment
+        e.amount,                                         //  7 Amount
+        EXPENDITURE_METHOD[e.method] ?? 'CH',             //  8 Method code
+        e.checkNumber ?? '',                              //  9 Check number
+        e.purpose,                                        // 10 Description
+        '',                                               // 11 Event date
+        '',                                               // 12 Event letter
+        i + 1,                                            // 13 Expenditure number
+        'NONE',                                           // 14 Type (NONE = not coordinated)
+        EXPENSE_PURPOSE[e.category] ?? 'MISC',            // 15 Purpose code
+      ])
+      XLSX.utils.sheet_add_aoa(ws, rows, { origin: 'A2' })
+    }
+  }
+
+  return XLSX.write(wb, { bookType: 'xls', type: 'array' }) as Uint8Array
+}
+
+// ─── Preview data (used by the dialog before generating) ─────────────────────
+
+export interface Form20Preview {
+  itemizedCount: number
+  itemizedTotal: number
+  nonItemizedCount: number
+  nonItemizedTotal: number
+  expenditureCount: number
+  expenditureTotal: number
+  seecIssues: { contributionId: string; issues: string[] }[]
+}
+
+export function previewForm20(
+  contributions: Contribution[],
+  expenditures: Expenditure[],
+  periodStart: string,
+  periodEnd: string
+): Form20Preview {
+  const contribs = contributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
+  const expends  = expenditures.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
+
+  const itemized    = contribs.filter((c) =>  c.isItemized)
+  const nonItemized = contribs.filter((c) => !c.isItemized)
+
+  const seecIssues = itemized
+    .map((c) => ({ contributionId: c.id, issues: getSeecStatus(c).issues }))
+    .filter((r) => r.issues.length > 0)
+
+  return {
+    itemizedCount:    itemized.length,
+    itemizedTotal:    itemized.reduce((s, c) => s + c.amount, 0),
+    nonItemizedCount: nonItemized.length,
+    nonItemizedTotal: nonItemized.reduce((s, c) => s + c.amount, 0),
+    expenditureCount: expends.length,
+    expenditureTotal: expends.reduce((s, e) => s + e.amount, 0),
+    seecIssues,
+  }
+}
