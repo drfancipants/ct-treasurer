@@ -11,12 +11,22 @@ interface Props {
 
 function mapCommittee(c: {
   id: string; name: string; slug: string; seecId: string | null
-  city: string | null; state: string; electionYear: number | null
+  anedotAccountId: string | null; address1: string | null; address2: string | null
+  city: string | null; state: string; zip: string | null; phone: string | null
+  email: string | null; electionYear: number | null
 }): Committee {
   return {
     id: c.id, name: c.name, slug: c.slug,
-    seecId: c.seecId ?? undefined, city: c.city ?? undefined,
-    state: c.state, electionYear: c.electionYear ?? undefined,
+    seecId: c.seecId ?? undefined,
+    anedotAccountId: c.anedotAccountId ?? undefined,
+    address1: c.address1 ?? undefined,
+    address2: c.address2 ?? undefined,
+    city: c.city ?? undefined,
+    state: c.state,
+    zip: c.zip ?? undefined,
+    phone: c.phone ?? undefined,
+    email: c.email ?? undefined,
+    electionYear: c.electionYear ?? undefined,
   }
 }
 

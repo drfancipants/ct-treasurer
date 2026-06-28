@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 
 export interface SeecFilingRecord {
@@ -7,6 +8,44 @@ export interface SeecFilingRecord {
   periodStart: string
   periodEnd: string
   status: 'DRAFT' | 'READY' | 'FILED' | 'AMENDED'
+}
+
+export async function markFiled(
+  committeeId: string,
+  periodStart: string,
+  periodEnd: string,
+  committeeSlug: string
+): Promise<SeecFilingRecord> {
+  const filing = await prisma.seecFiling.upsert({
+    where: {
+      committeeId_formType_periodStart_periodEnd: {
+        committeeId,
+        formType: 'FORM_20',
+        periodStart: new Date(periodStart),
+        periodEnd: new Date(periodEnd),
+      },
+    },
+    create: {
+      committeeId,
+      formType: 'FORM_20',
+      periodStart: new Date(periodStart),
+      periodEnd: new Date(periodEnd),
+      status: 'FILED',
+      filedAt: new Date(),
+    },
+    update: {
+      status: 'FILED',
+      filedAt: new Date(),
+    },
+  })
+
+  revalidatePath(`/app/${committeeSlug}/filings`)
+  return {
+    id: filing.id,
+    periodStart: filing.periodStart.toISOString().split('T')[0],
+    periodEnd: filing.periodEnd.toISOString().split('T')[0],
+    status: filing.status,
+  }
 }
 
 export async function getFilings(committeeId: string): Promise<SeecFilingRecord[]> {

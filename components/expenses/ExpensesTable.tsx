@@ -30,6 +30,7 @@ interface Props {
 export default function ExpensesTable({ expenditures: initial, committeeId, committeeSlug }: Props) {
   const [expenditures, setExpenditures] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
+  const [editing, setEditing] = useState<Expenditure | null>(null)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<ExpenseCategory | 'ALL'>('ALL')
   const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'ALL'>('ALL')
@@ -54,8 +55,17 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
   const filteredTotal = filtered.reduce((s, e) => s + e.amount, 0)
 
   function handleAdd(expenditure: Expenditure) {
-    setExpenditures((prev) => [expenditure, ...prev])
+    setExpenditures((prev) => {
+      const idx = prev.findIndex((e) => e.id === expenditure.id)
+      if (idx !== -1) {
+        const updated = [...prev]
+        updated[idx] = expenditure
+        return updated
+      }
+      return [expenditure, ...prev]
+    })
     setShowAdd(false)
+    setEditing(null)
   }
 
   async function handleDelete(id: string) {
@@ -215,7 +225,7 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
                       <div className="absolute right-2 top-full mt-1 z-20 w-36 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
                         <button
                           className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                          onClick={() => { /* TODO: open edit dialog */ setOpenMenu(null) }}
+                          onClick={() => { setEditing(expense); setOpenMenu(null) }}
                         >
                           <Pencil className="w-3.5 h-3.5" />
                           Edit
@@ -276,6 +286,14 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
         onAdd={handleAdd}
         committeeId={committeeId}
         committeeSlug={committeeSlug}
+      />
+      <AddExpenseDialog
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        onAdd={handleAdd}
+        committeeId={committeeId}
+        committeeSlug={committeeSlug}
+        expenditure={editing ?? undefined}
       />
     </>
   )

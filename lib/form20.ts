@@ -139,7 +139,7 @@ export function populateForm20(
     }
   }
 
-  return XLSX.write(wb, { bookType: 'xls', type: 'array' }) as Uint8Array
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as Uint8Array
 }
 
 // ─── Preview data (used by the dialog before generating) ─────────────────────

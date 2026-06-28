@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { X, FileDown, AlertCircle, CheckCircle2, FileText, Loader2 } from 'lucide-react'
 import type { Contribution, Expenditure } from '@/lib/types'
 import { previewForm20, populateForm20 } from '@/lib/form20'
@@ -20,6 +20,16 @@ interface Props {
   contributions: Contribution[]
   expenditures: Expenditure[]
   committeeName: string
+  initialPeriod?: { start: string; end: string }
+  onFiled?: (start: string, end: string) => void
+}
+
+function periodIdxFromStart(start: string): number {
+  const month = start.slice(5, 7)
+  if (month === '01') return 0
+  if (month === '04') return 1
+  if (month === '07') return 2
+  return 3
 }
 
 export default function Form20ExportDialog({
@@ -28,15 +38,34 @@ export default function Form20ExportDialog({
   contributions,
   expenditures,
   committeeName,
+  initialPeriod,
+  onFiled,
 }: Props) {
   const currentYear = new Date().getFullYear()
-  const [year, setYear] = useState(String(currentYear))
-  const [periodIdx, setPeriodIdx] = useState(3) // Default Q4
+  const [year, setYear] = useState(
+    initialPeriod ? initialPeriod.start.slice(0, 4) : String(currentYear)
+  )
+  const [periodIdx, setPeriodIdx] = useState(
+    initialPeriod ? periodIdxFromStart(initialPeriod.start) : 3
+  )
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
   const [useCustom, setUseCustom] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [markingFiled, setMarkingFiled] = useState(false)
+  const [downloaded, setDownloaded] = useState(false)
   const [error, setError] = useState('')
+
+  // Re-sync period selectors when initialPeriod changes (different row clicked)
+  useEffect(() => {
+    if (initialPeriod) {
+      setYear(initialPeriod.start.slice(0, 4))
+      setPeriodIdx(periodIdxFromStart(initialPeriod.start))
+      setUseCustom(false)
+    }
+    setDownloaded(false)
+    setError('')
+  }, [initialPeriod])
 
   const periodStart = useCustom
     ? customStart
@@ -77,19 +106,32 @@ export default function Form20ExportDialog({
       const output = populateForm20(buffer, contributions, expenditures, periodStart, periodEnd)
 
       // Trigger download
-      const blob = new Blob([output.buffer as ArrayBuffer], { type: 'application/vnd.ms-excel' })
+      const blob = new Blob([new Uint8Array(output).buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       const safeCommittee = committeeName.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30)
       a.href = url
-      a.download = `Form20_${safeCommittee}_${periodStart}_${periodEnd}.xls`
+      a.download = `Form20_${safeCommittee}_${periodStart}_${periodEnd}.xlsx`
       a.click()
       URL.revokeObjectURL(url)
-      onClose()
+      setDownloaded(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate file')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  async function handleMarkFiled() {
+    if (!onFiled) return
+    setMarkingFiled(true)
+    try {
+      await onFiled(periodStart, periodEnd)
+      onClose()
+    } finally {
+      setMarkingFiled(false)
     }
   }
 
@@ -257,25 +299,58 @@ export default function Form20ExportDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-white transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleGenerate}
-            disabled={generating || !hasData}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors"
-          >
-            {generating ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
-            ) : (
-              <><FileDown className="w-4 h-4" /> Download .xls</>
-            )}
-          </button>
-        </div>
+        {downloaded ? (
+          <div className="px-6 py-4 border-t border-slate-200 bg-emerald-50 rounded-b-2xl space-y-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <p className="text-sm font-medium text-emerald-800">File downloaded successfully</p>
+            </div>
+            <p className="text-xs text-emerald-700">
+              Upload it to eCRIS at seec.ct.gov → Upload Report, then mark this period as filed.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2.5 rounded-lg border border-emerald-200 text-sm text-emerald-700 hover:bg-emerald-100 transition-colors"
+              >
+                Close
+              </button>
+              {onFiled && (
+                <button
+                  onClick={handleMarkFiled}
+                  disabled={markingFiled}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                >
+                  {markingFiled ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+                  ) : (
+                    <><CheckCircle2 className="w-4 h-4" /> Mark as filed</>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleGenerate}
+              disabled={generating || !hasData}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors"
+            >
+              {generating ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
+              ) : (
+                <><FileDown className="w-4 h-4" /> Download .xlsx</>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

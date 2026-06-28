@@ -49,6 +49,7 @@ interface Props {
 export default function DonationsTable({ contributions: initial, committeeId, committeeSlug }: Props) {
   const [contributions, setContributions] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
+  const [editing, setEditing] = useState<Contribution | null>(null)
   const [showImport, setShowImport] = useState(false)
   const [search, setSearch] = useState('')
   const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'ALL'>('ALL')
@@ -77,8 +78,17 @@ export default function DonationsTable({ contributions: initial, committeeId, co
   const filteredTotal = filtered.reduce((s, c) => s + c.amount, 0)
 
   function handleAdd(contribution: Contribution) {
-    setContributions((prev) => [contribution, ...prev])
+    setContributions((prev) => {
+      const idx = prev.findIndex((c) => c.id === contribution.id)
+      if (idx !== -1) {
+        const updated = [...prev]
+        updated[idx] = contribution
+        return updated
+      }
+      return [contribution, ...prev]
+    })
     setShowAdd(false)
+    setEditing(null)
   }
 
   function handleImport(imported: Contribution[]) {
@@ -291,7 +301,7 @@ export default function DonationsTable({ contributions: initial, committeeId, co
                         <div className="absolute right-2 top-full mt-1 z-20 w-44 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
                           <button
                             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                            onClick={() => { /* TODO: open edit dialog */ setOpenMenu(null) }}
+                            onClick={() => { setEditing(contribution); setOpenMenu(null) }}
                           >
                             <Pencil className="w-3.5 h-3.5" />
                             Edit
@@ -365,6 +375,14 @@ export default function DonationsTable({ contributions: initial, committeeId, co
         onAdd={handleAdd}
         committeeId={committeeId}
         committeeSlug={committeeSlug}
+      />
+      <AddDonationDialog
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        onAdd={handleAdd}
+        committeeId={committeeId}
+        committeeSlug={committeeSlug}
+        contribution={editing ?? undefined}
       />
       <AnedotImportDialog
         open={showImport}

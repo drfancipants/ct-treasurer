@@ -81,8 +81,13 @@ export default function Sidebar({ committees, activeCommittee }: Props) {
       {/* Footer */}
       <div className="px-2 py-3 border-t border-white/10 space-y-1">
         <Link
-          href="#"
-          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-slate-400 hover:text-white hover:bg-white/8 transition-colors"
+          href={`/app/${activeCommittee.slug}/settings`}
+          className={cn(
+            'flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-colors',
+            pathname.startsWith(`/app/${activeCommittee.slug}/settings`)
+              ? 'bg-blue-600 text-white font-medium'
+              : 'text-slate-400 hover:text-white hover:bg-white/8'
+          )}
         >
           <Settings className="w-4 h-4 shrink-0" />
           <span>Settings</span>

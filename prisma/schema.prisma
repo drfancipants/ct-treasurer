@@ -220,6 +220,7 @@ model SeecFiling {
 
   committee Committee @relation(fields: [committeeId], references: [id])
 
+  @@unique([committeeId, formType, periodStart, periodEnd])
   @@index([committeeId])
 }
 

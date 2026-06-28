@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import type { Expenditure, ExpenseCategory, PaymentMethod } from '@/lib/types'
-import { createExpenditure } from '@/actions/expenses'
+import { createExpenditure, updateExpenditure } from '@/actions/expenses'
 import { EXPENSE_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/types'
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
   onAdd: (expenditure: Expenditure) => void
   committeeId: string
   committeeSlug: string
+  expenditure?: Expenditure // pre-fills the form for edit mode
 }
 
 interface FormData {
@@ -36,8 +37,22 @@ const EMPTY: FormData = {
   memo: '',
 }
 
-export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, committeeSlug }: Props) {
-  const [form, setForm] = useState<FormData>(EMPTY)
+export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, committeeSlug, expenditure }: Props) {
+  const isEdit = !!expenditure
+  const [form, setForm] = useState<FormData>(
+    expenditure
+      ? {
+          amount: expenditure.amount.toFixed(2),
+          date: expenditure.date,
+          payee: expenditure.payee,
+          purpose: expenditure.purpose,
+          category: expenditure.category,
+          method: expenditure.method,
+          checkNumber: expenditure.checkNumber ?? '',
+          memo: expenditure.memo ?? '',
+        }
+      : EMPTY
+  )
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
   const [saving, setSaving] = useState(false)
 
@@ -65,21 +80,20 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
 
     setSaving(true)
     try {
-      const expenditure = await createExpenditure(
-        committeeId,
-        {
-          amount: parseFloat(form.amount),
-          date: form.date,
-          payee: form.payee.trim(),
-          purpose: form.purpose.trim(),
-          category: form.category,
-          method: form.method,
-          checkNumber: form.checkNumber.trim() || undefined,
-          memo: form.memo.trim() || undefined,
-        },
-        committeeSlug
-      )
-      onAdd(expenditure)
+      const payload = {
+        amount: parseFloat(form.amount),
+        date: form.date,
+        payee: form.payee.trim(),
+        purpose: form.purpose.trim(),
+        category: form.category,
+        method: form.method,
+        checkNumber: form.checkNumber.trim() || undefined,
+        memo: form.memo.trim() || undefined,
+      }
+      const saved = isEdit && expenditure
+        ? await updateExpenditure(expenditure.id, payload, committeeSlug)
+        : await createExpenditure(committeeId, payload, committeeSlug)
+      onAdd(saved)
       setForm(EMPTY)
       setErrors({})
     } catch {
@@ -101,7 +115,9 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">Record an expense</h2>
+            <h2 className="text-base font-semibold text-slate-900">
+              {isEdit ? 'Edit expense' : 'Record an expense'}
+            </h2>
             <p className="text-xs text-slate-500 mt-0.5">
               All expenditures must be reported on SEEC Form 20
             </p>
@@ -236,7 +252,7 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
               disabled={saving}
               className="flex-1 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              {saving ? 'Saving…' : 'Save expense'}
+              {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Save expense'}
             </button>
           </div>
         </form>

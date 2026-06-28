@@ -75,6 +75,38 @@ export async function createExpenditure(
   return mapExpenditure(expenditure)
 }
 
+export async function updateExpenditure(
+  id: string,
+  data: {
+    amount: number
+    date: string
+    payee: string
+    purpose: string
+    category: ExpenseCategory
+    method: PaymentMethod
+    checkNumber?: string
+    memo?: string
+  },
+  committeeSlug: string
+): Promise<Expenditure> {
+  const expenditure = await prisma.expenditure.update({
+    where: { id },
+    data: {
+      amount: data.amount,
+      date: new Date(data.date),
+      payee: data.payee,
+      purpose: data.purpose,
+      category: data.category,
+      method: data.method,
+      checkNumber: data.checkNumber ?? null,
+      memo: data.memo ?? null,
+    },
+  })
+  revalidatePath(`/app/${committeeSlug}/expenses`)
+  revalidatePath(`/app/${committeeSlug}/dashboard`)
+  return mapExpenditure(expenditure)
+}
+
 export async function deleteExpenditure(id: string, committeeSlug: string) {
   await prisma.expenditure.delete({ where: { id } })
   revalidatePath(`/app/${committeeSlug}/expenses`)

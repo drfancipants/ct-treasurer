@@ -31,8 +31,14 @@ export interface Committee {
   name: string
   slug: string
   seecId?: string
+  anedotAccountId?: string
+  address1?: string
+  address2?: string
   city?: string
   state?: string
+  zip?: string
+  phone?: string
+  email?: string
   electionYear?: number
 }
 

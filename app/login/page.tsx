@@ -192,6 +192,13 @@ function Shell({ children }: { children: React.ReactNode }) {
           </p>
           {children}
         </div>
+
+        <p className="mt-5 text-center text-sm text-slate-400">
+          Don&apos;t have an account?{' '}
+          <a href="/signup" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
+            Sign up free
+          </a>
+        </p>
       </div>
     </div>
   )

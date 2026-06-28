@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { X, AlertCircle } from 'lucide-react'
 import type { Contribution, PaymentMethod } from '@/lib/types'
-import { createContribution } from '@/actions/donations'
+import { createContribution, updateContribution } from '@/actions/donations'
 import { PAYMENT_METHOD_LABELS } from '@/lib/types'
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
   onAdd: (contribution: Contribution) => void
   committeeId: string
   committeeSlug: string
+  contribution?: Contribution // pre-fills the form for edit mode
 }
 
 interface FormData {
@@ -54,8 +55,30 @@ const EMPTY: FormData = {
   occupation: '',
 }
 
-export default function AddDonationDialog({ open, onClose, onAdd, committeeId, committeeSlug }: Props) {
-  const [form, setForm] = useState<FormData>(EMPTY)
+export default function AddDonationDialog({ open, onClose, onAdd, committeeId, committeeSlug, contribution }: Props) {
+  const isEdit = !!contribution
+  const [form, setForm] = useState<FormData>(
+    contribution
+      ? {
+          amount: contribution.amount.toFixed(2),
+          date: contribution.date,
+          method: contribution.method,
+          checkNumber: contribution.checkNumber ?? '',
+          isItemized: contribution.isItemized,
+          memo: contribution.memo ?? '',
+          firstName: contribution.contributor.firstName,
+          lastName: contribution.contributor.lastName,
+          email: contribution.contributor.email ?? '',
+          address1: contribution.contributor.address1,
+          address2: contribution.contributor.address2 ?? '',
+          city: contribution.contributor.city,
+          state: contribution.contributor.state,
+          zip: contribution.contributor.zip,
+          employer: contribution.contributor.employer ?? '',
+          occupation: contribution.contributor.occupation ?? '',
+        }
+      : EMPTY
+  )
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
   const [saving, setSaving] = useState(false)
 
@@ -94,32 +117,32 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
 
     setSaving(true)
     try {
-      const contribution = await createContribution(
-        committeeId,
-        {
-          contributor: {
-            firstName: form.firstName.trim(),
-            lastName: form.lastName.trim(),
-            email: form.email.trim() || undefined,
-            address1: form.address1.trim(),
-            address2: form.address2.trim() || undefined,
-            city: form.city.trim(),
-            state: form.state,
-            zip: form.zip.trim(),
-            employer: form.employer.trim() || undefined,
-            occupation: form.occupation.trim() || undefined,
-          },
-          amount: parseFloat(form.amount),
-          date: form.date,
-          method: form.method,
-          checkNumber: form.checkNumber.trim() || undefined,
-          memo: form.memo.trim() || undefined,
-          isItemized: form.isItemized,
+      const payload = {
+        contributor: {
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim(),
+          email: form.email.trim() || undefined,
+          address1: form.address1.trim(),
+          address2: form.address2.trim() || undefined,
+          city: form.city.trim(),
+          state: form.state,
+          zip: form.zip.trim(),
+          employer: form.employer.trim() || undefined,
+          occupation: form.occupation.trim() || undefined,
         },
-        committeeSlug
-      )
+        amount: parseFloat(form.amount),
+        date: form.date,
+        method: form.method,
+        checkNumber: form.checkNumber.trim() || undefined,
+        memo: form.memo.trim() || undefined,
+        isItemized: form.isItemized,
+      }
 
-      onAdd(contribution)
+      const saved = isEdit && contribution
+        ? await updateContribution(contribution.id, contribution.contributor.id, payload, committeeSlug)
+        : await createContribution(committeeId, payload, committeeSlug)
+
+      onAdd(saved)
       setForm(EMPTY)
       setErrors({})
     } catch {
@@ -148,7 +171,9 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">Record a donation</h2>
+            <h2 className="text-base font-semibold text-slate-900">
+              {isEdit ? 'Edit donation' : 'Record a donation'}
+            </h2>
             <p className="text-xs text-slate-500 mt-0.5">
               All information is required for SEEC-compliant itemized contributions
             </p>
@@ -390,7 +415,7 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
               disabled={saving}
               className="flex-1 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              {saving ? 'Saving…' : 'Save donation'}
+              {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Save donation'}
             </button>
           </div>
         </form>

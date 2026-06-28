@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowRight, Building2 } from 'lucide-react'
+import { ArrowRight, Building2, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/db'
 
@@ -27,8 +27,18 @@ export default async function AppPage() {
             <Building2 className="w-6 h-6 text-slate-400" />
           </div>
           <h1 className="text-lg font-semibold text-slate-900 mb-2">No committees yet</h1>
-          <p className="text-sm text-slate-500">
-            You haven&apos;t been added to any committees. Contact your treasurer to receive an invitation.
+          <p className="text-sm text-slate-500 mb-6">
+            You haven&apos;t been added to any committees yet.
+          </p>
+          <Link
+            href="/app/create-committee"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Create a committee
+          </Link>
+          <p className="text-xs text-slate-400 mt-4">
+            Or ask your treasurer to send you an invitation.
           </p>
         </div>
       </div>
@@ -57,12 +67,19 @@ export default async function AppPage() {
               <div>
                 <p className="font-medium text-slate-900 text-sm">{c.name}</p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {c.city} · {c.seecId} · {c.electionYear}
+                  {[c.city, c.seecId, c.electionYear].filter(Boolean).join(' · ')}
                 </p>
               </div>
               <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />
             </Link>
           ))}
+          <Link
+            href="/app/create-committee"
+            className="flex items-center justify-center gap-2 p-4 bg-white border border-dashed border-slate-300 rounded-xl hover:border-blue-400 hover:bg-blue-50 text-sm text-slate-500 hover:text-blue-600 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Create another committee
+          </Link>
         </div>
       </div>
     </div>

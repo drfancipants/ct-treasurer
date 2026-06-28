@@ -7,6 +7,7 @@ import type { Committee } from '@/lib/types'
 import type { SeecFilingRecord } from '@/actions/filings'
 import Form20ExportDialog from '@/components/filings/Form20ExportDialog'
 import { formatCurrency } from '@/lib/utils'
+import { markFiled } from '@/actions/filings'
 
 // ─── Period generation ────────────────────────────────────────────────────────
 
@@ -71,10 +72,24 @@ interface Props {
   filings: SeecFilingRecord[]
 }
 
-export default function FilingsList({ contributions, expenditures, committee, filings }: Props) {
-  const [showExport, setShowExport] = useState(false)
+export default function FilingsList({ contributions, expenditures, committee, filings: initialFilings }: Props) {
+  const [exportPeriod, setExportPeriod] = useState<{ start: string; end: string } | null>(null)
+  const [filings, setFilings] = useState(initialFilings)
 
   const periods = generatePeriods(committee.electionYear)
+
+  async function handleFiled(start: string, end: string) {
+    const record = await markFiled(committee.id, start, end, committee.slug)
+    setFilings((prev) => {
+      const idx = prev.findIndex((f) => f.periodStart === start && f.periodEnd === end)
+      if (idx !== -1) {
+        const updated = [...prev]
+        updated[idx] = record
+        return updated
+      }
+      return [...prev, record]
+    })
+  }
 
   return (
     <>
@@ -103,7 +118,7 @@ export default function FilingsList({ contributions, expenditures, committee, fi
         <ol className="space-y-1">
           {[
             'Click "Generate Form 20" for the filing period below',
-            "Download the .xls file — it's pre-filled with your contributions and expenses",
+            "Download the .xlsx file — it's pre-filled with your contributions and expenses",
             'Log in to eCRIS at seec.ct.gov and select your filing period',
             'Click "Upload Report" and select the downloaded file',
           ].map((step, i) => (
@@ -180,7 +195,7 @@ export default function FilingsList({ contributions, expenditures, committee, fi
                     {cfg.label}
                   </span>
                   <button
-                    onClick={() => setShowExport(true)}
+                    onClick={() => setExportPeriod({ start: period.start, end: period.end })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />
@@ -222,11 +237,13 @@ export default function FilingsList({ contributions, expenditures, committee, fi
       </div>
 
       <Form20ExportDialog
-        open={showExport}
-        onClose={() => setShowExport(false)}
+        open={!!exportPeriod}
+        onClose={() => setExportPeriod(null)}
         contributions={contributions}
         expenditures={expenditures}
         committeeName={committee.name}
+        initialPeriod={exportPeriod ?? undefined}
+        onFiled={handleFiled}
       />
     </>
   )
