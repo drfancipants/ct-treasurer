@@ -5,6 +5,7 @@ import { CheckCircle2, AlertCircle, MinusCircle, Search } from 'lucide-react'
 import type { BankTransaction, Contribution, Expenditure, TransactionMatchType } from '@/lib/types'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import ReconcileDialog from './ReconcileDialog'
+import { reconcileTransaction } from '@/actions/bank'
 
 type Tab = 'ALL' | 'UNMATCHED' | 'MATCHED' | 'IGNORED'
 
@@ -38,9 +39,10 @@ interface Props {
   transactions: BankTransaction[]
   contributions: Contribution[]
   expenditures: Expenditure[]
+  committeeSlug: string
 }
 
-export default function TransactionsTable({ transactions: initial, contributions, expenditures }: Props) {
+export default function TransactionsTable({ transactions: initial, contributions, expenditures, committeeSlug }: Props) {
   const [transactions, setTransactions] = useState(initial)
   const [tab, setTab] = useState<Tab>('ALL')
   const [search, setSearch] = useState('')
@@ -87,12 +89,12 @@ export default function TransactionsTable({ transactions: initial, contributions
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   }, [transactions, tab, search])
 
-  function handleReconcile(
+  async function handleReconcile(
     transactionId: string,
     matchType: 'CONTRIBUTION' | 'EXPENDITURE' | 'IGNORED',
     matchedId?: string
   ) {
-    // TODO: persist via server action
+    // Optimistic update
     setTransactions((prev) =>
       prev.map((t) =>
         t.id === transactionId
@@ -108,6 +110,7 @@ export default function TransactionsTable({ transactions: initial, contributions
           : t
       )
     )
+    await reconcileTransaction(transactionId, matchType, matchedId, committeeSlug)
   }
 
   const unmatchedCount = transactions.filter((t) => t.matchType === 'UNMATCHED').length

@@ -8,8 +8,8 @@
  * Supabase SQL editor (replace the values with your own):
  *
  *   -- 1. Create your User record (use your Supabase auth user ID)
- *   INSERT INTO "User" (id, email, name)
- *   VALUES ('your-supabase-auth-user-id', 'you@email.com', 'Your Name')
+ *   INSERT INTO "User" (id, email, name, "createdAt", "updatedAt")
+ *   VALUES ('your-supabase-auth-user-id', 'you@email.com', 'Your Name', now(), now())
  *   ON CONFLICT (id) DO NOTHING;
  *
  *   -- 2. Add yourself to your committee

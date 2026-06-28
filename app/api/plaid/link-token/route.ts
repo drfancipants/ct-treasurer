@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { CountryCode, Products } from 'plaid'
 import { plaidClient } from '@/lib/plaid'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
-  const { committeeId } = await req.json()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { committeeId } = await req.json()
   if (!committeeId) {
     return NextResponse.json({ error: 'committeeId required' }, { status: 400 })
   }
@@ -18,15 +22,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const response = await plaidClient.linkTokenCreate({
-      user: {
-        // TODO: replace with real authenticated user ID
-        client_user_id: `committee_${committeeId}`,
-      },
+      user: { client_user_id: user.id },
       client_name: 'CT Committee Treasurer Suite',
       products: [Products.Transactions],
       country_codes: [CountryCode.Us],
       language: 'en',
-      // Webhook called when new transactions are available
       webhook: process.env.PLAID_WEBHOOK_URL,
     })
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/db'
 import { z } from 'zod'
 
@@ -12,12 +12,29 @@ const schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const parsed = schema.safeParse(await req.json().catch(() => ({})))
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
   }
 
   const { email, name, role, committeeId, committeeName } = parsed.data
+
+  const callerMembership = await prisma.committeeMembership.findFirst({
+    where: {
+      userId: user.id,
+      committeeId,
+      role: { in: ['TREASURER', 'ASSISTANT_TREASURER'] },
+    },
+  })
+  if (!callerMembership) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' }, { status: 503 })

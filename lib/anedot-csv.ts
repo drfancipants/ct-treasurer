@@ -114,7 +114,7 @@ function parseAmount(raw: string): number {
 function parseDate(raw: string): string {
   // Handle "2024-03-22T17:36:09Z", "2024-03-22 17:36:09 UTC", "03/22/2024"
   if (!raw) return ''
-  const clean = raw.trim().replace(' UTC', '').replace(' ', 'T')
+  const clean = raw.trim().replace(' UTC', 'Z').replace(' ', 'T')
   const d = new Date(clean)
   if (isNaN(d.getTime())) return ''
   return d.toISOString().slice(0, 10)

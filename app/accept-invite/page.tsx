@@ -62,12 +62,8 @@ export default function AcceptInvitePage() {
       })
       if (updateError) throw updateError
 
-      // 2. Create CommitteeMembership via server action
-      //    TODO: call a server action or API route to create the membership in Prisma
-      //    await createMembership({ committeeId: metadata.committeeId, role: metadata.role })
-      //
-      //    For now, the invite API already creates a pending record.
-      //    This is where you'd confirm/activate it.
+      // 2. CommitteeMembership is created by /api/invite at invite time.
+      //    Nothing more to write here.
 
       setDone(true)
 

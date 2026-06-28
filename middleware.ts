@@ -52,7 +52,8 @@ export async function middleware(request: NextRequest) {
 
   // Logged-in users don't need the login page
   if (user && pathname === '/login') {
-    const redirectTo = request.nextUrl.searchParams.get('redirectTo') ?? '/app'
+    const raw = request.nextUrl.searchParams.get('redirectTo') ?? ''
+    const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/app'
     return NextResponse.redirect(new URL(redirectTo, request.url))
   }
 

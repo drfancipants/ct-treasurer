@@ -38,8 +38,6 @@ export default function Form20ExportDialog({
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
 
-  if (!open) return null
-
   const periodStart = useCustom
     ? customStart
     : `${year}${FILING_PERIODS[periodIdx].start}`
@@ -61,6 +59,8 @@ export default function Form20ExportDialog({
     (preview.itemizedCount > 0 ||
       preview.nonItemizedCount > 0 ||
       preview.expenditureCount > 0)
+
+  if (!open) return null
 
   async function handleGenerate() {
     if (!preview || !hasData) return

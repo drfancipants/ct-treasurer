@@ -181,20 +181,26 @@ export async function importContributions(
         })
       }
 
-      await prisma.contribution.upsert({
-        where: { anedotId: row.anedotId ?? `noid_${Date.now()}_${Math.random()}` },
-        create: {
-          committeeId,
-          contributorId: contributor.id,
-          amount: row.amount,
-          date: new Date(row.date),
-          method: row.method,
-          source: 'ANEDOT',
-          anedotId: row.anedotId,
-          isItemized: row.amount >= 50,
-        },
-        update: {},
-      })
+      const contributionData = {
+        committeeId,
+        contributorId: contributor.id,
+        amount: row.amount,
+        date: new Date(row.date),
+        method: row.method,
+        source: 'ANEDOT' as const,
+        anedotId: row.anedotId,
+        isItemized: row.amount >= 50,
+      }
+
+      if (row.anedotId) {
+        await prisma.contribution.upsert({
+          where: { anedotId: row.anedotId },
+          create: contributionData,
+          update: {},
+        })
+      } else {
+        await prisma.contribution.create({ data: contributionData })
+      }
       imported++
     } catch {
       skipped++

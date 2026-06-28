@@ -14,8 +14,9 @@ model Committee {
   id           String   @id @default(cuid())
   name         String
   slug         String   @unique
-  seecId       String?  // SEEC registration ID (e.g. CT-DTC-20240142)
-  address1     String?
+  seecId          String?  // SEEC registration ID (e.g. CT-DTC-20240142)
+  anedotAccountId String?  @unique // Anedot account UID for webhook routing
+  address1        String?
   address2     String?
   city         String?
   state        String   @default("CT")
@@ -164,16 +165,19 @@ model Expenditure {
 // ─── Bank accounts & transactions ────────────────────────────────────────────
 
 model BankAccount {
-  id             String    @id @default(cuid())
-  committeeId    String
-  plaidAccountId String?   @unique
-  name           String
-  institution    String?
-  accountType    String?
-  lastFour       String?
-  currentBalance Decimal?  @db.Decimal(10, 2)
-  lastSyncedAt   DateTime?
-  createdAt      DateTime  @default(now())
+  id               String    @id @default(cuid())
+  committeeId      String
+  plaidAccountId   String?   @unique
+  plaidItemId      String?
+  plaidAccessToken String?
+  syncCursor       String?
+  name             String
+  institution      String?
+  accountType      String?
+  lastFour         String?
+  currentBalance   Decimal?  @db.Decimal(10, 2)
+  lastSyncedAt     DateTime?
+  createdAt        DateTime  @default(now())
 
   committee    Committee     @relation(fields: [committeeId], references: [id])
   transactions Transaction[]
@@ -186,7 +190,9 @@ model Transaction {
   amount                Decimal  @db.Decimal(10, 2)
   date                  DateTime @db.Date
   description           String
+  merchantName          String?
   category              String?
+  matchType             String   @default("UNMATCHED")
   matchedContributionId String?
   matchedExpenditureId  String?
   isReconciled          Boolean  @default(false)

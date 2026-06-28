@@ -127,7 +127,7 @@ export function getSeecStatus(contribution: Contribution): SeecStatusResult {
     return { status: 'incomplete', label: 'Incomplete', issues }
   }
 
-  if (contribution.isItemized && contribution.amount >= 50) {
+  if (contribution.amount >= 50) {
     if (!c.employer) issues.push('Missing employer (required for itemized)')
     if (!c.occupation) issues.push('Missing occupation (required for itemized)')
   }

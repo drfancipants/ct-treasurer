@@ -372,6 +372,7 @@ export default function DonationsTable({ contributions: initial, committeeId, co
         onImport={handleImport}
         existingContributions={contributions}
         committeeId={committeeId}
+        committeeSlug={committeeSlug}
       />
     </>
   )

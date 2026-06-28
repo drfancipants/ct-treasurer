@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { usePlaidLink } from 'react-plaid-link'
 import { Building2, Loader2 } from 'lucide-react'
 
@@ -60,10 +60,11 @@ export default function PlaidLinkButton({ committeeId, onSuccess }: Props) {
     },
   })
 
-  // Once we have a link token, open the Plaid Link UI
-  if (linkToken && ready) {
-    open()
-  }
+  useEffect(() => {
+    if (linkToken && ready) {
+      open()
+    }
+  }, [linkToken, ready, open])
 
   return (
     <div>

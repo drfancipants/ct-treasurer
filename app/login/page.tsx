@@ -11,7 +11,7 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const raw = searchParams.get('redirectTo') || ''
-  const redirectTo = raw && raw !== '/' ? raw : '/app/guilford-dtc/donations'
+  const redirectTo = raw.startsWith('/') && !raw.startsWith('//') && raw !== '/' ? raw : '/app'
 
   const [mode, setMode] = useState<Mode>('password')
   const [email, setEmail] = useState('')
