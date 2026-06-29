@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
-import { requireCommitteeMember } from '@/lib/auth'
+import { requireCommitteeMember, requireCommitteeMemberById } from '@/lib/auth'
 
 export interface SeecFilingRecord {
   id: string
@@ -53,6 +53,7 @@ export async function markFiled(
 }
 
 export async function getFilings(committeeId: string): Promise<SeecFilingRecord[]> {
+  await requireCommitteeMemberById(committeeId)
   const filings = await prisma.seecFiling.findMany({
     where: { committeeId, formType: 'FORM_20' },
     orderBy: { periodStart: 'desc' },

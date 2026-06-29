@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateMemberRole, removeMember } from '@/actions/members'
-import { UserPlus, Users, MoreHorizontal, Trash2, UserCog, Phone, Mail } from 'lucide-react'
+import { UserPlus, Users, MoreHorizontal, Trash2, UserCog, Phone, Mail, XCircle } from 'lucide-react'
 import type { CommitteeMember, MemberRole } from '@/lib/types'
 import { ROLE_LABELS, ROLE_ORDER } from '@/lib/types'
 import { formatDate, getInitials, cn } from '@/lib/utils'
@@ -39,6 +39,7 @@ export default function MembersTable({ members: initial, committeeId, committeeS
   const [members, setMembers] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [error, setError] = useState('')
 
   const sorted = [...members].sort(
     (a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]
@@ -50,19 +51,39 @@ export default function MembersTable({ members: initial, committeeId, committeeS
   }
 
   async function handleRemove(id: string) {
+    const snapshot = members
     setMembers((prev) => prev.filter((m) => m.id !== id))
     setOpenMenu(null)
-    await removeMember(id, committeeSlug)
+    try {
+      await removeMember(id, committeeSlug)
+    } catch (err) {
+      setMembers(snapshot)
+      setError(err instanceof Error ? err.message : 'Failed to remove member')
+    }
   }
 
   async function handleRoleChange(id: string, role: MemberRole) {
+    const snapshot = members
     setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, role } : m)))
     setOpenMenu(null)
-    await updateMemberRole(id, role, committeeSlug)
+    try {
+      await updateMemberRole(id, role, committeeSlug)
+    } catch (err) {
+      setMembers(snapshot)
+      setError(err instanceof Error ? err.message : 'Failed to update role')
+    }
   }
 
   return (
     <>
+      {error && (
+        <div className="flex items-center gap-3 px-4 py-3 mb-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+          <XCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button onClick={() => setError('')} className="text-red-400 hover:text-red-600">✕</button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

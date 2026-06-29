@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
-import { requireCommitteeMember } from '@/lib/auth'
+import { requireCommitteeMember, requireCommitteeMemberById } from '@/lib/auth'
 import type { Expenditure, PaymentMethod, ExpenseCategory } from '@/lib/types'
 
 type PrismaExpenditure = {
@@ -36,6 +36,7 @@ function mapExpenditure(e: PrismaExpenditure): Expenditure {
 }
 
 export async function getExpenditures(committeeId: string): Promise<Expenditure[]> {
+  await requireCommitteeMemberById(committeeId)
   const rows = await prisma.expenditure.findMany({
     where: { committeeId },
     orderBy: { date: 'desc' },

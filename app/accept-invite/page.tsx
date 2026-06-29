@@ -67,14 +67,7 @@ export default function AcceptInvitePage() {
 
       setDone(true)
 
-      // Redirect to their committee after a brief success moment
-      setTimeout(() => {
-        if (metadata.committeeId) {
-          router.push(`/app`)
-        } else {
-          router.push('/app')
-        }
-      }, 2000)
+      setTimeout(() => router.push('/app'), 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {

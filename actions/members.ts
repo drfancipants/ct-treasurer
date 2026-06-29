@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
+import { requireCommitteeMember, requireCommitteeMemberById } from '@/lib/auth'
 import type { CommitteeMember, MemberRole } from '@/lib/types'
 
 type MembershipWithUser = {
@@ -32,6 +33,7 @@ function mapMember(m: MembershipWithUser): CommitteeMember {
 }
 
 export async function getMembers(committeeId: string): Promise<CommitteeMember[]> {
+  await requireCommitteeMemberById(committeeId)
   const memberships = await prisma.committeeMembership.findMany({
     where: { committeeId },
     include: { user: true },
@@ -45,16 +47,23 @@ export async function updateMemberRole(
   role: MemberRole,
   committeeSlug: string
 ) {
-  await prisma.committeeMembership.update({
-    where: { id: membershipId },
-    data: { role },
-  })
+  const { committeeId, role: callerRole } = await requireCommitteeMember(committeeSlug)
+  if (callerRole !== 'TREASURER' && callerRole !== 'ASSISTANT_TREASURER') throw new Error('Forbidden')
+
+  const target = await prisma.committeeMembership.findFirst({ where: { id: membershipId, committeeId } })
+  if (!target) throw new Error('Forbidden')
+
+  await prisma.committeeMembership.update({ where: { id: membershipId }, data: { role } })
   revalidatePath(`/app/${committeeSlug}/members`)
 }
 
 export async function removeMember(membershipId: string, committeeSlug: string) {
-  await prisma.committeeMembership.delete({
-    where: { id: membershipId },
-  })
+  const { committeeId, role: callerRole } = await requireCommitteeMember(committeeSlug)
+  if (callerRole !== 'TREASURER' && callerRole !== 'ASSISTANT_TREASURER') throw new Error('Forbidden')
+
+  const target = await prisma.committeeMembership.findFirst({ where: { id: membershipId, committeeId } })
+  if (!target) throw new Error('Forbidden')
+
+  await prisma.committeeMembership.delete({ where: { id: membershipId } })
   revalidatePath(`/app/${committeeSlug}/members`)
 }

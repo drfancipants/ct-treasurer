@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
-import { requireCommitteeMember } from '@/lib/auth'
+import { requireCommitteeMember, requireCommitteeMemberById } from '@/lib/auth'
 import type { Contribution, PaymentMethod, ContributionSource } from '@/lib/types'
 import type { ParsedRow } from '@/lib/anedot-csv'
 
@@ -65,6 +65,7 @@ function mapContribution(c: ContributionWithContributor): Contribution {
 }
 
 export async function getContributions(committeeId: string): Promise<Contribution[]> {
+  await requireCommitteeMemberById(committeeId)
   const rows = await prisma.contribution.findMany({
     where: { committeeId },
     include: { contributor: true },
@@ -221,6 +222,9 @@ export async function importContributions(
   rows: ParsedRow[],
   committeeSlug: string
 ): Promise<{ imported: number; skipped: number }> {
+  const { committeeId: verifiedId } = await requireCommitteeMember(committeeSlug)
+  if (verifiedId !== committeeId) throw new Error('Forbidden')
+
   const validRows = rows.filter(r => !r.isError && !r.isDuplicate)
   let extraSkipped = rows.length - validRows.length
 

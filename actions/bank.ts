@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
-import { requireCommitteeMember } from '@/lib/auth'
+import { requireCommitteeMember, requireCommitteeMemberById } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/server'
 import type { BankAccount, BankTransaction, TransactionMatchType } from '@/lib/types'
 
 // ─── Mappers ──────────────────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ function mapTransaction(t: PrismaTransaction): BankTransaction {
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function getBankAccounts(committeeId: string): Promise<BankAccount[]> {
+  await requireCommitteeMemberById(committeeId)
   const accounts = await prisma.bankAccount.findMany({
     where: { committeeId },
     orderBy: { createdAt: 'asc' },
@@ -67,8 +69,15 @@ export async function getBankAccounts(committeeId: string): Promise<BankAccount[
 
 export async function getTransactions(bankAccountIds: string[]): Promise<BankTransaction[]> {
   if (bankAccountIds.length === 0) return []
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+  // Scope to accounts the caller actually has access to
   const txns = await prisma.transaction.findMany({
-    where: { bankAccountId: { in: bankAccountIds } },
+    where: {
+      bankAccountId: { in: bankAccountIds },
+      bankAccount: { committee: { memberships: { some: { userId: user.id } } } },
+    },
     orderBy: { date: 'desc' },
   })
   return txns.map(mapTransaction)
