@@ -12,7 +12,7 @@ import {
   Copy,
 } from 'lucide-react'
 import type { Contribution } from '@/lib/types'
-import { parseAnedotCsv, parsedRowToContribution, type ParseResult, type ParsedRow } from '@/lib/anedot-csv'
+import { parseAnedotCsv, type ParseResult, type ParsedRow } from '@/lib/anedot-csv'
 import { importContributions } from '@/actions/donations'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 
@@ -92,18 +92,14 @@ export default function AnedotImportDialog({
     setImporting(true)
 
     try {
-      await importContributions(committeeId, parseResult.rows, committeeSlug)
+      const { contributions } = await importContributions(committeeId, parseResult.rows, committeeSlug)
+      setImportedCount(contributions.length)
+      onImport(contributions)
     } catch {
-      // If the server action fails, fall through — onImport updates local state
-      // so the user sees their data even if persistence failed
+      setImporting(false)
+      return
     }
 
-    const toImport = parseResult.rows
-      .filter((r) => !r.isError && !r.isDuplicate)
-      .map((r) => parsedRowToContribution(r, committeeId))
-
-    setImportedCount(toImport.length)
-    onImport(toImport)
     setStep('done')
     setImporting(false)
   }

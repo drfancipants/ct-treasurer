@@ -221,7 +221,7 @@ export async function importContributions(
   committeeId: string,
   rows: ParsedRow[],
   committeeSlug: string
-): Promise<{ imported: number; skipped: number }> {
+): Promise<{ imported: number; skipped: number; contributions: Contribution[] }> {
   const { committeeId: verifiedId } = await requireCommitteeMember(committeeSlug)
   if (verifiedId !== committeeId) throw new Error('Forbidden')
 
@@ -229,7 +229,7 @@ export async function importContributions(
   let extraSkipped = rows.length - validRows.length
 
   if (validRows.length === 0) {
-    return { imported: 0, skipped: extraSkipped }
+    return { imported: 0, skipped: extraSkipped, contributions: [] }
   }
 
   // 1. Batch-load existing contributors by email (one query instead of N)
@@ -302,13 +302,22 @@ export async function importContributions(
     })
   }
 
+  const importStartedAt = new Date()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await prisma.contribution.createMany({ data: contributionData as any[], skipDuplicates: true })
+
+  // Fetch the created records with real DB IDs so the client state stays consistent
+  const created = await prisma.contribution.findMany({
+    where: { committeeId, createdAt: { gte: importStartedAt } },
+    include: { contributor: true },
+    orderBy: { date: 'desc' },
+  })
 
   revalidatePath(`/app/${committeeSlug}/donations`)
   revalidatePath(`/app/${committeeSlug}/dashboard`)
   return {
     imported: result.count,
     skipped: extraSkipped + (contributionData.length - result.count),
+    contributions: created.map(mapContribution),
   }
 }
