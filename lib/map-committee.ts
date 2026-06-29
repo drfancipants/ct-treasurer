@@ -1,3 +1,4 @@
+import type { SubscriptionStatus } from '@prisma/client'
 import type { Committee } from '@/lib/types'
 
 type CommitteeRow = {
@@ -6,7 +7,7 @@ type CommitteeRow = {
   city: string | null; state: string; zip: string | null; phone: string | null
   email: string | null; electionYear: number | null
   stripeCustomerId: string | null; stripeSubscriptionId: string | null
-  subscriptionStatus: string | null; trialEndsAt: Date | null
+  subscriptionStatus: SubscriptionStatus | null; trialEndsAt: Date | null
 }
 
 export function mapCommittee(c: CommitteeRow): Committee {
@@ -24,7 +25,7 @@ export function mapCommittee(c: CommitteeRow): Committee {
     electionYear: c.electionYear ?? undefined,
     stripeCustomerId: c.stripeCustomerId ?? undefined,
     stripeSubscriptionId: c.stripeSubscriptionId ?? undefined,
-    subscriptionStatus: (c.subscriptionStatus ?? undefined) as Committee['subscriptionStatus'],
+    subscriptionStatus: c.subscriptionStatus ?? undefined,
     trialEndsAt: c.trialEndsAt?.toISOString() ?? undefined,
   }
 }

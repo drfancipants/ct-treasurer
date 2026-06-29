@@ -8,6 +8,15 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  canceled
+}
+
 // ─── Committees (tenants) ────────────────────────────────────────────────────
 
 model Committee {
@@ -26,7 +35,7 @@ model Committee {
   electionYear         Int?
   stripeCustomerId     String?
   stripeSubscriptionId String?
-  subscriptionStatus   String?  // trialing | active | past_due | canceled
+  subscriptionStatus   SubscriptionStatus?
   trialEndsAt          DateTime?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
