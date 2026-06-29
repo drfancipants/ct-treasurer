@@ -13,7 +13,7 @@ import {
 import { createClient } from '@/lib/supabase/server'
 
 // ─── Price — update this one value to change all pricing mentions ─────────────
-const MONTHLY_PRICE = 29
+const MONTHLY_PRICE = 9.99
 
 export default async function LandingPage() {
   // Redirect logged-in users straight to the app

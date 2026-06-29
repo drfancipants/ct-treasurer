@@ -67,7 +67,7 @@ export default function BillingCard({ committee }: { committee: Committee }) {
         </div>
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Billing</h3>
-          <p className="text-xs text-slate-500">$29/month per committee</p>
+          <p className="text-xs text-slate-500">$9.99/month per committee</p>
         </div>
       </div>
 
