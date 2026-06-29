@@ -26,6 +26,8 @@ export const ROLE_ORDER: Record<MemberRole, number> = {
   VIEWER: 5,
 }
 
+export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled'
+
 export interface Committee {
   id: string
   name: string
@@ -40,6 +42,10 @@ export interface Committee {
   phone?: string
   email?: string
   electionYear?: number
+  stripeCustomerId?: string
+  stripeSubscriptionId?: string
+  subscriptionStatus?: SubscriptionStatus
+  trialEndsAt?: string
 }
 
 export interface CommitteeMember {

@@ -43,7 +43,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/privacy') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/accept-invite') ||
-    pathname.startsWith('/api/webhooks') ||
+    pathname.startsWith('/api/webhooks') ||  // Anedot + Stripe webhooks
     pathname.startsWith('/_next') ||
     pathname.startsWith('/templates')
 

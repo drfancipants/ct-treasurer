@@ -23,9 +23,13 @@ model Committee {
   zip          String?
   phone        String?
   email        String?
-  electionYear Int?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  electionYear         Int?
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  subscriptionStatus   String?  // trialing | active | past_due | canceled
+  trialEndsAt          DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   memberships   CommitteeMembership[]
   contributions Contribution[]

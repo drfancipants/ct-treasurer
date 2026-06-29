@@ -1,33 +1,13 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/db'
+import { mapCommittee } from '@/lib/map-committee'
 import Sidebar from '@/components/layout/Sidebar'
-import type { Committee } from '@/lib/types'
+import SubscriptionBanner from '@/components/layout/SubscriptionBanner'
 
 interface Props {
   children: React.ReactNode
   params: Promise<{ committeeSlug: string }>
-}
-
-function mapCommittee(c: {
-  id: string; name: string; slug: string; seecId: string | null
-  anedotAccountId: string | null; address1: string | null; address2: string | null
-  city: string | null; state: string; zip: string | null; phone: string | null
-  email: string | null; electionYear: number | null
-}): Committee {
-  return {
-    id: c.id, name: c.name, slug: c.slug,
-    seecId: c.seecId ?? undefined,
-    anedotAccountId: c.anedotAccountId ?? undefined,
-    address1: c.address1 ?? undefined,
-    address2: c.address2 ?? undefined,
-    city: c.city ?? undefined,
-    state: c.state,
-    zip: c.zip ?? undefined,
-    phone: c.phone ?? undefined,
-    email: c.email ?? undefined,
-    electionYear: c.electionYear ?? undefined,
-  }
 }
 
 export default async function CommitteeLayout({ children, params }: Props) {
@@ -49,7 +29,10 @@ export default async function CommitteeLayout({ children, params }: Props) {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <Sidebar committees={committees} activeCommittee={activeCommittee} />
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <SubscriptionBanner committee={activeCommittee} />
+        <main className="flex-1 overflow-y-auto">{children}</main>
+      </div>
     </div>
   )
 }

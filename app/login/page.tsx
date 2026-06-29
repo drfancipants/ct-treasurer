@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Scale, Mail, Lock, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -8,6 +8,14 @@ import { createClient } from '@/lib/supabase/client'
 type Mode = 'password' | 'magic-link'
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<Shell><div className="h-48" /></Shell>}>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const raw = searchParams.get('redirectTo') || ''

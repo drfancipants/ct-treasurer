@@ -72,20 +72,27 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Refresh balance + advance cursor
-    const accountsRes = await plaidClient.accountsGet({ access_token: bankAccount.plaidAccessToken })
-    const plaidAccount = accountsRes.data.accounts.find(
-      (a) => a.account_id === bankAccount.plaidAccountId
-    )
-
+    // Always advance the cursor — must happen even if balance refresh fails
     await prisma.bankAccount.update({
       where: { id: bankAccountId },
-      data: {
-        lastSyncedAt: new Date(),
-        syncCursor: next_cursor,
-        currentBalance: plaidAccount?.balances.current ?? undefined,
-      },
+      data: { lastSyncedAt: new Date(), syncCursor: next_cursor },
     })
+
+    // Balance refresh is best-effort; a failure here must not roll back the cursor
+    try {
+      const accountsRes = await plaidClient.accountsGet({ access_token: bankAccount.plaidAccessToken })
+      const plaidAccount = accountsRes.data.accounts.find(
+        (a) => a.account_id === bankAccount.plaidAccountId
+      )
+      if (plaidAccount?.balances.current != null) {
+        await prisma.bankAccount.update({
+          where: { id: bankAccountId },
+          data: { currentBalance: plaidAccount.balances.current },
+        })
+      }
+    } catch (balanceErr) {
+      console.warn('[plaid/sync] balance refresh failed (cursor already advanced):', balanceErr)
+    }
 
     return NextResponse.json({ added: added.length, modified: modified.length, removed: removed.length })
   } catch (err) {

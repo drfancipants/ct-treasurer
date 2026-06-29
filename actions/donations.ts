@@ -221,62 +221,90 @@ export async function importContributions(
   rows: ParsedRow[],
   committeeSlug: string
 ): Promise<{ imported: number; skipped: number }> {
-  let imported = 0
-  let skipped = 0
+  const validRows = rows.filter(r => !r.isError && !r.isDuplicate)
+  let extraSkipped = rows.length - validRows.length
 
-  for (const row of rows) {
-    if (row.isError || row.isDuplicate) { skipped++; continue }
-
-    try {
-      // Find or create contributor
-      let contributor = row.email
-        ? await prisma.contributor.findFirst({ where: { email: row.email } })
-        : null
-
-      if (!contributor) {
-        contributor = await prisma.contributor.create({
-          data: {
-            firstName: row.firstName,
-            lastName: row.lastName,
-            email: row.email,
-            address1: row.address1,
-            address2: row.address2,
-            city: row.city,
-            state: row.state || 'CT',
-            zip: row.zip,
-            employer: row.employer,
-            occupation: row.occupation,
-          },
-        })
-      }
-
-      const contributionData = {
-        committeeId,
-        contributorId: contributor.id,
-        amount: row.amount,
-        date: new Date(row.date),
-        method: row.method,
-        source: 'ANEDOT' as const,
-        anedotId: row.anedotId,
-        isItemized: row.amount >= 50,
-      }
-
-      if (row.anedotId) {
-        await prisma.contribution.upsert({
-          where: { anedotId: row.anedotId },
-          create: contributionData,
-          update: {},
-        })
-      } else {
-        await prisma.contribution.create({ data: contributionData })
-      }
-      imported++
-    } catch {
-      skipped++
-    }
+  if (validRows.length === 0) {
+    return { imported: 0, skipped: extraSkipped }
   }
+
+  // 1. Batch-load existing contributors by email (one query instead of N)
+  const emails = [...new Set(validRows.map(r => r.email).filter(Boolean))] as string[]
+  const existingContributors = await prisma.contributor.findMany({
+    where: { email: { in: emails } },
+    select: { id: true, email: true },
+  })
+  const emailToId = new Map(existingContributors.map(c => [c.email!, c.id]))
+
+  // 2. Create missing contributors (only new donors, not the full list)
+  const missingEmails = emails.filter(e => !emailToId.has(e))
+  const emailToRow = new Map(validRows.filter(r => r.email).map(r => [r.email!, r]))
+  for (const email of missingEmails) {
+    const r = emailToRow.get(email)!
+    try {
+      const c = await prisma.contributor.create({
+        data: {
+          firstName: r.firstName, lastName: r.lastName, email: r.email,
+          address1: r.address1, address2: r.address2,
+          city: r.city, state: r.state || 'CT', zip: r.zip,
+          employer: r.employer, occupation: r.occupation,
+        },
+        select: { id: true },
+      })
+      emailToId.set(email, c.id)
+    } catch { extraSkipped++ }
+  }
+
+  // 3. Rows without email — create contributors individually (no dedup key)
+  const noEmailRows = validRows.filter(r => !r.email)
+  const noEmailIds: string[] = []
+  for (const r of noEmailRows) {
+    try {
+      const c = await prisma.contributor.create({
+        data: {
+          firstName: r.firstName, lastName: r.lastName,
+          address1: r.address1, address2: r.address2,
+          city: r.city, state: r.state || 'CT', zip: r.zip,
+          employer: r.employer, occupation: r.occupation,
+        },
+        select: { id: true },
+      })
+      noEmailIds.push(c.id)
+    } catch { noEmailIds.push(''); extraSkipped++ }
+  }
+
+  // 4. Build contribution records and batch-insert (skipDuplicates handles anedotId conflicts)
+  type ContributionInput = { committeeId: string; contributorId: string; amount: number; date: Date; method: PaymentMethod; source: 'ANEDOT'; anedotId: string | null; isItemized: boolean }
+  const contributionData: ContributionInput[] = []
+  for (const r of validRows.filter(r => r.email)) {
+    const contributorId = emailToId.get(r.email!)
+    if (!contributorId) continue
+    contributionData.push({
+      committeeId, contributorId, amount: r.amount,
+      date: new Date(r.date), method: r.method,
+      source: 'ANEDOT', anedotId: r.anedotId ?? null,
+      isItemized: r.amount >= 50,
+    })
+  }
+  let noEmailIdx = 0
+  for (const r of noEmailRows) {
+    const contributorId = noEmailIds[noEmailIdx++]
+    if (!contributorId) continue
+    contributionData.push({
+      committeeId, contributorId, amount: r.amount,
+      date: new Date(r.date), method: r.method,
+      source: 'ANEDOT', anedotId: r.anedotId ?? null,
+      isItemized: r.amount >= 50,
+    })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await prisma.contribution.createMany({ data: contributionData as any[], skipDuplicates: true })
 
   revalidatePath(`/app/${committeeSlug}/donations`)
   revalidatePath(`/app/${committeeSlug}/dashboard`)
-  return { imported, skipped }
+  return {
+    imported: result.count,
+    skipped: extraSkipped + (contributionData.length - result.count),
+  }
 }
