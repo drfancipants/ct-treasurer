@@ -16,7 +16,11 @@ export function makeContributor(overrides: Partial<Contributor> = {}): Contribut
   }
 }
 
-export function makeContribution(overrides: Partial<Contribution> = {}): Contribution {
+type ContributionOverrides = Partial<Omit<Contribution, 'contributor'>> & {
+  contributor?: Partial<Contributor>
+}
+
+export function makeContribution(overrides: ContributionOverrides = {}): Contribution {
   const { contributor, ...rest } = overrides
   return {
     id: 'don_1',
