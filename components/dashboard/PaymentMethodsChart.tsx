@@ -3,6 +3,7 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import type { MethodData } from '@/lib/analytics'
 import { formatCurrency } from '@/lib/utils'
+import ChartEmptyState from './ChartEmptyState'
 
 const COLORS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#0891b2', '#64748b']
 
@@ -36,6 +37,13 @@ export default function PaymentMethodsChart({ data, total }: Props) {
         <p className="text-xs text-slate-500 mt-0.5">How donors are giving</p>
       </div>
 
+      {data.length === 0 ? (
+        <ChartEmptyState
+          height={160}
+          message="The payment method mix appears after your first donation"
+        />
+      ) : (
+      <>
       <ResponsiveContainer width="100%" height={160}>
         <PieChart>
           <Pie
@@ -75,6 +83,8 @@ export default function PaymentMethodsChart({ data, total }: Props) {
           )
         })}
       </div>
+      </>
+      )}
     </div>
   )
 }

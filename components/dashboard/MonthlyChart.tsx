@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import type { MonthlyData } from '@/lib/analytics'
 import { formatCurrency } from '@/lib/utils'
+import ChartEmptyState from './ChartEmptyState'
 
 interface Props {
   data: MonthlyData[]
@@ -60,6 +61,12 @@ export default function MonthlyChart({ data }: Props) {
         <h3 className="text-sm font-semibold text-slate-900">Monthly activity</h3>
         <p className="text-xs text-slate-500 mt-0.5">Contributions and expenses by month</p>
       </div>
+      {data.length === 0 ? (
+        <ChartEmptyState
+          height={248}
+          message="No activity yet — monthly totals appear once you record a donation or expense"
+        />
+      ) : (
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} barGap={4} barCategoryGap="35%">
           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -86,6 +93,7 @@ export default function MonthlyChart({ data }: Props) {
           <Bar dataKey="spent" name="Spent" fill="#e11d48" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
+      )}
     </div>
   )
 }

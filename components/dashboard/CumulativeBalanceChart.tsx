@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import type { CumulativePoint } from '@/lib/analytics'
 import { formatCurrency } from '@/lib/utils'
+import ChartEmptyState from './ChartEmptyState'
 
 interface Props {
   data: CumulativePoint[]
@@ -62,6 +63,12 @@ export default function CumulativeBalanceChart({ data }: Props) {
           Running total of raised vs. spent — the gap is your current balance
         </p>
       </div>
+      {data.length === 0 ? (
+        <ChartEmptyState
+          height={228}
+          message="Your running balance will chart here as donations and expenses come in"
+        />
+      ) : (
       <ResponsiveContainer width="100%" height={200}>
         <AreaChart data={data}>
           <defs>
@@ -110,6 +117,7 @@ export default function CumulativeBalanceChart({ data }: Props) {
           />
         </AreaChart>
       </ResponsiveContainer>
+      )}
     </div>
   )
 }

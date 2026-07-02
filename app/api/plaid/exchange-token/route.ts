@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { CountryCode } from 'plaid'
 import { plaidClient } from '@/lib/plaid'
 import { prisma } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
@@ -25,6 +26,20 @@ export async function POST(req: NextRequest) {
     const accountsRes = await plaidClient.accountsGet({ access_token })
     const { accounts, item } = accountsRes.data
 
+    // Resolve the human-readable institution name (the item only carries an id like "ins_109509")
+    let institutionName = 'Unknown'
+    if (item.institution_id) {
+      try {
+        const instRes = await plaidClient.institutionsGetById({
+          institution_id: item.institution_id,
+          country_codes: [CountryCode.Us],
+        })
+        institutionName = instRes.data.institution.name
+      } catch {
+        institutionName = item.institution_id
+      }
+    }
+
     await Promise.all(
       accounts.map((account) =>
         prisma.bankAccount.upsert({
@@ -35,7 +50,7 @@ export async function POST(req: NextRequest) {
             plaidItemId: item_id,
             plaidAccessToken: access_token,
             name: account.name,
-            institution: item.institution_id ?? 'Unknown',
+            institution: institutionName,
             accountType: account.type,
             lastFour: account.mask ?? '',
             currentBalance: account.balances.current ?? 0,

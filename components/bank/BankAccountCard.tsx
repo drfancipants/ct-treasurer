@@ -30,8 +30,13 @@ export default function BankAccountCard({ account, onSync, onRemove }: Props) {
   }
 
   const lastSynced = account.lastSyncedAt
-    ? formatDistanceToNow(parseISO(account.lastSyncedAt), { addSuffix: true })
+    ? `Synced ${formatDistanceToNow(parseISO(account.lastSyncedAt), { addSuffix: true })}`
     : 'Never synced'
+
+  // Older rows stored the raw Plaid institution id (e.g. "ins_109509")
+  const institution = /^ins_\d+$/i.test(account.institution)
+    ? 'Linked bank'
+    : account.institution
 
   return (
     <div className="relative bg-gradient-to-br from-[#0F2147] to-[#1B3A6B] rounded-2xl p-6 text-white overflow-hidden">
@@ -46,7 +51,7 @@ export default function BankAccountCard({ account, onSync, onRemove }: Props) {
         <div className="flex items-start justify-between mb-6">
           <div>
             <p className="text-xs text-blue-300 font-medium uppercase tracking-wide mb-1">
-              {account.institution}
+              {institution}
             </p>
             <p className="text-sm text-slate-300">
               {account.name} ···· {account.lastFour}
@@ -99,7 +104,7 @@ export default function BankAccountCard({ account, onSync, onRemove }: Props) {
                 <span className="text-xs text-emerald-400">{syncResult}</span>
               </>
             ) : (
-              <span className="text-xs text-slate-400">Synced {lastSynced}</span>
+              <span className="text-xs text-slate-400">{lastSynced}</span>
             )}
           </div>
           <button

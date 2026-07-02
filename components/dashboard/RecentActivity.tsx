@@ -20,6 +20,12 @@ export default function RecentActivity({ items, committeeSlug }: Props) {
         </div>
       </div>
 
+      {items.length === 0 && (
+        <p className="text-xs text-slate-400 text-center py-10">
+          No activity yet — your latest donations and expenses will show up here
+        </p>
+      )}
+
       <div className="space-y-1">
         {items.map((item) => {
           const isContribution = item.kind === 'contribution'

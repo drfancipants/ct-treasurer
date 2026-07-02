@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import type { CategoryData } from '@/lib/analytics'
 import { formatCurrency } from '@/lib/utils'
+import ChartEmptyState from './ChartEmptyState'
 
 const COLORS = ['#7c3aed', '#2563eb', '#0891b2', '#059669', '#d97706', '#e11d48', '#64748b']
 
@@ -43,6 +44,12 @@ export default function ExpenseCategoryChart({ data }: Props) {
         <h3 className="text-sm font-semibold text-slate-900">Expenses by category</h3>
         <p className="text-xs text-slate-500 mt-0.5">Where the money is going</p>
       </div>
+      {data.length === 0 ? (
+        <ChartEmptyState
+          height={160}
+          message="Spending by category appears once you record an expense"
+        />
+      ) : (
       <ResponsiveContainer width="100%" height={Math.max(data.length * 36 + 20, 160)}>
         <BarChart data={data} layout="vertical" barCategoryGap="30%">
           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
@@ -69,6 +76,7 @@ export default function ExpenseCategoryChart({ data }: Props) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
+      )}
     </div>
   )
 }
