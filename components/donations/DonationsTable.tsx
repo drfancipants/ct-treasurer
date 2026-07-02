@@ -380,21 +380,28 @@ export default function DonationsTable({ contributions: initial, committeeId, co
         )}
       </div>
 
-      <AddDonationDialog
-        open={showAdd}
-        onClose={() => setShowAdd(false)}
-        onAdd={handleAdd}
-        committeeId={committeeId}
-        committeeSlug={committeeSlug}
-      />
-      <AddDonationDialog
-        open={!!editing}
-        onClose={() => setEditing(null)}
-        onAdd={handleAdd}
-        committeeId={committeeId}
-        committeeSlug={committeeSlug}
-        contribution={editing ?? undefined}
-      />
+      {/* Mounted on demand so the form state initializes from the current
+          contribution — a persistent instance would keep its first-mount state */}
+      {showAdd && (
+        <AddDonationDialog
+          open
+          onClose={() => setShowAdd(false)}
+          onAdd={handleAdd}
+          committeeId={committeeId}
+          committeeSlug={committeeSlug}
+        />
+      )}
+      {editing && (
+        <AddDonationDialog
+          key={editing.id}
+          open
+          onClose={() => setEditing(null)}
+          onAdd={handleAdd}
+          committeeId={committeeId}
+          committeeSlug={committeeSlug}
+          contribution={editing}
+        />
+      )}
       <AnedotImportDialog
         open={showImport}
         onClose={() => setShowImport(false)}

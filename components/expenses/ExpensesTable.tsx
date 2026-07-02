@@ -290,21 +290,28 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
         )}
       </div>
 
-      <AddExpenseDialog
-        open={showAdd}
-        onClose={() => setShowAdd(false)}
-        onAdd={handleAdd}
-        committeeId={committeeId}
-        committeeSlug={committeeSlug}
-      />
-      <AddExpenseDialog
-        open={!!editing}
-        onClose={() => setEditing(null)}
-        onAdd={handleAdd}
-        committeeId={committeeId}
-        committeeSlug={committeeSlug}
-        expenditure={editing ?? undefined}
-      />
+      {/* Mounted on demand so the form state initializes from the current
+          expenditure — a persistent instance would keep its first-mount state */}
+      {showAdd && (
+        <AddExpenseDialog
+          open
+          onClose={() => setShowAdd(false)}
+          onAdd={handleAdd}
+          committeeId={committeeId}
+          committeeSlug={committeeSlug}
+        />
+      )}
+      {editing && (
+        <AddExpenseDialog
+          key={editing.id}
+          open
+          onClose={() => setEditing(null)}
+          onAdd={handleAdd}
+          committeeId={committeeId}
+          committeeSlug={committeeSlug}
+          expenditure={editing}
+        />
+      )}
     </>
   )
 }
