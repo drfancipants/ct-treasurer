@@ -10,6 +10,7 @@ import {
   CreditCard,
   Building2,
   FileText,
+  FileBarChart,
   Settings,
   Scale,
   LogOut,
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { segment: 'expenses', label: 'Expenses', icon: CreditCard },
   { segment: 'bank', label: 'Bank accounts', icon: Building2 },
   { segment: 'filings', label: 'SEEC filings', icon: FileText },
+  { segment: 'reports', label: 'Reports', icon: FileBarChart },
 ]
 
 interface Props {
