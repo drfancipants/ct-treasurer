@@ -40,6 +40,7 @@ export default function AnedotImportDialog({
   const [fileName, setFileName] = useState('')
   const [parseResult, setParseResult] = useState<ParseResult | null>(null)
   const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState('')
   const [importedCount, setImportedCount] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -51,6 +52,7 @@ export default function AnedotImportDialog({
     setFileName('')
     setParseResult(null)
     setImporting(false)
+    setImportError('')
     setImportedCount(0)
   }
 
@@ -90,12 +92,14 @@ export default function AnedotImportDialog({
   async function handleImport() {
     if (!parseResult) return
     setImporting(true)
+    setImportError('')
 
     try {
       const { contributions } = await importContributions(committeeId, parseResult.rows, committeeSlug)
       setImportedCount(contributions.length)
       onImport(contributions)
     } catch {
+      setImportError('Import failed — nothing was saved. Please try again.')
       setImporting(false)
       return
     }
@@ -178,13 +182,21 @@ export default function AnedotImportDialog({
               </button>
             )}
             {step === 'confirm' && parseResult && (
-              <button
-                onClick={handleImport}
-                disabled={importing || parseResult.importableCount === 0}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {importing ? 'Importing…' : `Import ${parseResult.importableCount} donations`}
-              </button>
+              <div className="flex items-center gap-3">
+                {importError && (
+                  <span className="flex items-center gap-1.5 text-xs text-red-600">
+                    <XCircle className="w-3.5 h-3.5 shrink-0" />
+                    {importError}
+                  </span>
+                )}
+                <button
+                  onClick={handleImport}
+                  disabled={importing || parseResult.importableCount === 0}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {importing ? 'Importing…' : `Import ${parseResult.importableCount} donations`}
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -258,7 +270,7 @@ function UploadStep({
 
       {/* Format note */}
       <p className="text-xs text-slate-400 text-center">
-        The importer auto-detects Anedot's column format and checks for SEEC compliance issues.
+        The importer auto-detects Anedot&apos;s column format and checks for SEEC compliance issues.
         Donations already in the system are skipped automatically.
       </p>
     </div>
@@ -418,7 +430,7 @@ function DoneStep({ count, onClose }: { count: number; onClose: () => void }) {
         {count} donation{count !== 1 ? 's' : ''} imported
       </h3>
       <p className="text-sm text-slate-500 max-w-xs mb-6">
-        They've been added to your donations list. Any SEEC issues are flagged for review.
+        They&apos;ve been added to your donations list. Any SEEC issues are flagged for review.
       </p>
       <button
         onClick={onClose}

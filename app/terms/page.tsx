@@ -31,7 +31,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-base font-semibold text-slate-900 mb-2">1. Acceptance</h2>
             <p className="text-slate-600">
-              By creating an account or using CT Committee Treasurer Suite ("the Service"), you agree to these Terms of Service. If you do not agree, do not use the Service.
+              By creating an account or using CT Committee Treasurer Suite (&quot;the Service&quot;), you agree to these Terms of Service. If you do not agree, do not use the Service.
             </p>
           </section>
 
@@ -64,7 +64,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-base font-semibold text-slate-900 mb-2">5. Fees and Payment</h2>
             <p className="text-slate-600">
-              Paid plans are billed monthly. You may cancel at any time; cancellation takes effect at the end of the current billing period. We reserve the right to change pricing with 30 days' notice. We do not issue refunds for partial billing periods.
+              Paid plans are billed monthly. You may cancel at any time; cancellation takes effect at the end of the current billing period. We reserve the right to change pricing with 30 days&apos; notice. We do not issue refunds for partial billing periods.
             </p>
           </section>
 
@@ -78,7 +78,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-base font-semibold text-slate-900 mb-2">7. Disclaimer of Warranties</h2>
             <p className="text-slate-600">
-              The Service is provided "as is" without warranties of any kind, express or implied. We do not warrant that the Service will be uninterrupted, error-free, or that the data you generate will satisfy SEEC or any other regulatory requirements. You are solely responsible for reviewing all filings before submission.
+              The Service is provided &quot;as is&quot; without warranties of any kind, express or implied. We do not warrant that the Service will be uninterrupted, error-free, or that the data you generate will satisfy SEEC or any other regulatory requirements. You are solely responsible for reviewing all filings before submission.
             </p>
           </section>
 

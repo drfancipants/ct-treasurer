@@ -236,15 +236,18 @@ export default function FilingsList({ contributions, expenditures, committee, fi
         </p>
       </div>
 
-      <Form20ExportDialog
-        open={!!exportPeriod}
-        onClose={() => setExportPeriod(null)}
-        contributions={contributions}
-        expenditures={expenditures}
-        committeeName={committee.name}
-        initialPeriod={exportPeriod ?? undefined}
-        onFiled={handleFiled}
-      />
+      {exportPeriod && (
+        <Form20ExportDialog
+          key={exportPeriod.start}
+          open
+          onClose={() => setExportPeriod(null)}
+          contributions={contributions}
+          expenditures={expenditures}
+          committeeName={committee.name}
+          initialPeriod={exportPeriod}
+          onFiled={handleFiled}
+        />
+      )}
     </>
   )
 }

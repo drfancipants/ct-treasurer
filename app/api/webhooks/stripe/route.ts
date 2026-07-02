@@ -13,8 +13,10 @@ function toSubscriptionStatus(stripeStatus: string): SubscriptionStatus {
     case 'unpaid':              return SubscriptionStatus.past_due
     case 'incomplete':          return SubscriptionStatus.past_due
     case 'incomplete_expired':  return SubscriptionStatus.canceled
-    case 'paused':              return SubscriptionStatus.active
-    default:                    return SubscriptionStatus.active
+    // 'paused' means the trial ended without a payment method — not paying
+    case 'paused':              return SubscriptionStatus.past_due
+    // Fail closed on unknown/future Stripe statuses rather than granting access
+    default:                    return SubscriptionStatus.past_due
   }
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { X, FileDown, AlertCircle, CheckCircle2, FileText, Loader2 } from 'lucide-react'
 import type { Contribution, Expenditure } from '@/lib/types'
 import { previewForm20, populateForm20 } from '@/lib/form20'
@@ -55,17 +55,6 @@ export default function Form20ExportDialog({
   const [markingFiled, setMarkingFiled] = useState(false)
   const [downloaded, setDownloaded] = useState(false)
   const [error, setError] = useState('')
-
-  // Re-sync period selectors when initialPeriod changes (different row clicked)
-  useEffect(() => {
-    if (initialPeriod) {
-      setYear(initialPeriod.start.slice(0, 4))
-      setPeriodIdx(periodIdxFromStart(initialPeriod.start))
-      setUseCustom(false)
-    }
-    setDownloaded(false)
-    setError('')
-  }, [initialPeriod])
 
   const periodStart = useCustom
     ? customStart

@@ -93,7 +93,7 @@ export default function AddMemberDialog({ open, onClose, onAdd, committeeId, com
           <div>
             <h2 className="text-base font-semibold text-slate-900">Add committee member</h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              They'll receive an invitation to create an account
+              They&apos;ll receive an invitation to create an account
             </p>
           </div>
           <button

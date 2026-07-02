@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createCommittee } from '@/actions/committees'
 
@@ -15,20 +15,19 @@ function slugify(name: string): string {
 export default function CreateCommitteeForm() {
   const router = useRouter()
   const [name, setName] = useState('')
-  const [slug, setSlug] = useState('')
+  const [customSlug, setCustomSlug] = useState('')
   const [slugEdited, setSlugEdited] = useState(false)
   const [electionYear, setElectionYear] = useState('')
   const [city, setCity] = useState('')
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<{ name?: string; slug?: string; general?: string }>({})
 
-  useEffect(() => {
-    if (!slugEdited) setSlug(slugify(name))
-  }, [name, slugEdited])
+  // Derived from name until the user edits the slug field directly
+  const slug = slugEdited ? customSlug : slugify(name)
 
   function handleSlugChange(val: string) {
     setSlugEdited(true)
-    setSlug(val.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 50))
+    setCustomSlug(val.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 50))
     setErrors((e) => ({ ...e, slug: undefined }))
   }
 

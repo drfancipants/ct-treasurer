@@ -21,7 +21,7 @@ export default async function SettingsPage({ params, searchParams }: Props) {
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Committee settings</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Update your committee's registration details, contact info, and integrations
+            Update your committee&apos;s registration details, contact info, and integrations
           </p>
         </div>
 

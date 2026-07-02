@@ -152,7 +152,7 @@ function LoginForm() {
 
         {mode === 'magic-link' && (
           <p className="text-xs text-slate-500">
-            We'll send a one-click sign-in link to your email. No password required.
+            We&apos;ll send a one-click sign-in link to your email. No password required.
           </p>
         )}
 
@@ -196,7 +196,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <h2 className="text-base font-semibold text-slate-900 mb-1">Sign in</h2>
           <p className="text-xs text-slate-500 mb-5">
-            Access your committee's financial records
+            Access your committee&apos;s financial records
           </p>
           {children}
         </div>

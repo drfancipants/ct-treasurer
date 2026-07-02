@@ -169,7 +169,7 @@ export async function updateContribution(
 ): Promise<Contribution> {
   const { committeeId } = await requireCommitteeMember(committeeSlug)
   const existing = await prisma.contribution.findFirst({ where: { id: contributionId, committeeId } })
-  if (!existing) throw new Error('Forbidden')
+  if (!existing || existing.contributorId !== contributorId) throw new Error('Forbidden')
 
   // Update contributor first so the subsequent contribution fetch returns fresh data
   await prisma.contributor.update({
@@ -302,22 +302,19 @@ export async function importContributions(
     })
   }
 
-  const importStartedAt = new Date()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await prisma.contribution.createMany({ data: contributionData as any[], skipDuplicates: true })
-
-  // Fetch the created records with real DB IDs so the client state stays consistent
-  const created = await prisma.contribution.findMany({
-    where: { committeeId, createdAt: { gte: importStartedAt } },
+  // Insert and return the created rows (with real DB IDs) in one statement,
+  // so the client state stays consistent without relying on timestamps
+  const created = await prisma.contribution.createManyAndReturn({
+    data: contributionData,
+    skipDuplicates: true,
     include: { contributor: true },
-    orderBy: { date: 'desc' },
   })
 
   revalidatePath(`/app/${committeeSlug}/donations`)
   revalidatePath(`/app/${committeeSlug}/dashboard`)
   return {
-    imported: result.count,
-    skipped: extraSkipped + (contributionData.length - result.count),
+    imported: created.length,
+    skipped: extraSkipped + (contributionData.length - created.length),
     contributions: created.map(mapContribution),
   }
 }

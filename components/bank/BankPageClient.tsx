@@ -65,7 +65,7 @@ export default function BankPageClient({
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Bank accounts</h1>
             <p className="text-sm text-slate-500 mt-0.5">
-              Connect your committee's checking account to reconcile transactions automatically
+              Connect your committee&apos;s checking account to reconcile transactions automatically
             </p>
           </div>
           <PlaidLinkButton committeeId={committeeId} onSuccess={() => router.refresh()} />
@@ -116,7 +116,7 @@ function EmptyState({
       </div>
       <h3 className="text-sm font-semibold text-slate-700 mb-1">No bank account connected</h3>
       <p className="text-xs text-slate-500 max-w-xs mb-6">
-        Connect your committee's checking account to automatically import transactions
+        Connect your committee&apos;s checking account to automatically import transactions
         and reconcile them against your contributions and expenses.
       </p>
       <PlaidLinkButton committeeId={committeeId} onSuccess={onSuccess} />

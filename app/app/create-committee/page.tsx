@@ -19,7 +19,7 @@ export default async function CreateCommitteePage() {
           </div>
           <h1 className="text-2xl font-semibold text-slate-900">Create a committee</h1>
           <p className="text-slate-500 mt-1.5 text-sm">
-            You'll be set as treasurer and can invite others from the Members page.
+            You&apos;ll be set as treasurer and can invite others from the Members page.
           </p>
         </div>
 
