@@ -35,17 +35,36 @@ export async function POST(req: NextRequest) {
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
-    const syncRes = await plaidClient.transactionsSync({
-      access_token: bankAccount.plaidAccessToken,
-      cursor: bankAccount.syncCursor ?? undefined,
-    })
+    // transactionsSync is paginated: a single sync can span multiple pages
+    // signalled by has_more. We must drain every page (following next_cursor)
+    // before applying anything — otherwise a page of "removed" can land
+    // without its matching "added" page, deleting transactions that a later
+    // page would have re-added. Advance the stored cursor only to the final
+    // page's cursor, and only after all changes are applied.
+    type SyncTxn = Awaited<ReturnType<typeof plaidClient.transactionsSync>>['data']['added'][number]
+    const added: SyncTxn[] = []
+    const modified: SyncTxn[] = []
+    const removedIds: string[] = []
+    let cursor = bankAccount.syncCursor ?? undefined
+    let hasMore = true
 
-    const { added, modified, removed, next_cursor } = syncRes.data
+    while (hasMore) {
+      const syncRes = await plaidClient.transactionsSync({
+        access_token: bankAccount.plaidAccessToken,
+        cursor,
+      })
+      added.push(...syncRes.data.added)
+      modified.push(...syncRes.data.modified)
+      removedIds.push(...syncRes.data.removed.map((r) => r.transaction_id))
+      hasMore = syncRes.data.has_more
+      cursor = syncRes.data.next_cursor
+    }
+    const next_cursor = cursor
 
     // Remove withdrawn transactions
-    if (removed.length > 0) {
+    if (removedIds.length > 0) {
       await prisma.transaction.deleteMany({
-        where: { plaidTransactionId: { in: removed.map((r) => r.transaction_id) } },
+        where: { plaidTransactionId: { in: removedIds } },
       })
     }
 
@@ -95,7 +114,7 @@ export async function POST(req: NextRequest) {
       console.warn('[plaid/sync] balance refresh failed (cursor already advanced):', balanceErr)
     }
 
-    return NextResponse.json({ added: added.length, modified: modified.length, removed: removed.length })
+    return NextResponse.json({ added: added.length, modified: modified.length, removed: removedIds.length })
   } catch (err) {
     console.error('[plaid/sync]', err)
     return NextResponse.json({ error: 'Sync failed' }, { status: 500 })
