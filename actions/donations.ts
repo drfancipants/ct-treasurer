@@ -17,6 +17,7 @@ type ContributionWithContributor = {
   source: string
   anedotId: string | null
   isItemized: boolean
+  filedAt: Date | null
   createdAt: Date
   contributor: {
     id: string
@@ -60,6 +61,7 @@ function mapContribution(c: ContributionWithContributor): Contribution {
     source: c.source as ContributionSource,
     anedotId: c.anedotId ?? undefined,
     isItemized: c.isItemized,
+    filedAt: c.filedAt?.toISOString() ?? undefined,
     createdAt: c.createdAt.toISOString(),
   }
 }

@@ -16,6 +16,7 @@ type PrismaExpenditure = {
   method: string
   checkNumber: string | null
   memo: string | null
+  filedAt: Date | null
   createdAt: Date
 }
 
@@ -31,6 +32,7 @@ function mapExpenditure(e: PrismaExpenditure): Expenditure {
     method: e.method as PaymentMethod,
     checkNumber: e.checkNumber ?? undefined,
     memo: e.memo ?? undefined,
+    filedAt: e.filedAt?.toISOString() ?? undefined,
     createdAt: e.createdAt.toISOString(),
   }
 }

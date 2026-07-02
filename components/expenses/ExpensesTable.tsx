@@ -12,6 +12,7 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import AddExpenseDialog from './AddExpenseDialog'
 import { deleteExpenditure } from '@/actions/expenses'
 import ErrorBanner from '@/components/ui/ErrorBanner'
+import FiledBadge from '@/components/ui/FiledBadge'
 
 const METHOD_COLORS: Record<PaymentMethod, string> = {
   CHECK: 'bg-slate-100 text-slate-700',
@@ -167,6 +168,9 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide hidden sm:table-cell">
                 Method
               </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide hidden lg:table-cell">
+                Filed
+              </th>
               <th className="px-4 py-3 w-10" />
             </tr>
           </thead>
@@ -218,6 +222,11 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
                       <span className="ml-1 opacity-60">#{expense.checkNumber}</span>
                     )}
                   </span>
+                </td>
+
+                {/* Filed */}
+                <td className="px-4 py-3.5 hidden lg:table-cell">
+                  <FiledBadge filedAt={expense.filedAt} />
                 </td>
 
                 {/* Actions */}

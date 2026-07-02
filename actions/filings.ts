@@ -43,7 +43,19 @@ export async function markFiled(
     },
   })
 
+  // Stamp every entry in the period as filed. Re-marking (an amendment)
+  // re-stamps, so entries added after the original filing pick up the new
+  // date; until then they show as not filed — the cue that an amendment
+  // is needed.
+  const period = { committeeId, date: { gte: new Date(periodStart), lte: new Date(periodEnd) } }
+  await prisma.$transaction([
+    prisma.contribution.updateMany({ where: period, data: { filedAt: filing.filedAt } }),
+    prisma.expenditure.updateMany({ where: period, data: { filedAt: filing.filedAt } }),
+  ])
+
   revalidatePath(`/app/${committeeSlug}/filings`)
+  revalidatePath(`/app/${committeeSlug}/donations`)
+  revalidatePath(`/app/${committeeSlug}/expenses`)
   return {
     id: filing.id,
     periodStart: filing.periodStart.toISOString().split('T')[0],

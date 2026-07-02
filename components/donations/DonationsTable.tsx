@@ -25,6 +25,7 @@ import AddDonationDialog from './AddDonationDialog'
 import { deleteContribution } from '@/actions/donations'
 import AnedotImportDialog from './AnedotImportDialog'
 import ErrorBanner from '@/components/ui/ErrorBanner'
+import FiledBadge from '@/components/ui/FiledBadge'
 import LimitAlerts from './LimitAlerts'
 
 const METHOD_COLORS: Record<PaymentMethod, string> = {
@@ -221,6 +222,9 @@ export default function DonationsTable({ contributions: initial, committeeId, co
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">
                 SEEC
               </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide hidden lg:table-cell">
+                Filed
+              </th>
               <th className="px-4 py-3 w-10" />
             </tr>
           </thead>
@@ -300,6 +304,11 @@ export default function DonationsTable({ contributions: initial, committeeId, co
                   {/* SEEC status */}
                   <td className="px-4 py-3.5">
                     <SeecBadge status={seec.status} issues={seec.issues} />
+                  </td>
+
+                  {/* Filed */}
+                  <td className="px-4 py-3.5 hidden lg:table-cell">
+                    <FiledBadge filedAt={contribution.filedAt} />
                   </td>
 
                   {/* Actions */}

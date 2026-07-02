@@ -116,6 +116,7 @@ model Contribution {
   source        ContributionSource @default(MANUAL)
   anedotId      String?            @unique // Deduplication key for Anedot imports
   isItemized    Boolean            @default(true)
+  filedAt       DateTime?          // Stamped when the covering period is marked filed
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
@@ -155,6 +156,7 @@ model Expenditure {
   method      PaymentMethod
   checkNumber String?
   memo        String?
+  filedAt     DateTime?     // Stamped when the covering period is marked filed
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 

@@ -113,6 +113,8 @@ export interface Contribution {
   source: ContributionSource
   anedotId?: string
   isItemized: boolean
+  /** When the covering SEEC filing period was marked filed */
+  filedAt?: string
   createdAt: string
 }
 
@@ -279,6 +281,8 @@ export interface Expenditure {
   method: PaymentMethod
   checkNumber?: string
   memo?: string
+  /** When the covering SEEC filing period was marked filed */
+  filedAt?: string
   createdAt: string
 }
 
