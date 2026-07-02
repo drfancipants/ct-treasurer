@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run dev          # dev server on :3000
 npm run build        # production build
-npm run lint         # ESLint
+npm run lint         # ESLint (flat config in eslint.config.mjs — `next lint` was removed in Next 16)
+npm test             # vitest — unit tests in lib/__tests__/
 
 npm run db:generate  # regenerate Prisma client after schema changes
 npm run db:push      # push schema to Supabase (uses .env, not .env.local)
@@ -21,47 +22,53 @@ The Prisma CLI only reads `.env`; Next.js runtime reads `.env.local`. Both must 
 
 ## Architecture
 
-**Next.js 14 App Router, TypeScript, Tailwind CSS, Supabase (Auth + PostgreSQL), Prisma ORM.**
+**Next.js 16 App Router, TypeScript, Tailwind CSS, Supabase (Auth + PostgreSQL), Prisma ORM, Stripe billing.**
 
 ### Route structure
 
 ```
 app/
-  login/                         # public auth pages
+  login/ signup/                 # public auth pages
   accept-invite/
   auth/callback/
+  terms/ privacy/
   app/
-    page.tsx                     # committee selector (post-login landing)
+    page.tsx                     # committee selector; single membership → redirects to dashboard
+    create-committee/
     [committeeSlug]/
       layout.tsx                 # Sidebar shell, verifies committee membership
-      dashboard/ members/ donations/ expenses/ bank/ filings/
+      dashboard/ members/ donations/ expenses/ bank/ filings/ settings/
   api/
     invite/                      # server-side Supabase admin invite
     plaid/link-token|exchange-token|sync/
-    webhooks/anedot/             # public — excluded from auth middleware
+    stripe/checkout|portal/
+    webhooks/anedot/             # public — HMAC-signed, excluded from auth proxy
+    webhooks/stripe/             # public — Stripe-signature verified
 ```
 
 All authenticated app pages live under `app/app/[committeeSlug]/`. The `committeeSlug` param is the tenant discriminator; every Prisma query must scope to `committeeId`.
 
 ### Mutations use Server Actions
 
-`actions/donations.ts`, `actions/expenses.ts`, `actions/members.ts`, `actions/committees.ts` are `'use server'` files. Pages call these directly rather than hitting API routes. Plaid uses API routes instead because its flow is client-initiated.
+`actions/donations.ts`, `actions/expenses.ts`, `actions/members.ts`, `actions/committees.ts` are `'use server'` files. Pages call these directly rather than hitting API routes. Plaid and Stripe use API routes instead because their flows are client-initiated or webhook-driven.
 
-### Mock data — most pages are not yet wired to the database
+All pages are wired to the database via Prisma (`lib/db`). List pages fetch server-side and pass into client table components that keep local state; dialogs apply server-action results to that state (see `DonationsTable` + `AnedotImportDialog` — the import dialog must stay open through its confirmation step, so its parent must not close it in `onImport`).
 
-Pages import from `lib/mock-data.ts` by default. `// TODO: replace with Prisma query` comments mark every location that needs a real Prisma call. When connecting a page, import `prisma` from `lib/db` and scope the query by `committeeId`.
+### Tests
+
+Vitest unit tests live in `lib/__tests__/` and cover the compliance-critical pure logic: `getSeecStatus()` ($50 itemization rules), `form20.ts` (SEEC code mappings, exercised against the real template in `public/templates/`), and `anedot-csv.ts` (column variants, dedup, refund skipping). Run with `npm test`.
 
 ### Key library files
 
 - `lib/types.ts` — all TypeScript interfaces shared across client and server, plus `getSeecStatus()` which is the core SEEC compliance evaluation function
 - `lib/analytics.ts` — aggregation helpers that transform raw contributions/expenditures into chart-ready data
-- `lib/form20.ts` — generates the eCRIS Form 20 `.xls` workbook (SheetJS); maps `ExpenseCategory` enum values to SEEC purpose codes
+- `lib/form20.ts` — generates the eCRIS Form 20 `.xls` workbook (SheetJS) from the template in `public/templates/`; maps `ExpenseCategory` enum values to SEEC purpose codes
 - `lib/anedot-csv.ts` — PapaParse-based CSV parser that handles Anedot column name variants and deduplicates against existing `anedotId` values
 - `lib/supabase/client.ts` / `server.ts` — browser and server Supabase clients; server.ts also exports an `adminClient` that bypasses RLS (requires `SUPABASE_SERVICE_ROLE_KEY`)
 
 ### Multi-tenancy
 
-The app is multi-committee. `Committee` is the tenant root in Prisma. Every `Contribution`, `Expenditure`, `BankAccount`, `SeecFiling`, and `CommitteeMembership` has a `committeeId` FK. Middleware (`middleware.ts`) handles session refresh and redirects unauthenticated requests to `/login`; it does **not** validate committee membership — that happens in `app/app/[committeeSlug]/layout.tsx`.
+The app is multi-committee. `Committee` is the tenant root in Prisma. Every `Contribution`, `Expenditure`, `BankAccount`, `SeecFiling`, and `CommitteeMembership` has a `committeeId` FK. `Contributor` is intentionally global (shared across committees, matched by email) — server actions must verify a contributor belongs to the contribution being edited before writing to it. The auth proxy (`proxy.ts` — Next 16's rename of middleware) handles session refresh and redirects unauthenticated requests to `/login`; it does **not** validate committee membership — that happens in `app/app/[committeeSlug]/layout.tsx`.
 
 ### SEEC compliance
 
@@ -69,8 +76,12 @@ Connecticut SEEC requires itemized donor details (address, employer, occupation)
 
 ### Auth / invite flow
 
-Access is invitation-only. `POST /api/invite` calls `supabase.auth.admin.inviteUserByEmail()` (requires service role key). Invitees land on `/accept-invite` after clicking the email link; after setting their password, a `CommitteeMembership` row is created in Prisma. The Supabase `User.id` must match `auth.users.id` — do not generate separate IDs.
+Access is invitation-only (plus self-serve signup). `POST /api/invite` calls `supabase.auth.admin.inviteUserByEmail()` (requires service role key). Invitees land on `/accept-invite` after clicking the email link; after setting their password, a `CommitteeMembership` row is created in Prisma. The Supabase `User.id` must match `auth.users.id` — do not generate separate IDs.
+
+### Billing (Stripe)
+
+`Committee.subscriptionStatus` is a Prisma enum (`trialing | active | past_due | canceled`). The webhook (`app/api/webhooks/stripe/route.ts`) maps Stripe statuses through `toSubscriptionStatus()`, which fails closed: `paused` and unknown statuses become `past_due`. Webhook lookup uses `metadata.committeeId` when present, else falls back to `stripeSubscriptionId`.
 
 ### Plaid bank sync
 
-Uses cursor-based `transactionsSync`. Sandbox credentials: `user_good` / `pass_good`. Set `PLAID_ENV=sandbox` for local development.
+Uses cursor-based `transactionsSync` (`syncCursor` on `BankAccount` makes repeat syncs incremental). Plaid amounts are sign-flipped on ingest so positive = deposit. Sandbox credentials: `user_good` / `pass_good`. Set `PLAID_ENV=sandbox` for local development.
