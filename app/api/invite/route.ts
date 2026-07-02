@@ -36,6 +36,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // If this person already has an account, add the committee membership
+  // directly — Supabase's inviteUserByEmail rejects an already-registered
+  // email, which would otherwise block adding an existing user to a second
+  // committee. (User.id === auth.users.id by the app's invariant.)
+  const existing = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: 'insensitive' } },
+  })
+  if (existing) {
+    await prisma.committeeMembership.upsert({
+      where: { userId_committeeId: { userId: existing.id, committeeId } },
+      create: { userId: existing.id, committeeId, role },
+      update: { role },
+    })
+    return NextResponse.json({ success: true, userId: existing.id, existingUser: true })
+  }
+
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' }, { status: 503 })
   }
