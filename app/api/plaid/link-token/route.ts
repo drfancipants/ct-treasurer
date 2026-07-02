@@ -36,6 +36,10 @@ export async function POST(req: NextRequest) {
       country_codes: [CountryCode.Us],
       language: 'en',
       webhook: process.env.PLAID_WEBHOOK_URL,
+      // Pull the maximum transaction history (24 months) instead of Plaid's
+      // 90-day default. Set per-Item at link time, so an already-linked
+      // account must be reconnected to widen its window.
+      transactions: { days_requested: 730 },
     })
 
     return NextResponse.json({ link_token: response.data.link_token })
