@@ -95,7 +95,8 @@ export default function DonationsTable({ contributions: initial, committeeId, co
 
   function handleImport(imported: Contribution[]) {
     setContributions((prev) => [...imported, ...prev])
-    setShowImport(false)
+    // Don't close the dialog here — it advances to its confirmation step
+    // and closes itself via onClose
   }
 
   async function handleDelete(id: string) {

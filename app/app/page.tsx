@@ -16,7 +16,7 @@ export default async function AppPage() {
   })
 
   if (memberships.length === 1) {
-    redirect(`/app/${memberships[0].committee.slug}/donations`)
+    redirect(`/app/${memberships[0].committee.slug}/dashboard`)
   }
 
   if (memberships.length === 0) {
@@ -61,7 +61,7 @@ export default async function AppPage() {
           {memberships.map(({ committee: c }: { committee: { id: string; name: string; slug: string; seecId: string | null; city: string | null; electionYear: number | null } }) => (
             <Link
               key={c.id}
-              href={`/app/${c.slug}/donations`}
+              href={`/app/${c.slug}/dashboard`}
               className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-colors group"
             >
               <div>

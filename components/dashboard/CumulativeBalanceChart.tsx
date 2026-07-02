@@ -89,7 +89,7 @@ export default function CumulativeBalanceChart({ data }: Props) {
             tickLine={false}
           />
           <YAxis
-            tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`}
+            tickFormatter={(v) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v}`)}
             tick={{ fontSize: 11, fill: '#94a3b8' }}
             axisLine={false}
             tickLine={false}
