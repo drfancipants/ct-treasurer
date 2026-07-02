@@ -36,7 +36,7 @@ export default function Sidebar({ committees, activeCommittee }: Props) {
   const pathname = usePathname()
 
   return (
-    <aside className="flex flex-col w-60 h-screen bg-[#0F2147] shrink-0 select-none">
+    <aside className="flex flex-col w-60 h-screen bg-navy-900 shrink-0 select-none">
       {/* Branding */}
       <div className="flex items-center gap-2.5 px-4 py-4 border-b border-white/10">
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500">

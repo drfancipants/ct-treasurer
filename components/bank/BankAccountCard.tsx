@@ -39,7 +39,7 @@ export default function BankAccountCard({ account, onSync, onRemove }: Props) {
     : account.institution
 
   return (
-    <div className="relative bg-gradient-to-br from-[#0F2147] to-[#1B3A6B] rounded-2xl p-6 text-white overflow-hidden">
+    <div className="relative bg-gradient-to-br from-navy-900 to-navy-800 rounded-2xl p-6 text-white overflow-hidden">
       {/* Background texture */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute top-4 right-4 w-32 h-32 rounded-full border-2 border-white" />

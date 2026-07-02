@@ -68,7 +68,7 @@ function Nav() {
 
 function Hero() {
   return (
-    <section className="bg-[#0F2147] text-white">
+    <section className="bg-navy-900 text-white">
       <div className="max-w-6xl mx-auto px-6 pt-20 pb-24 text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-medium mb-6">
           <ShieldCheck className="w-3.5 h-3.5" />
@@ -216,7 +216,7 @@ function Pricing() {
           <p className="text-slate-500">One plan, everything included. No per-seat fees.</p>
         </div>
         <div className="max-w-sm mx-auto">
-          <div className="bg-[#0F2147] text-white rounded-2xl p-8">
+          <div className="bg-navy-900 text-white rounded-2xl p-8">
             <p className="text-sm font-medium text-blue-300 mb-2">Pro</p>
             <div className="flex items-end gap-1 mb-1">
               <span className="text-4xl font-bold">${MONTHLY_PRICE}</span>
