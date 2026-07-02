@@ -20,6 +20,10 @@ npm run db:seed      # seed database from prisma/seed.ts
 
 The Prisma CLI only reads `.env`; Next.js runtime reads `.env.local`. Both must exist with the same `DATABASE_URL` and `DIRECT_URL` values. See `.env.example` for all variables.
 
+## Deployment
+
+Production runs on Vercel: **https://ct-treasurer.vercel.app** (project `ct-treasurer`, deployed via `npx vercel --prod` from this directory — no git integration yet). All env vars from `.env.local` are mirrored in Vercel production, except `NEXT_PUBLIC_APP_URL` (set to the production URL) and `STRIPE_WEBHOOK_SECRET` (the production value is the signing secret of the Stripe webhook endpoint registered at `/api/webhooks/stripe`, not the local CLI one). `postinstall` runs `prisma generate` for Vercel builds. Production uses the same Supabase database as local dev and Plaid sandbox.
+
 ## Architecture
 
 **Next.js 16 App Router, TypeScript, Tailwind CSS, Supabase (Auth + PostgreSQL), Prisma ORM, Stripe billing.**
