@@ -5,6 +5,8 @@ import { X, AlertCircle } from 'lucide-react'
 import type { Contribution, PaymentMethod } from '@/lib/types'
 import { createContribution, updateContribution } from '@/actions/donations'
 import { PAYMENT_METHOD_LABELS } from '@/lib/types'
+import { checkProspective, INDIVIDUAL_ANNUAL_LIMIT, CASH_CONTRIBUTION_MAX } from '@/lib/limits'
+import { formatCurrency } from '@/lib/utils'
 
 interface Props {
   open: boolean
@@ -13,6 +15,7 @@ interface Props {
   committeeId: string
   committeeSlug: string
   contribution?: Contribution // pre-fills the form for edit mode
+  existingContributions?: Contribution[] // for the annual-limit check
 }
 
 interface FormData {
@@ -55,7 +58,7 @@ const EMPTY: FormData = {
   occupation: '',
 }
 
-export default function AddDonationDialog({ open, onClose, onAdd, committeeId, committeeSlug, contribution }: Props) {
+export default function AddDonationDialog({ open, onClose, onAdd, committeeId, committeeSlug, contribution, existingContributions }: Props) {
   const isEdit = !!contribution
   const [form, setForm] = useState<FormData>(
     contribution
@@ -83,6 +86,19 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
   const [saving, setSaving] = useState(false)
 
   if (!open) return null
+
+  // Annual-limit check against everything except the contribution being edited
+  const parsedAmount = parseFloat(form.amount)
+  const limitCheck =
+    !isNaN(parsedAmount) && parsedAmount > 0 && (form.firstName || form.email)
+      ? checkProspective(
+          (existingContributions ?? []).filter((c) => c.id !== contribution?.id),
+          { email: form.email || undefined, firstName: form.firstName, lastName: form.lastName, zip: form.zip },
+          parsedAmount,
+          form.date,
+          form.method
+        )
+      : null
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -400,6 +416,33 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
               </div>
             </section>
           </div>
+
+          {limitCheck && (limitCheck.cashOverMax || limitCheck.priorTotal > 0 || limitCheck.status !== 'ok') && (
+            <div className="px-6 pb-4 space-y-2">
+              {limitCheck.cashOverMax && (
+                <p className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
+                  Cash contributions over {formatCurrency(CASH_CONTRIBUTION_MAX)} are prohibited (CGS § 9-611) —
+                  amounts above that must be by personal check or credit card.
+                </p>
+              )}
+              {limitCheck.wouldExceed ? (
+                <p className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
+                  This would bring the donor to {formatCurrency(limitCheck.newTotal)} for {form.date.slice(0, 4)} —
+                  over the {formatCurrency(INDIVIDUAL_ANNUAL_LIMIT)} individual annual limit for town committees.
+                </p>
+              ) : limitCheck.status === 'warning' ? (
+                <p className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
+                  With this donation the donor reaches {formatCurrency(limitCheck.newTotal)} of the{' '}
+                  {formatCurrency(INDIVIDUAL_ANNUAL_LIMIT)} annual limit ({formatCurrency(limitCheck.remaining)} remaining).
+                </p>
+              ) : limitCheck.priorTotal > 0 ? (
+                <p className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                  This donor has given {formatCurrency(limitCheck.priorTotal)} in {form.date.slice(0, 4)} —
+                  {' '}{formatCurrency(limitCheck.remaining)} remaining under the annual limit after this donation.
+                </p>
+              ) : null}
+            </div>
+          )}
 
           {/* Footer */}
           <div className="flex gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">

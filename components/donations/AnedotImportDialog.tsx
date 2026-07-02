@@ -280,7 +280,7 @@ function UploadStep({
 // ─── Step 2: Preview ──────────────────────────────────────────────────────────
 
 function PreviewStep({ result }: { result: ParseResult }) {
-  const { rows, formatDetected, importableCount, duplicateCount, seecIssueCount, errorCount } = result
+  const { rows, formatDetected, importableCount, duplicateCount, seecIssueCount, limitIssueCount, errorCount } = result
 
   const previewRows = rows.slice(0, 25)
 
@@ -304,6 +304,7 @@ function PreviewStep({ result }: { result: ParseResult }) {
         <Pill color="emerald" label={`${importableCount} to import`} value={formatCurrency(result.totalAmount)} />
         {duplicateCount > 0 && <Pill color="slate" label={`${duplicateCount} already imported`} value="Skipping" />}
         {seecIssueCount > 0 && <Pill color="amber" label={`${seecIssueCount} SEEC issues`} value="Will flag" />}
+        {limitIssueCount > 0 && <Pill color="red" label={`${limitIssueCount} over contribution limit`} value="Review" />}
         {errorCount > 0 && <Pill color="red" label={`${errorCount} errors`} value="Skipping" />}
       </div>
 
@@ -362,7 +363,7 @@ function PreviewStep({ result }: { result: ParseResult }) {
 // ─── Step 3: Confirm ──────────────────────────────────────────────────────────
 
 function ConfirmStep({ result }: { result: ParseResult }) {
-  const { importableCount, totalAmount, duplicateCount, seecIssueCount, errorCount } = result
+  const { importableCount, totalAmount, duplicateCount, seecIssueCount, limitIssueCount, errorCount } = result
 
   return (
     <div className="p-6 space-y-4">
@@ -399,6 +400,14 @@ function ConfirmStep({ result }: { result: ParseResult }) {
             label={`${seecIssueCount} donation${seecIssueCount !== 1 ? 's' : ''} missing employer or occupation`}
             note="Will be imported and flagged for review"
             color="amber"
+          />
+        )}
+        {limitIssueCount > 0 && (
+          <DetailRow
+            icon={<AlertCircle className="w-3.5 h-3.5 text-red-500" />}
+            label={`${limitIssueCount} donation${limitIssueCount !== 1 ? 's' : ''} at or over the $2,000 annual limit`}
+            note="Will be imported and flagged — excess amounts may need to be refunded"
+            color="red"
           />
         )}
         {errorCount > 0 && (
@@ -501,6 +510,14 @@ function RowStatusBadge({ row }: { row: ParsedRow }) {
       <span className="inline-flex items-center gap-1 text-slate-400">
         <Copy className="w-3 h-3" />
         Already imported
+      </span>
+    )
+  }
+  if (row.limitIssues.length > 0) {
+    return (
+      <span className="inline-flex items-center gap-1 text-red-600" title={row.limitIssues.join(', ')}>
+        <AlertCircle className="w-3 h-3" />
+        Over limit
       </span>
     )
   }

@@ -118,3 +118,36 @@ describe('parseAnedotCsv', () => {
     expect(result.importableCount).toBe(1)
   })
 })
+
+describe('contribution limit flags', () => {
+  it('flags rows that push a donor over the annual limit, counting existing + in-file totals', () => {
+    const existing = [makeContribution({ amount: 1500, date: '2026-01-10' })] // jane@example.com
+    const result = parseAnedotCsv(
+      csv(
+        'an_l1,2026-05-01,Jane,Donor,jane@example.com,400,check,12 Elm St,Madison,CT,06443,Acme,Engineer,Completed',
+        'an_l2,2026-06-01,Jane,Donor,jane@example.com,200,check,12 Elm St,Madison,CT,06443,Acme,Engineer,Completed'
+      ),
+      existing
+    )
+    expect(result.rows[0].limitIssues).toEqual([]) // 1900 — under
+    expect(result.rows[1].limitIssues[0]).toMatch(/over the \$2,000 annual limit/) // 2100
+    expect(result.limitIssueCount).toBe(1)
+  })
+
+  it('does not flag totals in a different calendar year', () => {
+    const existing = [makeContribution({ amount: 1900, date: '2025-12-01' })]
+    const result = parseAnedotCsv(
+      csv('an_l3,2026-01-05,Jane,Donor,jane@example.com,500,check,12 Elm St,Madison,CT,06443,Acme,Engineer,Completed'),
+      existing
+    )
+    expect(result.limitIssueCount).toBe(0)
+  })
+
+  it('flags cash contributions over $100', () => {
+    const result = parseAnedotCsv(
+      csv('an_l4,2026-05-01,Jane,Donor,jane@example.com,150,cash,12 Elm St,Madison,CT,06443,Acme,Engineer,Completed'),
+      []
+    )
+    expect(result.rows[0].limitIssues[0]).toMatch(/Cash contribution over \$100/)
+  })
+})

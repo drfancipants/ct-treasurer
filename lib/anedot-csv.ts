@@ -1,5 +1,6 @@
 import Papa from 'papaparse'
 import type { Contribution, PaymentMethod } from './types'
+import { donorKey, getDonorYearTotals, INDIVIDUAL_ANNUAL_LIMIT, CASH_CONTRIBUTION_MAX } from './limits'
 
 // ─── Column name mapping ──────────────────────────────────────────────────────
 // Anedot's CSV export uses these header names (varies slightly by account config)
@@ -88,6 +89,7 @@ export interface ParsedRow {
   occupation?: string
   // Flags
   seecIssues: string[]
+  limitIssues: string[]
   isDuplicate: boolean
   isError: boolean
   errorMessage?: string
@@ -101,6 +103,7 @@ export interface ParseResult {
   importableCount: number
   duplicateCount: number
   seecIssueCount: number
+  limitIssueCount: number
   errorCount: number
 }
 
@@ -152,6 +155,7 @@ export function parseAnedotCsv(
       importableCount: 0,
       duplicateCount: 0,
       seecIssueCount: 0,
+      limitIssueCount: 0,
       errorCount: 1,
     }
   }
@@ -182,6 +186,7 @@ export function parseAnedotCsv(
         state: '',
         zip: '',
         seecIssues: [],
+        limitIssues: [],
         isDuplicate: false,
         isError: true,
         errorMessage: `Skipped — status: ${m.status}`,
@@ -242,12 +247,37 @@ export function parseAnedotCsv(
       employer,
       occupation,
       seecIssues,
+      limitIssues: [],
       isDuplicate,
       isError,
       errorMessage,
       rawRow: raw,
     }
   })
+
+  // ── Annual-limit flags (CT: $2,000/individual/calendar year to a town
+  // committee; cash contributions capped at $100 each — CGS § 9-611).
+  // Accumulate existing totals plus earlier rows in this same file so a batch
+  // of small donations that collectively cross the limit still gets flagged.
+  const yearTotals = new Map<string, number>()
+  for (const d of getDonorYearTotals(existingContributions)) {
+    yearTotals.set(`${d.key}@${d.year}`, d.total)
+  }
+  for (const r of rows) {
+    if (r.isError || r.isDuplicate) continue
+    const key = `${donorKey({ email: r.email, firstName: r.firstName, lastName: r.lastName, zip: r.zip })}@${r.date.slice(0, 4)}`
+    const prior = yearTotals.get(key) ?? 0
+    const newTotal = prior + r.amount
+    if (newTotal > INDIVIDUAL_ANNUAL_LIMIT) {
+      r.limitIssues.push(
+        `Donor reaches $${newTotal.toLocaleString()} for ${r.date.slice(0, 4)} — over the $${INDIVIDUAL_ANNUAL_LIMIT.toLocaleString()} annual limit`
+      )
+    }
+    if (r.method === 'CASH' && r.amount > CASH_CONTRIBUTION_MAX) {
+      r.limitIssues.push(`Cash contribution over $${CASH_CONTRIBUTION_MAX} (CGS § 9-611)`)
+    }
+    yearTotals.set(key, newTotal)
+  }
 
   const importable = rows.filter((r) => !r.isError && !r.isDuplicate)
 
@@ -258,6 +288,7 @@ export function parseAnedotCsv(
     importableCount: importable.length,
     duplicateCount: rows.filter((r) => r.isDuplicate).length,
     seecIssueCount: importable.filter((r) => r.seecIssues.length > 0).length,
+    limitIssueCount: importable.filter((r) => r.limitIssues.length > 0).length,
     errorCount: rows.filter((r) => r.isError).length,
   }
 }

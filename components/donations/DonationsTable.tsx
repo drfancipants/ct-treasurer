@@ -25,6 +25,7 @@ import AddDonationDialog from './AddDonationDialog'
 import { deleteContribution } from '@/actions/donations'
 import AnedotImportDialog from './AnedotImportDialog'
 import ErrorBanner from '@/components/ui/ErrorBanner'
+import LimitAlerts from './LimitAlerts'
 
 const METHOD_COLORS: Record<PaymentMethod, string> = {
   CHECK: 'bg-slate-100 text-slate-700',
@@ -143,6 +144,8 @@ export default function DonationsTable({ contributions: initial, committeeId, co
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
+
+      <LimitAlerts contributions={contributions} />
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 mt-4">
@@ -394,6 +397,7 @@ export default function DonationsTable({ contributions: initial, committeeId, co
           onAdd={handleAdd}
           committeeId={committeeId}
           committeeSlug={committeeSlug}
+          existingContributions={contributions}
         />
       )}
       {editing && (
@@ -405,6 +409,7 @@ export default function DonationsTable({ contributions: initial, committeeId, co
           committeeId={committeeId}
           committeeSlug={committeeSlug}
           contribution={editing}
+          existingContributions={contributions}
         />
       )}
       <AnedotImportDialog
