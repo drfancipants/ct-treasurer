@@ -57,7 +57,7 @@ export default function ReconcileDialog({
   // Create expense form state
   const [payee, setPayee] = useState('')
   const [purpose, setPurpose] = useState('')
-  const [category, setCategory] = useState<ExpenseCategory>('OTHER')
+  const [category, setCategory] = useState<ExpenseCategory>('MISC')
   const [method, setMethod] = useState<PaymentMethod>('DEBIT_CARD')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -107,7 +107,7 @@ export default function ReconcileDialog({
   function handleOpenCreate() {
     setPayee(transaction!.merchantName || transaction!.description)
     setPurpose('')
-    setCategory('OTHER')
+    setCategory('MISC')
     setMethod('DEBIT_CARD')
     setError('')
     setView('create')
@@ -338,7 +338,7 @@ export default function ReconcileDialog({
                     className={inputCls}
                   >
                     {(Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategory[]).map((k) => (
-                      <option key={k} value={k}>{EXPENSE_CATEGORY_LABELS[k]}</option>
+                      <option key={k} value={k}>{k}: {EXPENSE_CATEGORY_LABELS[k]}</option>
                     ))}
                   </select>
                 </div>

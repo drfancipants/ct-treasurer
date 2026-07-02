@@ -97,7 +97,7 @@ export interface CategoryData {
 export function getExpenseCategoryBreakdown(expenditures: Expenditure[]): CategoryData[] {
   const map = new Map<string, { amount: number; count: number }>()
   for (const e of expenditures) {
-    const label = EXPENSE_CATEGORY_LABELS[e.category]
+    const label = EXPENSE_CATEGORY_LABELS[e.category] ?? e.category
     const existing = map.get(label) ?? { amount: 0, count: 0 }
     map.set(label, { amount: existing.amount + e.amount, count: existing.count + 1 })
   }

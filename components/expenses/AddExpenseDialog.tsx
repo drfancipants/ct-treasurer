@@ -31,7 +31,7 @@ const EMPTY: FormData = {
   date: new Date().toISOString().split('T')[0],
   payee: '',
   purpose: '',
-  category: 'OTHER',
+  category: 'MISC',
   method: 'CHECK',
   checkNumber: '',
   memo: '',
@@ -182,7 +182,7 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
               >
                 {(Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategory[]).map((c) => (
                   <option key={c} value={c}>
-                    {EXPENSE_CATEGORY_LABELS[c]}
+                    {c}: {EXPENSE_CATEGORY_LABELS[c]}
                   </option>
                 ))}
               </select>

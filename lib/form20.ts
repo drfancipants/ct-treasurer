@@ -24,8 +24,12 @@ const EXPENDITURE_METHOD: Record<string, string> = {
   OTHER:       'CH',
 }
 
-/** Section P – Purpose of Expenditure codes */
-const EXPENSE_PURPOSE: Record<string, string> = {
+/**
+ * Section P – Purpose of Expenditure. Expenditure.category now stores the
+ * SEEC code directly (e.g. "A-RAD"); this map only converts legacy app
+ * categories that may survive in old data.
+ */
+const LEGACY_EXPENSE_PURPOSE: Record<string, string> = {
   PRINTING:             'PRNT',
   ADVERTISING:          'A-NEWS',
   EVENT:                'FNDR',
@@ -133,7 +137,7 @@ export function populateForm20(
         '',                                               // 12 Event letter
         i + 1,                                            // 13 Expenditure number
         'NONE',                                           // 14 Type (NONE = not coordinated)
-        EXPENSE_PURPOSE[e.category] ?? 'MISC',            // 15 Purpose code
+        LEGACY_EXPENSE_PURPOSE[e.category] ?? e.category, // 15 Purpose code (stored directly)
       ])
       XLSX.utils.sheet_add_aoa(ws, rows, { origin: 'A2' })
     }

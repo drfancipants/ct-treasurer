@@ -5,7 +5,7 @@ import { Plus, Search, ChevronDown, MoreHorizontal, Pencil, Trash2 } from 'lucid
 import type { Expenditure, ExpenseCategory, PaymentMethod } from '@/lib/types'
 import {
   EXPENSE_CATEGORY_LABELS,
-  EXPENSE_CATEGORY_COLORS,
+  expenseCategoryColor,
   PAYMENT_METHOD_LABELS,
 } from '@/lib/types'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
@@ -128,7 +128,7 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
           <option value="ALL">All categories</option>
           {(Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategory[]).map((c) => (
             <option key={c} value={c}>
-              {EXPENSE_CATEGORY_LABELS[c]}
+              {c}: {EXPENSE_CATEGORY_LABELS[c]}
             </option>
           ))}
         </FilterSelect>
@@ -191,7 +191,7 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
                   <span
                     className={cn(
                       'inline-flex px-2 py-0.5 rounded-md text-xs font-medium',
-                      EXPENSE_CATEGORY_COLORS[expense.category]
+                      expenseCategoryColor(expense.category)
                     )}
                   >
                     {EXPENSE_CATEGORY_LABELS[expense.category]}

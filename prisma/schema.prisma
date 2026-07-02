@@ -143,19 +143,6 @@ enum ContributionSource {
 
 // ─── Expenditures ────────────────────────────────────────────────────────────
 
-enum ExpenseCategory {
-  PRINTING
-  ADVERTISING
-  EVENT
-  POSTAGE
-  OFFICE_SUPPLIES
-  TECHNOLOGY
-  PROFESSIONAL_SERVICES
-  HEADQUARTERS
-  SIGNAGE
-  OTHER
-}
-
 model Expenditure {
   id          String        @id @default(cuid())
   committeeId String
@@ -163,7 +150,8 @@ model Expenditure {
   date        DateTime      @db.Date
   payee       String
   purpose     String
-  category    ExpenseCategory @default(OTHER)
+  // SEEC Section P purpose code (e.g. "A-RAD", "PRNT") — see lib/types.ts
+  category    String        @default("MISC")
   method      PaymentMethod
   checkNumber String?
   memo        String?

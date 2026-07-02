@@ -44,7 +44,7 @@ export function makeExpenditure(overrides: Partial<Expenditure> = {}): Expenditu
     date: '2026-05-20',
     payee: 'Shoreline Printing',
     purpose: 'Palm cards',
-    category: 'PRINTING',
+    category: 'PRNT',
     method: 'CHECK',
     checkNumber: '1042',
     createdAt: '2026-05-20T12:00:00.000Z',

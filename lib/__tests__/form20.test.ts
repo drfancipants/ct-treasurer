@@ -30,8 +30,8 @@ const contributions = [
 ]
 
 const expenditures = [
-  makeExpenditure({ id: 'exp_a', amount: 250, date: '2026-05-20', category: 'PRINTING', method: 'CHECK', checkNumber: '1042' }),
-  makeExpenditure({ id: 'exp_b', amount: 89.99, date: '2026-06-10', category: 'SIGNAGE', method: 'ONLINE', checkNumber: undefined, payee: 'SignCo' }),
+  makeExpenditure({ id: 'exp_a', amount: 250, date: '2026-05-20', category: 'PRNT', method: 'CHECK', checkNumber: '1042' }),
+  makeExpenditure({ id: 'exp_b', amount: 89.99, date: '2026-06-10', category: 'A-SIGN', method: 'ONLINE', checkNumber: undefined, payee: 'SignCo' }),
   // Out of period
   makeExpenditure({ id: 'exp_c', amount: 999, date: '2026-07-02' }),
 ]
@@ -99,11 +99,23 @@ describe('populateForm20 (against the real eCRIS template)', () => {
     expect(printing[6]).toBe('05/20/2026')
     expect(printing[8]).toBe('CH')         // CHECK → CH
     expect(printing[9]).toBe('1042')       // check number
-    expect(printing[15]).toBe('PRNT')      // PRINTING → PRNT
+    expect(printing[15]).toBe('PRNT')      // stored SEEC code passes through
 
     expect(signage[1]).toBe('SignCo')
     expect(signage[8]).toBe('EFT')         // ONLINE → EFT
-    expect(signage[15]).toBe('A-SIGN')     // SIGNAGE → A-SIGN
+    expect(signage[15]).toBe('A-SIGN')
+  })
+
+  it('maps legacy app categories to SEEC codes', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const legacy = makeExpenditure({ id: 'exp_legacy', date: '2026-05-01' })
+    // Simulate a pre-migration row that still carries an old app category
+    ;(legacy as { category: string }).category = 'HEADQUARTERS'
+    const out = populateForm20(template, [], [legacy], Q2_START, Q2_END)
+    const sheet = XLSX.read(out, { type: 'array' }).Sheets['Section P']
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 })
+    expect(rows[1][15]).toBe('OVHD')
   })
 
   it('excludes out-of-period transactions everywhere', () => {
