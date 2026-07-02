@@ -61,15 +61,23 @@ export async function POST(req: NextRequest) {
     }
     const next_cursor = cursor
 
-    // Remove withdrawn transactions
+    // transactionsSync returns transactions for every account on the Item
+    // (the whole bank login). This BankAccount row represents one account, so
+    // keep only the transactions belonging to it.
+    const isThisAccount = (accountId: string) => accountId === bankAccount.plaidAccountId
+    const ourAdded = added.filter((tx) => isThisAccount(tx.account_id))
+    const ourModified = modified.filter((tx) => isThisAccount(tx.account_id))
+
+    // Remove withdrawn transactions — scoped to this account so a removal on a
+    // sibling account can never delete a row here
     if (removedIds.length > 0) {
       await prisma.transaction.deleteMany({
-        where: { plaidTransactionId: { in: removedIds } },
+        where: { bankAccountId, plaidTransactionId: { in: removedIds } },
       })
     }
 
     // Upsert added and modified
-    for (const tx of [...added, ...modified]) {
+    for (const tx of [...ourAdded, ...ourModified]) {
       await prisma.transaction.upsert({
         where: { plaidTransactionId: tx.transaction_id },
         create: {
@@ -114,7 +122,7 @@ export async function POST(req: NextRequest) {
       console.warn('[plaid/sync] balance refresh failed (cursor already advanced):', balanceErr)
     }
 
-    return NextResponse.json({ added: added.length, modified: modified.length, removed: removedIds.length })
+    return NextResponse.json({ added: ourAdded.length, modified: ourModified.length, removed: removedIds.length })
   } catch (err) {
     console.error('[plaid/sync]', err)
     return NextResponse.json({ error: 'Sync failed' }, { status: 500 })
