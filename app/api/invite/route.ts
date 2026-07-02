@@ -36,53 +36,63 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // If this person already has an account, add the committee membership
-  // directly — Supabase's inviteUserByEmail rejects an already-registered
-  // email, which would otherwise block adding an existing user to a second
-  // committee. (User.id === auth.users.id by the app's invariant.)
-  const existing = await prisma.user.findFirst({
-    where: { email: { equals: email, mode: 'insensitive' } },
-  })
-  if (existing) {
-    await prisma.committeeMembership.upsert({
-      where: { userId_committeeId: { userId: existing.id, committeeId } },
-      create: { userId: existing.id, committeeId, role },
-      update: { role },
-    })
-    return NextResponse.json({ success: true, userId: existing.id, existingUser: true })
-  }
-
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' }, { status: 503 })
   }
 
   const adminClient = createAdminClient()
+  const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/auth/callback?type=invite`
 
-  const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/auth/callback?type=invite`,
-    data: { name, role, committeeId, committeeName },
-  })
-
-  if (error) {
-    console.error('[invite]', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  async function addMembership(userId: string) {
+    await prisma.user.upsert({
+      where: { id: userId },
+      create: { id: userId, email, name },
+      update: { name },
+    })
+    await prisma.committeeMembership.upsert({
+      where: { userId_committeeId: { userId, committeeId } },
+      create: { userId, committeeId, role },
+      update: { role },
+    })
   }
 
-  const userId = data.user.id
+  // Does this email already have an account? Check Supabase Auth directly —
+  // a user can exist in auth without a Prisma User row, so a Prisma-only
+  // lookup misses them and inviteUserByEmail then errors on the known email.
+  const { data: list, error: listErr } = await adminClient.auth.admin.listUsers()
+  if (listErr) {
+    console.error('[invite] listUsers', listErr)
+    return NextResponse.json({ error: 'Could not check existing users' }, { status: 500 })
+  }
+  const authUser = list.users.find(
+    (u: { email?: string | null }) => u.email?.toLowerCase() === email.toLowerCase()
+  )
 
-  // Create User record in Prisma (matches Supabase auth user ID)
-  await prisma.user.upsert({
-    where: { id: userId },
-    create: { id: userId, email, name },
-    update: { name },
+  if (authUser) {
+    // Already has a login — just grant the committee membership. No email:
+    // they sign in with their existing credentials.
+    await addMembership(authUser.id)
+    return NextResponse.json({ success: true, userId: authUser.id, existingUser: true })
+  }
+
+  // New person — generate an invite link and return it so the treasurer can
+  // share it directly. This does not rely on Supabase's built-in email
+  // (rate-limited and often undelivered); generateLink sends nothing itself.
+  const { data, error } = await adminClient.auth.admin.generateLink({
+    type: 'invite',
+    email,
+    options: { redirectTo, data: { name, role, committeeId, committeeName } },
   })
+  if (error || !data.user) {
+    console.error('[invite] generateLink', error)
+    return NextResponse.json({ error: error?.message ?? 'Failed to create invite' }, { status: 500 })
+  }
 
-  // Create CommitteeMembership
-  await prisma.committeeMembership.upsert({
-    where: { userId_committeeId: { userId, committeeId } },
-    create: { userId, committeeId, role },
-    update: { role },
+  await addMembership(data.user.id)
+
+  return NextResponse.json({
+    success: true,
+    userId: data.user.id,
+    inviteLink: data.properties.action_link,
   })
-
-  return NextResponse.json({ success: true, userId })
 }
