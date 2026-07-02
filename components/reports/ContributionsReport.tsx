@@ -8,6 +8,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { format, parseISO } from 'date-fns'
 
 type Preset = 'ytd' | 'prev-year' | 'custom'
+type Tab = 'overview' | 'donors'
 
 function today(): string {
   return new Date().toISOString().slice(0, 10)
@@ -15,6 +16,7 @@ function today(): string {
 
 export default function ContributionsReport({ contributions }: { contributions: Contribution[] }) {
   const currentYear = new Date().getFullYear()
+  const [tab, setTab] = useState<Tab>('overview')
   const [preset, setPreset] = useState<Preset>('ytd')
   const [start, setStart] = useState(`${currentYear}-01-01`)
   const [end, setEnd] = useState(today())
@@ -66,6 +68,26 @@ export default function ContributionsReport({ contributions }: { contributions: 
       .map(([key, v]) => ({ key, label: format(parseISO(`${key}-01`), 'MMMM yyyy'), ...v }))
   }, [filtered])
 
+  const byDonor = useMemo(() => {
+    const map = new Map<string, { name: string; email?: string; count: number; amount: number }>()
+    for (const c of filtered) {
+      const key = donorKey(c.contributor)
+      const entry = map.get(key) ?? {
+        name: `${c.contributor.firstName} ${c.contributor.lastName}`.trim(),
+        email: c.contributor.email,
+        count: 0,
+        amount: 0,
+      }
+      entry.count += 1
+      entry.amount += c.amount
+      if (!entry.email && c.contributor.email) entry.email = c.contributor.email
+      map.set(key, entry)
+    }
+    return [...map.entries()]
+      .map(([key, v]) => ({ key, ...v }))
+      .sort((a, b) => b.amount - a.amount)
+  }, [filtered])
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -102,6 +124,26 @@ export default function ContributionsReport({ contributions }: { contributions: 
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-slate-200">
+        {([['overview', 'Overview'], ['donors', 'By donor']] as [Tab, string][]).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={cn(
+              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+              tab === key
+                ? 'border-blue-600 text-blue-700'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'overview' && (
+      <>
       {/* Summary tiles */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatTile icon={DollarSign} label="Total contributions" value={formatCurrency(totals.total)} accent="text-emerald-700" />
@@ -151,6 +193,59 @@ export default function ContributionsReport({ contributions }: { contributions: 
           </table>
         )}
       </div>
+      </>
+      )}
+
+      {tab === 'donors' && (
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+              Totals by donor
+            </p>
+            <p className="text-xs text-slate-400">
+              {byDonor.length} donor{byDonor.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          {byDonor.length === 0 ? (
+            <p className="px-4 py-10 text-center text-sm text-slate-400">
+              No contributions in this date range.
+            </p>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Donor</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500 uppercase tracking-wide">Contributions</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500 uppercase tracking-wide">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {byDonor.map((d) => (
+                  <tr key={d.key} className="table-row-hover">
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-medium text-slate-900">{d.name}</p>
+                      {d.email && <p className="text-xs text-slate-400">{d.email}</p>}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600 text-right tabular">{d.count}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-emerald-700 text-right tabular">
+                      {formatCurrency(d.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-slate-200 bg-slate-50">
+                  <td className="px-4 py-3 text-sm font-semibold text-slate-700">Total</td>
+                  <td className="px-4 py-3 text-sm font-semibold text-slate-700 text-right tabular">{totals.count}</td>
+                  <td className="px-4 py-3 text-sm font-semibold text-emerald-700 text-right tabular">
+                    {formatCurrency(totals.total)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+      )}
     </div>
   )
 }
