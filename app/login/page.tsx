@@ -25,7 +25,11 @@ function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(() =>
+    searchParams.get('error') === 'auth_callback_failed'
+      ? 'That sign-in link couldn’t be completed. Magic links only work in the browser where you requested them — request a new one below, or sign in with your password.'
+      : ''
+  )
   const [magicLinkSent, setMagicLinkSent] = useState(false)
 
   const supabase = createClient()
