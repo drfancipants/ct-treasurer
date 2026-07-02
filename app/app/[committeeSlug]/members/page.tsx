@@ -15,7 +15,7 @@ export default async function MembersPage({ params }: Props) {
   const members = await getMembers(committee.id)
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
         <MembersTable members={members} committeeId={committee.id} committeeSlug={committeeSlug} committeeName={committee.name} />
       </div>

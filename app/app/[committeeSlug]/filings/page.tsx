@@ -25,7 +25,7 @@ export default async function FilingsPage({ params }: Props) {
   ])
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         <FilingsList
           contributions={contributions}

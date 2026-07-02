@@ -24,7 +24,7 @@ export default async function ExpensesPage({ params }: Props) {
   ])
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <ExpenseSummaryCards expenditures={expenditures} contributions={contributions} />
         <ExpensesTable expenditures={expenditures} committeeId={committee.id} committeeSlug={committeeSlug} canEdit={canEdit} />

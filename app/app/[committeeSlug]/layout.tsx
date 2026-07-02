@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/db'
 import { mapCommittee } from '@/lib/map-committee'
 import Sidebar from '@/components/layout/Sidebar'
+import MobileHeader from '@/components/layout/MobileHeader'
 import SubscriptionBanner from '@/components/layout/SubscriptionBanner'
 
 interface Props {
@@ -27,9 +28,14 @@ export default async function CommitteeLayout({ children, params }: Props) {
   if (!activeCommittee) notFound()
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
-      <Sidebar committees={committees} activeCommittee={activeCommittee} />
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50">
+      {/* Desktop sidebar */}
+      <div className="hidden md:block">
+        <Sidebar committees={committees} activeCommittee={activeCommittee} />
+      </div>
+      {/* Phone top bar + drawer */}
+      <MobileHeader committees={committees} activeCommittee={activeCommittee} />
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <SubscriptionBanner committee={activeCommittee} />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>

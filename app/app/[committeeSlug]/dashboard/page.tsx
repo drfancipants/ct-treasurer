@@ -39,7 +39,7 @@ export default async function DashboardPage({ params }: Props) {
   const activity = getRecentActivity(contributions, expenditures, 8)
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Dashboard</h1>

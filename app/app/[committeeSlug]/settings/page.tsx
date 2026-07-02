@@ -16,7 +16,7 @@ export default async function SettingsPage({ params, searchParams }: Props) {
   if (!committee) notFound()
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="max-w-2xl mx-auto space-y-10">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Committee settings</h1>

@@ -15,7 +15,7 @@ export default async function ReportsPage({ params }: Props) {
   const contributions = await getContributions(committee.id)
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="max-w-5xl mx-auto space-y-6">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Reports</h1>
