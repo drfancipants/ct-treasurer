@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { CountryCode, Products } from 'plaid'
 import { plaidClient } from '@/lib/plaid'
+import { prisma } from '@/lib/db'
+import { FINANCE_ROLES } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
@@ -12,6 +14,12 @@ export async function POST(req: NextRequest) {
   if (!committeeId) {
     return NextResponse.json({ error: 'committeeId required' }, { status: 400 })
   }
+
+  // Linking a bank account is a finance-role operation
+  const membership = await prisma.committeeMembership.findFirst({
+    where: { userId: user.id, committeeId, role: { in: FINANCE_ROLES } },
+  })
+  if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   if (!process.env.PLAID_CLIENT_ID || !process.env.PLAID_SECRET) {
     return NextResponse.json(

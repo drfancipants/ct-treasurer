@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getCommitteeBySlug } from '@/actions/committees'
+import { requireCommitteeMember, canEditFinances } from '@/lib/auth'
 import { getBankAccounts, getTransactions } from '@/actions/bank'
 import { getContributions } from '@/actions/donations'
 import { getExpenditures } from '@/actions/expenses'
@@ -9,6 +10,9 @@ export default async function BankPage({ params }: { params: Promise<{ committee
   const { committeeSlug } = await params
   const committee = await getCommitteeBySlug(committeeSlug)
   if (!committee) notFound()
+
+  const { role } = await requireCommitteeMember(committeeSlug)
+  const canEdit = canEditFinances(role)
 
   const accounts = await getBankAccounts(committee.id)
   const [transactions, contributions, expenditures] = await Promise.all([
@@ -25,6 +29,7 @@ export default async function BankPage({ params }: { params: Promise<{ committee
       transactions={transactions}
       contributions={contributions}
       expenditures={expenditures}
+      canEdit={canEdit}
     />
   )
 }

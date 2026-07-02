@@ -45,9 +45,10 @@ interface Props {
   contributions: Contribution[]
   committeeId: string
   committeeSlug: string
+  canEdit: boolean
 }
 
-export default function DonationsTable({ contributions: initial, committeeId, committeeSlug }: Props) {
+export default function DonationsTable({ contributions: initial, committeeId, committeeSlug, canEdit }: Props) {
   const [contributions, setContributions] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Contribution | null>(null)
@@ -121,22 +122,24 @@ export default function DonationsTable({ contributions: initial, committeeId, co
             {contributions.length} contributions · {formatCurrency(contributions.reduce((s, c) => s + c.amount, 0))} total
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowImport(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            Import Anedot CSV
-          </button>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add donation
-          </button>
-        </div>
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Import Anedot CSV
+            </button>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add donation
+            </button>
+          </div>
+        )}
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
@@ -298,6 +301,7 @@ export default function DonationsTable({ contributions: initial, committeeId, co
 
                   {/* Actions */}
                   <td className="px-4 py-3.5 relative">
+                    {canEdit && (
                     <button
                       onClick={() => setOpenMenu(openMenu === contribution.id ? null : contribution.id)}
                       className="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100"
@@ -305,6 +309,7 @@ export default function DonationsTable({ contributions: initial, committeeId, co
                     >
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
+                    )}
 
                     {openMenu === contribution.id && (
                       <>
@@ -356,7 +361,7 @@ export default function DonationsTable({ contributions: initial, committeeId, co
                 ? 'No donations yet'
                 : 'No donations match your filters'}
             </p>
-            {contributions.length === 0 && (
+            {contributions.length === 0 && canEdit && (
               <button
                 onClick={() => setShowAdd(true)}
                 className="mt-3 text-sm text-blue-600 hover:underline"

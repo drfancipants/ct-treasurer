@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { CountryCode } from 'plaid'
 import { plaidClient } from '@/lib/plaid'
 import { prisma } from '@/lib/db'
+import { FINANCE_ROLES } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
   }
 
   const membership = await prisma.committeeMembership.findFirst({
-    where: { userId: user.id, committeeId },
+    where: { userId: user.id, committeeId, role: { in: FINANCE_ROLES } },
   })
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 

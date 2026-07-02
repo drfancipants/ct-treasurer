@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
-import { requireCommitteeMember, requireCommitteeMemberById } from '@/lib/auth'
+import { requireCommitteeMemberById, requireFinanceRole } from '@/lib/auth'
 import type { Expenditure, PaymentMethod, ExpenseCategory } from '@/lib/types'
 
 type PrismaExpenditure = {
@@ -58,6 +58,9 @@ export async function createExpenditure(
   },
   committeeSlug: string
 ): Promise<Expenditure> {
+  const { committeeId: verifiedId } = await requireFinanceRole(committeeSlug)
+  if (verifiedId !== committeeId) throw new Error('Forbidden')
+
   const expenditure = await prisma.expenditure.create({
     data: {
       committeeId,
@@ -91,7 +94,7 @@ export async function updateExpenditure(
   },
   committeeSlug: string
 ): Promise<Expenditure> {
-  const { committeeId } = await requireCommitteeMember(committeeSlug)
+  const { committeeId } = await requireFinanceRole(committeeSlug)
   const existing = await prisma.expenditure.findFirst({ where: { id, committeeId } })
   if (!existing) throw new Error('Forbidden')
 
@@ -114,7 +117,7 @@ export async function updateExpenditure(
 }
 
 export async function deleteExpenditure(id: string, committeeSlug: string) {
-  const { committeeId } = await requireCommitteeMember(committeeSlug)
+  const { committeeId } = await requireFinanceRole(committeeSlug)
   const existing = await prisma.expenditure.findFirst({ where: { id, committeeId } })
   if (!existing) throw new Error('Forbidden')
 

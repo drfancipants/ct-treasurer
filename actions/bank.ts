@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
-import { requireCommitteeMember, requireCommitteeMemberById } from '@/lib/auth'
+import { requireCommitteeMemberById, requireFinanceRole } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import type { BankAccount, BankTransaction, TransactionMatchType } from '@/lib/types'
 
@@ -86,7 +86,7 @@ export async function getTransactions(bankAccountIds: string[]): Promise<BankTra
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export async function removeBankAccount(accountId: string, committeeSlug: string) {
-  const { committeeId } = await requireCommitteeMember(committeeSlug)
+  const { committeeId } = await requireFinanceRole(committeeSlug)
   const account = await prisma.bankAccount.findFirst({ where: { id: accountId, committeeId } })
   if (!account) throw new Error('Forbidden')
 
@@ -103,7 +103,7 @@ export async function reconcileTransaction(
   matchedId: string | undefined,
   committeeSlug: string
 ) {
-  const { committeeId } = await requireCommitteeMember(committeeSlug)
+  const { committeeId } = await requireFinanceRole(committeeSlug)
   const tx = await prisma.transaction.findFirst({
     where: { id: transactionId, bankAccount: { committeeId } },
   })

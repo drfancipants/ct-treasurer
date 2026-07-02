@@ -10,9 +10,10 @@ interface Props {
   account: BankAccount
   onSync: (accountId: string) => Promise<void>
   onRemove: (accountId: string) => void
+  canEdit: boolean
 }
 
-export default function BankAccountCard({ account, onSync, onRemove }: Props) {
+export default function BankAccountCard({ account, onSync, onRemove, canEdit }: Props) {
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -57,6 +58,7 @@ export default function BankAccountCard({ account, onSync, onRemove }: Props) {
               {account.name} ···· {account.lastFour}
             </p>
           </div>
+          {canEdit && (
           <div className="relative">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -79,6 +81,7 @@ export default function BankAccountCard({ account, onSync, onRemove }: Props) {
               </>
             )}
           </div>
+          )}
         </div>
 
         {/* Balance */}
@@ -107,6 +110,7 @@ export default function BankAccountCard({ account, onSync, onRemove }: Props) {
               <span className="text-xs text-slate-400">{lastSynced}</span>
             )}
           </div>
+          {canEdit && (
           <button
             onClick={handleSync}
             disabled={syncing}
@@ -115,6 +119,7 @@ export default function BankAccountCard({ account, onSync, onRemove }: Props) {
             <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Syncing…' : 'Sync now'}
           </button>
+          )}
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { getCommitteeBySlug } from '@/actions/committees'
 import { getContributions } from '@/actions/donations'
 import { getExpenditures } from '@/actions/expenses'
 import { getFilings } from '@/actions/filings'
+import { requireCommitteeMember, canEditFinances } from '@/lib/auth'
 import FilingsList from '@/components/filings/FilingsList'
 
 interface Props {
@@ -13,6 +14,9 @@ export default async function FilingsPage({ params }: Props) {
   const { committeeSlug } = await params
   const committee = await getCommitteeBySlug(committeeSlug)
   if (!committee) notFound()
+
+  const { role } = await requireCommitteeMember(committeeSlug)
+  const canEdit = canEditFinances(role)
 
   const [contributions, expenditures, filings] = await Promise.all([
     getContributions(committee.id),
@@ -28,6 +32,7 @@ export default async function FilingsPage({ params }: Props) {
           expenditures={expenditures}
           committee={committee}
           filings={filings}
+          canEdit={canEdit}
         />
       </div>
     </div>

@@ -66,6 +66,10 @@ Vitest unit tests live in `lib/__tests__/` and cover the compliance-critical pur
 - `lib/anedot-csv.ts` — PapaParse-based CSV parser that handles Anedot column name variants and deduplicates against existing `anedotId` values
 - `lib/supabase/client.ts` / `server.ts` — browser and server Supabase clients; server.ts also exports an `adminClient` that bypasses RLS (requires `SUPABASE_SERVICE_ROLE_KEY`)
 
+### Roles
+
+`FINANCE_ROLES` (`lib/auth.ts`) = TREASURER + ASSISTANT_TREASURER. Only these roles may mutate financial records — contributions, expenditures, bank linking/sync/reconciliation, and mark-as-filed all go through `requireFinanceRole()` (server actions) or a `role: { in: FINANCE_ROLES }` membership query (Plaid API routes). All other roles are read-only; pages pass `canEdit` into the table components to hide write affordances. Any new mutation must enforce this server-side — hiding the button is not enforcement.
+
 ### Multi-tenancy
 
 The app is multi-committee. `Committee` is the tenant root in Prisma. Every `Contribution`, `Expenditure`, `BankAccount`, `SeecFiling`, and `CommitteeMembership` has a `committeeId` FK. `Contributor` is intentionally global (shared across committees, matched by email) — server actions must verify a contributor belongs to the contribution being edited before writing to it. The auth proxy (`proxy.ts` — Next 16's rename of middleware) handles session refresh and redirects unauthenticated requests to `/login`; it does **not** validate committee membership — that happens in `app/app/[committeeSlug]/layout.tsx`.

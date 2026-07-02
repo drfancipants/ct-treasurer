@@ -41,9 +41,10 @@ interface Props {
   expenditures: Expenditure[]
   committeeId: string
   committeeSlug: string
+  canEdit: boolean
 }
 
-export default function TransactionsTable({ transactions: initial, contributions, expenditures, committeeId, committeeSlug }: Props) {
+export default function TransactionsTable({ transactions: initial, contributions, expenditures, committeeId, committeeSlug, canEdit }: Props) {
   const [transactions, setTransactions] = useState(initial)
   const [tab, setTab] = useState<Tab>('ALL')
   const [search, setSearch] = useState('')
@@ -243,7 +244,7 @@ export default function TransactionsTable({ transactions: initial, contributions
                   </td>
 
                   <td className="px-4 py-3.5 text-right">
-                    {tx.matchType === 'UNMATCHED' && (
+                    {canEdit && tx.matchType === 'UNMATCHED' && (
                       <button
                         onClick={() => setReconciling(tx)}
                         className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
@@ -251,7 +252,7 @@ export default function TransactionsTable({ transactions: initial, contributions
                         Reconcile
                       </button>
                     )}
-                    {(tx.matchType === 'CONTRIBUTION' || tx.matchType === 'EXPENDITURE') && (
+                    {canEdit && (tx.matchType === 'CONTRIBUTION' || tx.matchType === 'EXPENDITURE') && (
                       <button
                         onClick={() => setReconciling(tx)}
                         className="px-3 py-1.5 rounded-lg text-slate-400 text-xs hover:bg-slate-100 transition-colors"

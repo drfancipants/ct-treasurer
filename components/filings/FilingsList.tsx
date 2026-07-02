@@ -70,9 +70,10 @@ interface Props {
   expenditures: Expenditure[]
   committee: Committee
   filings: SeecFilingRecord[]
+  canEdit: boolean
 }
 
-export default function FilingsList({ contributions, expenditures, committee, filings: initialFilings }: Props) {
+export default function FilingsList({ contributions, expenditures, committee, filings: initialFilings , canEdit }: Props) {
   const [exportPeriod, setExportPeriod] = useState<{ start: string; end: string } | null>(null)
   const [filings, setFilings] = useState(initialFilings)
 
@@ -245,7 +246,7 @@ export default function FilingsList({ contributions, expenditures, committee, fi
           expenditures={expenditures}
           committeeName={committee.name}
           initialPeriod={exportPeriod}
-          onFiled={handleFiled}
+          onFiled={canEdit ? handleFiled : undefined}
         />
       )}
     </>

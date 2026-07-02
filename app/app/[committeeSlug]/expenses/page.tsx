@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getCommitteeBySlug } from '@/actions/committees'
+import { requireCommitteeMember, canEditFinances } from '@/lib/auth'
 import { getExpenditures } from '@/actions/expenses'
 import { getContributions } from '@/actions/donations'
 import ExpenseSummaryCards from '@/components/expenses/ExpenseSummaryCards'
@@ -14,6 +15,9 @@ export default async function ExpensesPage({ params }: Props) {
   const committee = await getCommitteeBySlug(committeeSlug)
   if (!committee) notFound()
 
+  const { role } = await requireCommitteeMember(committeeSlug)
+  const canEdit = canEditFinances(role)
+
   const [expenditures, contributions] = await Promise.all([
     getExpenditures(committee.id),
     getContributions(committee.id),
@@ -23,7 +27,7 @@ export default async function ExpensesPage({ params }: Props) {
     <div className="p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <ExpenseSummaryCards expenditures={expenditures} contributions={contributions} />
-        <ExpensesTable expenditures={expenditures} committeeId={committee.id} committeeSlug={committeeSlug} />
+        <ExpensesTable expenditures={expenditures} committeeId={committee.id} committeeSlug={committeeSlug} canEdit={canEdit} />
       </div>
     </div>
   )

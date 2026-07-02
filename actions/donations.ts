@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
-import { requireCommitteeMember, requireCommitteeMemberById } from '@/lib/auth'
+import { requireCommitteeMemberById, requireFinanceRole } from '@/lib/auth'
 import type { Contribution, PaymentMethod, ContributionSource } from '@/lib/types'
 import type { ParsedRow } from '@/lib/anedot-csv'
 
@@ -98,6 +98,9 @@ export async function createContribution(
   },
   committeeSlug: string
 ): Promise<Contribution> {
+  const { committeeId: verifiedId } = await requireFinanceRole(committeeSlug)
+  if (verifiedId !== committeeId) throw new Error('Forbidden')
+
   // Find existing contributor by email, or create new
   let contributor = data.contributor.email
     ? await prisma.contributor.findFirst({
@@ -167,7 +170,7 @@ export async function updateContribution(
   },
   committeeSlug: string
 ): Promise<Contribution> {
-  const { committeeId } = await requireCommitteeMember(committeeSlug)
+  const { committeeId } = await requireFinanceRole(committeeSlug)
   const existing = await prisma.contribution.findFirst({ where: { id: contributionId, committeeId } })
   if (!existing || existing.contributorId !== contributorId) throw new Error('Forbidden')
 
@@ -207,7 +210,7 @@ export async function updateContribution(
 }
 
 export async function deleteContribution(id: string, committeeSlug: string) {
-  const { committeeId } = await requireCommitteeMember(committeeSlug)
+  const { committeeId } = await requireFinanceRole(committeeSlug)
   const existing = await prisma.contribution.findFirst({ where: { id, committeeId } })
   if (!existing) throw new Error('Forbidden')
 
@@ -222,7 +225,7 @@ export async function importContributions(
   rows: ParsedRow[],
   committeeSlug: string
 ): Promise<{ imported: number; skipped: number; contributions: Contribution[] }> {
-  const { committeeId: verifiedId } = await requireCommitteeMember(committeeSlug)
+  const { committeeId: verifiedId } = await requireFinanceRole(committeeSlug)
   if (verifiedId !== committeeId) throw new Error('Forbidden')
 
   const validRows = rows.filter(r => !r.isError && !r.isDuplicate)

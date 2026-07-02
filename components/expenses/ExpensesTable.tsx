@@ -26,9 +26,10 @@ interface Props {
   expenditures: Expenditure[]
   committeeId: string
   committeeSlug: string
+  canEdit: boolean
 }
 
-export default function ExpensesTable({ expenditures: initial, committeeId, committeeSlug }: Props) {
+export default function ExpensesTable({ expenditures: initial, committeeId, committeeSlug, canEdit }: Props) {
   const [expenditures, setExpenditures] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Expenditure | null>(null)
@@ -93,13 +94,15 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
             {formatCurrency(expenditures.reduce((s, e) => s + e.amount, 0))} total
           </p>
         </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add expense
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add expense
+          </button>
+        )}
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
@@ -219,6 +222,7 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
 
                 {/* Actions */}
                 <td className="px-4 py-3.5 relative">
+                  {canEdit && (
                   <button
                     onClick={() =>
                       setOpenMenu(openMenu === expense.id ? null : expense.id)
@@ -228,6 +232,7 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
                   >
                     <MoreHorizontal className="w-4 h-4" />
                   </button>
+                  )}
 
                   {openMenu === expense.id && (
                     <>
@@ -266,7 +271,7 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
                 ? 'No expenses recorded yet'
                 : 'No expenses match your filters'}
             </p>
-            {expenditures.length === 0 && (
+            {expenditures.length === 0 && canEdit && (
               <button
                 onClick={() => setShowAdd(true)}
                 className="mt-3 text-sm text-blue-600 hover:underline"

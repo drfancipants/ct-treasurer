@@ -1,3 +1,4 @@
+import { MemberRole } from '@prisma/client'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/db'
 
@@ -27,4 +28,22 @@ export async function requireCommitteeMemberById(committeeId: string) {
   })
   if (!membership) throw new Error('Forbidden')
   return { userId: user.id, committeeId: membership.committeeId, role: membership.role }
+}
+
+/**
+ * Roles allowed to modify financial records (contributions, expenditures,
+ * bank accounts, reconciliation, filings). Everyone else is read-only —
+ * under SEEC the treasurer is legally responsible for the books.
+ */
+export const FINANCE_ROLES: MemberRole[] = [MemberRole.TREASURER, MemberRole.ASSISTANT_TREASURER]
+
+export function canEditFinances(role: string): boolean {
+  return (FINANCE_ROLES as string[]).includes(role)
+}
+
+/** Verify membership AND a role that may modify financial records. */
+export async function requireFinanceRole(committeeSlug: string) {
+  const ctx = await requireCommitteeMember(committeeSlug)
+  if (!canEditFinances(ctx.role)) throw new Error('Forbidden')
+  return ctx
 }

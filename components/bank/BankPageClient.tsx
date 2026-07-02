@@ -17,6 +17,7 @@ interface Props {
   transactions: BankTransaction[]
   contributions: Contribution[]
   expenditures: Expenditure[]
+  canEdit: boolean
 }
 
 export default function BankPageClient({
@@ -26,6 +27,7 @@ export default function BankPageClient({
   transactions,
   contributions,
   expenditures,
+  canEdit,
 }: Props) {
   const router = useRouter()
   const [error, setError] = useState('')
@@ -68,7 +70,7 @@ export default function BankPageClient({
               Connect your committee&apos;s checking account to reconcile transactions automatically
             </p>
           </div>
-          <PlaidLinkButton committeeId={committeeId} onSuccess={() => router.refresh()} />
+          {canEdit && <PlaidLinkButton committeeId={committeeId} onSuccess={() => router.refresh()} />}
         </div>
 
         {/* Connected accounts */}
@@ -80,11 +82,12 @@ export default function BankPageClient({
                 account={account}
                 onSync={handleSync}
                 onRemove={handleRemove}
+                canEdit={canEdit}
               />
             ))}
           </div>
         ) : (
-          <EmptyState committeeId={committeeId} onSuccess={() => router.refresh()} />
+          <EmptyState committeeId={committeeId} onSuccess={() => router.refresh()} canEdit={canEdit} />
         )}
 
         {/* Transactions */}
@@ -95,6 +98,7 @@ export default function BankPageClient({
             expenditures={expenditures}
             committeeId={committeeId}
             committeeSlug={committeeSlug}
+            canEdit={canEdit}
           />
         )}
       </div>
@@ -105,9 +109,11 @@ export default function BankPageClient({
 function EmptyState({
   committeeId,
   onSuccess,
+  canEdit,
 }: {
   committeeId: string
   onSuccess: () => void
+  canEdit: boolean
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 px-6 bg-white border border-dashed border-slate-300 rounded-2xl text-center">
@@ -119,7 +125,7 @@ function EmptyState({
         Connect your committee&apos;s checking account to automatically import transactions
         and reconcile them against your contributions and expenses.
       </p>
-      <PlaidLinkButton committeeId={committeeId} onSuccess={onSuccess} />
+      {canEdit && <PlaidLinkButton committeeId={committeeId} onSuccess={onSuccess} />}
       <p className="text-xs text-slate-400 mt-4">
         Uses Plaid — the same connection standard as Quickbooks and TurboTax
       </p>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { plaidClient } from '@/lib/plaid'
 import { prisma } from '@/lib/db'
+import { FINANCE_ROLES } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
@@ -27,9 +28,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Account not found or not linked to Plaid' }, { status: 404 })
   }
 
-  // Verify the requesting user belongs to this committee
+  // Verify the requesting user has a finance role in this committee
   const membership = await prisma.committeeMembership.findFirst({
-    where: { userId: user.id, committeeId: bankAccount.committee.id },
+    where: { userId: user.id, committeeId: bankAccount.committee.id, role: { in: FINANCE_ROLES } },
   })
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
