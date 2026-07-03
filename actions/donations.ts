@@ -272,6 +272,52 @@ export async function importContributions(
   const validRows = rows.filter(r => !r.isError && !r.isDuplicate)
   let extraSkipped = rows.length - validRows.length
 
+  // 1. Batch-load existing contributors by email (one query instead of N).
+  // All email keying is lowercased so "Jane@X.com" and "jane@x.com" resolve
+  // to the same contributor instead of creating a duplicate. Duplicate rows
+  // are included so their donor detail can backfill existing records.
+  const allRows = rows.filter(r => !r.isError)
+  const emails = [...new Set(allRows.map(r => r.email?.toLowerCase()).filter(Boolean))] as string[]
+  const existingContributors = emails.length > 0
+    ? await prisma.contributor.findMany({
+        where: { email: { in: emails, mode: 'insensitive' } },
+        select: {
+          id: true, email: true, employer: true, occupation: true,
+          phone: true, middleInitial: true, address1: true, city: true, zip: true,
+        },
+      })
+    : []
+  const emailToId = new Map(existingContributors.map(c => [c.email!.toLowerCase(), c.id]))
+
+  // Backfill existing contributors' missing fields from the CSV — donors
+  // created by earlier imports or the webhook often lack employer/occupation
+  // (SEEC-required), which only the ledger export carries. Fill-when-empty
+  // only; existing values are never overwritten. This must run even when
+  // every row is a duplicate — that's exactly the re-import-to-heal case.
+  let backfilled = 0
+  const rowByEmail = new Map<string, ParsedRow>()
+  for (const r of allRows) {
+    if (!r.email) continue
+    const key = r.email.toLowerCase()
+    if (!rowByEmail.has(key) || (r.employer && r.occupation)) rowByEmail.set(key, r)
+  }
+  for (const c of existingContributors) {
+    const r = rowByEmail.get(c.email!.toLowerCase())
+    if (!r) continue
+    const patch: Record<string, string> = {}
+    if (!c.employer && r.employer) patch.employer = r.employer
+    if (!c.occupation && r.occupation) patch.occupation = r.occupation
+    if (!c.phone && r.phone) patch.phone = r.phone
+    if (!c.middleInitial && r.middleInitial) patch.middleInitial = r.middleInitial
+    if (!c.address1 && r.address1) patch.address1 = r.address1
+    if (!c.city && r.city) patch.city = r.city
+    if (!c.zip && r.zip) patch.zip = r.zip
+    if (Object.keys(patch).length > 0) {
+      await prisma.contributor.update({ where: { id: c.id }, data: patch })
+      backfilled++
+    }
+  }
+
   // Duplicate rows still carry value: webhook-created donations have no fee
   // detail (Anedot doesn't send it), so a ledger re-import backfills those
   // fields onto the existing record instead of discarding them
@@ -293,23 +339,15 @@ export async function importContributions(
   }
 
   if (validRows.length === 0) {
-    if (enrichable.length > 0) revalidatePath(`/app/${committeeSlug}/donations`)
+    if (enrichable.length > 0 || backfilled > 0) revalidatePath(`/app/${committeeSlug}/donations`)
     return { imported: 0, skipped: extraSkipped, contributions: [] }
   }
 
-  // 1. Batch-load existing contributors by email (one query instead of N).
-  // All email keying is lowercased so "Jane@X.com" and "jane@x.com" resolve
-  // to the same contributor instead of creating a duplicate.
-  const emails = [...new Set(validRows.map(r => r.email?.toLowerCase()).filter(Boolean))] as string[]
-  const existingContributors = await prisma.contributor.findMany({
-    where: { email: { in: emails, mode: 'insensitive' } },
-    select: { id: true, email: true },
-  })
-  const emailToId = new Map(existingContributors.map(c => [c.email!.toLowerCase(), c.id]))
-
-  // 2. Create missing contributors (only new donors, not the full list)
-  const missingEmails = emails.filter(e => !emailToId.has(e))
+  // 2. Create missing contributors (only new donors, not the full list).
+  // Sourced from validRows only — `emails`/`emailToId` also cover duplicate
+  // rows (for the backfill above), which don't need a contributor created.
   const emailToRow = new Map(validRows.filter(r => r.email).map(r => [r.email!.toLowerCase(), r]))
+  const missingEmails = [...emailToRow.keys()].filter(e => !emailToId.has(e))
   for (const email of missingEmails) {
     const r = emailToRow.get(email)!
     try {

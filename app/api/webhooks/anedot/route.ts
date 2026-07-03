@@ -118,6 +118,21 @@ export async function POST(req: NextRequest) {
 
     if (!contributor) {
       contributor = await prisma.contributor.create({ data: mapped.contributor })
+    } else {
+      // Backfill missing fields (fill-when-empty; never overwrite) — earlier
+      // webhook deliveries may have lacked employer/occupation answers
+      const m = mapped.contributor
+      const patch: Record<string, string> = {}
+      if (!contributor.employer && m.employer) patch.employer = m.employer
+      if (!contributor.occupation && m.occupation) patch.occupation = m.occupation
+      if (!contributor.phone && m.phone) patch.phone = m.phone
+      if (!contributor.middleInitial && m.middleInitial) patch.middleInitial = m.middleInitial
+      if (!contributor.address1 && m.address1) patch.address1 = m.address1
+      if (!contributor.city && m.city) patch.city = m.city
+      if (!contributor.zip && m.zip) patch.zip = m.zip
+      if (Object.keys(patch).length > 0) {
+        await prisma.contributor.update({ where: { id: contributor.id }, data: patch })
+      }
     }
 
     // Upsert contribution — idempotent by anedotId
