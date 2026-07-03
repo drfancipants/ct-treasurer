@@ -128,3 +128,39 @@ describe('populateForm20 (against the real eCRIS template)', () => {
     expect(expAmounts).not.toContain(999)
   })
 })
+
+describe('Section L1 — events', () => {
+  const makeEvent = (o: Partial<import('../types').CommitteeEvent> = {}): import('../types').CommitteeEvent => ({
+    id: 'ev_1', committeeId: 'com_1', date: '2026-05-10', letter: 'A',
+    description: 'Spring Dinner', isFundraiser: true,
+    street: '14 Whitfield St', city: 'Guilford', state: 'CT', zip: '06437',
+    isPersonalResidence: false, hadDonatedGoods: false, wasTagSale: true,
+    hadProgramBook: false, soldFoodAtFair: false,
+    foodReceipts: 0, tagSaleReceipts: 340, notes: undefined, createdAt: '2026-05-10T00:00:00Z',
+    ...o,
+  })
+
+  it('writes events to Section L1 with Y/N flags and receipts', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const ev = makeEvent()
+    const out = populateForm20(template, [], [], Q2_START, Q2_END, [ev])
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section L1'], { header: 1 })
+    const r = rows[1]
+    expect(r[1]).toBe('05/10/2026')  // date
+    expect(r[2]).toBe('A')           // letter
+    expect(r[3]).toBe('Spring Dinner')
+    expect(r[4]).toBe('Y')           // fundraiser
+    expect(r[6]).toBe('Guilford')    // city
+    expect(r[11]).toBe('Y')          // tag sale
+    expect(r[15]).toBe(340)          // tag-sale receipts
+  })
+
+  it('excludes out-of-period events and counts them in preview', () => {
+    const inP = makeEvent({ id: 'in', date: '2026-05-01' })
+    const outP = makeEvent({ id: 'out', date: '2026-08-01', letter: 'B' })
+    const p = previewForm20([], [], Q2_START, Q2_END, [inP, outP])
+    expect(p.eventCount).toBe(1)
+    expect(p.eventTotal).toBe(340)
+  })
+})

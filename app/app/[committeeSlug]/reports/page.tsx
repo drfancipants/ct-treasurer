@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getCommitteeBySlug } from '@/actions/committees'
 import { getContributions } from '@/actions/donations'
+import { getEvents } from '@/actions/events'
 import ContributionsReport from '@/components/reports/ContributionsReport'
 
 interface Props {
@@ -12,7 +13,10 @@ export default async function ReportsPage({ params }: Props) {
   const committee = await getCommitteeBySlug(committeeSlug)
   if (!committee) notFound()
 
-  const contributions = await getContributions(committee.id)
+  const [contributions, events] = await Promise.all([
+    getContributions(committee.id),
+    getEvents(committee.id),
+  ])
 
   return (
     <div className="p-4 md:p-8">
@@ -23,7 +27,7 @@ export default async function ReportsPage({ params }: Props) {
             Contribution totals for {committee.name}
           </p>
         </div>
-        <ContributionsReport contributions={contributions} />
+        <ContributionsReport contributions={contributions} events={events} />
       </div>
     </div>
   )

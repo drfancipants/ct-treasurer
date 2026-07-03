@@ -12,13 +12,13 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
-import type { Contribution } from '@/lib/types'
+import type { Contribution, CommitteeEvent } from '@/lib/types'
 import { donorKey } from '@/lib/limits'
 import { formatCurrency, cn } from '@/lib/utils'
 import { format, parseISO } from 'date-fns'
 
 type Preset = 'ytd' | 'prev-year' | 'custom'
-type Tab = 'overview' | 'donors'
+type Tab = 'overview' | 'donors' | 'events'
 type SortDir = 'asc' | 'desc'
 
 const PAGE_SIZE = 10
@@ -42,7 +42,7 @@ interface DonorRow {
   amount: number
 }
 
-export default function ContributionsReport({ contributions }: { contributions: Contribution[] }) {
+export default function ContributionsReport({ contributions, events }: { contributions: Contribution[]; events: CommitteeEvent[] }) {
   const currentYear = new Date().getFullYear()
   const [tab, setTab] = useState<Tab>('overview')
   const [preset, setPreset] = useState<Preset>('ytd')
@@ -83,6 +83,12 @@ export default function ContributionsReport({ contributions }: { contributions: 
     () => contributions.filter((c) => c.date >= start && c.date <= end),
     [contributions, start, end]
   )
+
+  const filteredEvents = useMemo(
+    () => events.filter((e) => e.date >= start && e.date <= end).sort((a, b) => a.date.localeCompare(b.date)),
+    [events, start, end]
+  )
+  const eventReceipts = filteredEvents.reduce((s, e) => s + e.foodReceipts + e.tagSaleReceipts, 0)
 
   const totals = useMemo(() => {
     const donors = new Set(filtered.map((c) => donorKey(c.contributor)))
@@ -189,7 +195,7 @@ export default function ContributionsReport({ contributions }: { contributions: 
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-slate-200">
-        {([['overview', 'Overview'], ['donors', 'By donor']] as [Tab, string][]).map(([key, label]) => (
+        {([['overview', 'Overview'], ['donors', 'By donor'], ['events', 'Events']] as [Tab, string][]).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -258,6 +264,49 @@ export default function ContributionsReport({ contributions }: { contributions: 
             )}
           </div>
         </>
+      )}
+
+      {tab === 'events' && (
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Fundraising events</p>
+            <p className="text-xs text-slate-400">{filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}</p>
+          </div>
+          {filteredEvents.length === 0 ? (
+            <p className="px-4 py-10 text-center text-sm text-slate-400">No events in this date range.</p>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500 uppercase tracking-wide w-10">#</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Date</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Event</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-slate-500 uppercase tracking-wide">Receipts</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredEvents.map((e) => (
+                  <tr key={e.id} className="table-row-hover">
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-blue-50 text-blue-700 text-xs font-bold">{e.letter}</span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600 tabular whitespace-nowrap">{format(parseISO(e.date), 'MMM d, yyyy')}</td>
+                    <td className="px-4 py-3 text-sm text-slate-900">{e.description}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-emerald-700 text-right tabular">
+                      {e.foodReceipts + e.tagSaleReceipts > 0 ? formatCurrency(e.foodReceipts + e.tagSaleReceipts) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-slate-200 bg-slate-50">
+                  <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-slate-700">Total receipts</td>
+                  <td className="px-4 py-3 text-sm font-semibold text-emerald-700 text-right tabular">{formatCurrency(eventReceipts)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
       )}
 
       {tab === 'donors' && (

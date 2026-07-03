@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { X, FileDown, AlertCircle, CheckCircle2, FileText, Loader2 } from 'lucide-react'
-import type { Contribution, Expenditure } from '@/lib/types'
+import type { Contribution, Expenditure, CommitteeEvent } from '@/lib/types'
 import { previewForm20, populateForm20 } from '@/lib/form20'
 import { formatCurrency } from '@/lib/utils'
 
@@ -19,6 +19,7 @@ interface Props {
   onClose: () => void
   contributions: Contribution[]
   expenditures: Expenditure[]
+  events: CommitteeEvent[]
   committeeName: string
   initialPeriod?: { start: string; end: string }
   onFiled?: (start: string, end: string) => void
@@ -37,6 +38,7 @@ export default function Form20ExportDialog({
   onClose,
   contributions,
   expenditures,
+  events,
   committeeName,
   initialPeriod,
   onFiled,
@@ -67,16 +69,17 @@ export default function Form20ExportDialog({
   const preview = useMemo(
     () =>
       periodStart && periodEnd
-        ? previewForm20(contributions, expenditures, periodStart, periodEnd)
+        ? previewForm20(contributions, expenditures, periodStart, periodEnd, events)
         : null,
-    [contributions, expenditures, periodStart, periodEnd]
+    [contributions, expenditures, events, periodStart, periodEnd]
   )
 
   const hasData =
     preview &&
     (preview.itemizedCount > 0 ||
       preview.nonItemizedCount > 0 ||
-      preview.expenditureCount > 0)
+      preview.expenditureCount > 0 ||
+      preview.eventCount > 0)
 
   if (!open) return null
 
@@ -92,7 +95,7 @@ export default function Form20ExportDialog({
       const buffer = await res.arrayBuffer()
 
       // Populate the template
-      const output = populateForm20(buffer, contributions, expenditures, periodStart, periodEnd)
+      const output = populateForm20(buffer, contributions, expenditures, periodStart, periodEnd, events)
 
       // Trigger download
       const blob = new Blob([new Uint8Array(output).buffer], {
@@ -241,6 +244,12 @@ export default function Form20ExportDialog({
                   total={preview.expenditureTotal}
                   note="Expenses paid by committee"
                   amountColor="text-rose-700"
+                />
+                <PreviewRow
+                  label="Section L1 — Fundraising events"
+                  count={preview.eventCount}
+                  total={preview.eventTotal}
+                  note="Event details & food/tag-sale receipts"
                 />
               </div>
             </div>

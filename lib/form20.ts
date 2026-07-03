@@ -1,6 +1,10 @@
 import * as XLSX from 'xlsx'
-import type { Contribution, Expenditure } from './types'
+import type { Contribution, Expenditure, CommitteeEvent } from './types'
 import { getSeecStatus } from './types'
+
+function yn(b: boolean): string {
+  return b ? 'Y' : 'N'
+}
 
 // ─── SEEC eCRIS code mappings (from the Code List sheet) ─────────────────────
 
@@ -67,12 +71,14 @@ export function populateForm20(
   contributions: Contribution[],
   expenditures: Expenditure[],
   periodStart: string,
-  periodEnd: string
+  periodEnd: string,
+  events: CommitteeEvent[] = []
 ): Uint8Array {
   const wb = XLSX.read(new Uint8Array(templateBuffer), { type: 'array' })
 
   const contribs = contributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
   const expends  = expenditures.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
+  const evts     = events.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
 
   const itemized    = contribs.filter((c) => c.isItemized)
   const nonItemized = contribs.filter((c) => !c.isItemized)
@@ -143,6 +149,32 @@ export function populateForm20(
     }
   }
 
+  // ── Section L1: fundraising / event information ───────────────────────────
+  {
+    const ws = wb.Sheets['Section L1']
+    if (ws && evts.length > 0) {
+      const rows = evts.map((e, i) => [
+        i + 1,                          //  0 Transaction ID
+        seecDate(e.date),               //  1 Date of Event
+        e.letter,                       //  2 Letter for Event#
+        e.description,                  //  3 Event Description
+        yn(e.isFundraiser),             //  4 Was this a fundraising event?
+        e.street ?? '',                 //  5 Street Address
+        e.city ?? '',                   //  6 City
+        e.state,                        //  7 State
+        e.zip ?? '',                    //  8 Zip
+        yn(e.isPersonalResidence),      //  9 Hosted at a personal residence?
+        yn(e.hadDonatedGoods),          // 10 Included donated goods/services?
+        yn(e.wasTagSale),               // 11 Tag sale / auction?
+        yn(e.hadProgramBook),           // 12 Program-book advertising?
+        yn(e.soldFoodAtFair),           // 13 Sold food/beverage at a fair?
+        e.foodReceipts,                 // 14 Total Receipts Food
+        e.tagSaleReceipts,              // 15 Total Receipts TagSale
+      ])
+      XLSX.utils.sheet_add_aoa(ws, rows, { origin: 'A2' })
+    }
+  }
+
   return XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as Uint8Array
 }
 
@@ -155,6 +187,8 @@ export interface Form20Preview {
   nonItemizedTotal: number
   expenditureCount: number
   expenditureTotal: number
+  eventCount: number
+  eventTotal: number
   seecIssues: { contributionId: string; issues: string[] }[]
 }
 
@@ -162,10 +196,12 @@ export function previewForm20(
   contributions: Contribution[],
   expenditures: Expenditure[],
   periodStart: string,
-  periodEnd: string
+  periodEnd: string,
+  events: CommitteeEvent[] = []
 ): Form20Preview {
   const contribs = contributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
   const expends  = expenditures.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
+  const evts     = events.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
 
   const itemized    = contribs.filter((c) =>  c.isItemized)
   const nonItemized = contribs.filter((c) => !c.isItemized)
@@ -181,6 +217,8 @@ export function previewForm20(
     nonItemizedTotal: nonItemized.reduce((s, c) => s + c.amount, 0),
     expenditureCount: expends.length,
     expenditureTotal: expends.reduce((s, e) => s + e.amount, 0),
+    eventCount: evts.length,
+    eventTotal: evts.reduce((s, e) => s + e.foodReceipts + e.tagSaleReceipts, 0),
     seecIssues,
   }
 }

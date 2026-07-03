@@ -286,6 +286,30 @@ export interface Expenditure {
   createdAt: string
 }
 
+// ─── Fundraising events (SEEC Form 20 Section L1) ─────────────────────────────
+
+export interface CommitteeEvent {
+  id: string
+  committeeId: string
+  date: string
+  letter: string
+  description: string
+  isFundraiser: boolean
+  street?: string
+  city?: string
+  state: string
+  zip?: string
+  isPersonalResidence: boolean
+  hadDonatedGoods: boolean
+  wasTagSale: boolean
+  hadProgramBook: boolean
+  soldFoodAtFair: boolean
+  foodReceipts: number
+  tagSaleReceipts: number
+  notes?: string
+  createdAt: string
+}
+
 // ─── Bank accounts & transactions ─────────────────────────────────────────────
 
 export interface BankAccount {

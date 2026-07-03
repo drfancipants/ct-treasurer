@@ -45,6 +45,7 @@ model Committee {
   expenditures  Expenditure[]
   bankAccounts  BankAccount[]
   seecFilings   SeecFiling[]
+  events        Event[]
 }
 
 // ─── Users & membership ──────────────────────────────────────────────────────
@@ -140,6 +141,35 @@ enum ContributionSource {
   MANUAL
   ANEDOT
   BANK_IMPORT
+}
+
+// ─── Fundraising events (SEEC Form 20 Section L1) ────────────────────────────
+
+model Event {
+  id                  String   @id @default(cuid())
+  committeeId         String
+  date                DateTime @db.Date
+  letter              String   // Event # letter (A, B, C…), unique per committee
+  description         String
+  isFundraiser        Boolean  @default(true)
+  street              String?
+  city                String?
+  state               String   @default("CT")
+  zip                 String?
+  isPersonalResidence Boolean  @default(false)
+  hadDonatedGoods     Boolean  @default(false) // goods/services donated (business ≤$200 / individual ≤$100)
+  wasTagSale          Boolean  @default(false) // tag sale, auction, or sale of donated items
+  hadProgramBook      Boolean  @default(false) // advertising space sold in a program book
+  soldFoodAtFair      Boolean  @default(false) // sold food/beverage at a fair or mass gathering
+  foodReceipts        Decimal  @default(0) @db.Decimal(10, 2)
+  tagSaleReceipts     Decimal  @default(0) @db.Decimal(10, 2)
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+
+  @@index([committeeId, date])
 }
 
 // ─── Expenditures ────────────────────────────────────────────────────────────

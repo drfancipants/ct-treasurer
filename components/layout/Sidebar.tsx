@@ -11,6 +11,7 @@ import {
   Building2,
   FileText,
   FileBarChart,
+  CalendarDays,
   Settings,
   Scale,
   LogOut,
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { segment: 'expenses', label: 'Expenses', icon: CreditCard },
   { segment: 'bank', label: 'Bank accounts', icon: Building2 },
   { segment: 'filings', label: 'SEEC filings', icon: FileText },
+  { segment: 'events', label: 'Events', icon: CalendarDays },
   { segment: 'reports', label: 'Reports', icon: FileBarChart },
 ]
 

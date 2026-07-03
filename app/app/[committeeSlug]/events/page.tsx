@@ -1,0 +1,32 @@
+import { notFound } from 'next/navigation'
+import { getCommitteeBySlug } from '@/actions/committees'
+import { getEvents } from '@/actions/events'
+import { requireCommitteeMember, canEditFinances } from '@/lib/auth'
+import EventsList from '@/components/events/EventsList'
+
+interface Props {
+  params: Promise<{ committeeSlug: string }>
+}
+
+export default async function EventsPage({ params }: Props) {
+  const { committeeSlug } = await params
+  const committee = await getCommitteeBySlug(committeeSlug)
+  if (!committee) notFound()
+
+  const { role } = await requireCommitteeMember(committeeSlug)
+  const canEdit = canEditFinances(role)
+  const events = await getEvents(committee.id)
+
+  return (
+    <div className="p-4 md:p-8">
+      <div className="max-w-5xl mx-auto space-y-6">
+        <EventsList
+          events={events}
+          committeeId={committee.id}
+          committeeSlug={committeeSlug}
+          canEdit={canEdit}
+        />
+      </div>
+    </div>
+  )
+}
