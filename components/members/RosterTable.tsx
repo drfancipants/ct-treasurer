@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, MoreHorizontal, Pencil, Trash2, Search } from 'lucide-react'
+import { Plus, MoreHorizontal, Pencil, Trash2, Search, Upload } from 'lucide-react'
 import type { RosterMember } from '@/lib/types'
 import { deleteRosterMember, setRosterMemberFlags } from '@/actions/roster'
 import { formatCurrency, cn } from '@/lib/utils'
 import ErrorBanner from '@/components/ui/ErrorBanner'
 import RosterMemberDialog from './RosterMemberDialog'
+import RosterImportDialog from './RosterImportDialog'
 
 interface Props {
   members: RosterMember[]
@@ -27,6 +28,7 @@ const FILTERS: [Filter, string][] = [
 export default function RosterTable({ members: initial, committeeId, committeeSlug, canEdit }: Props) {
   const [rows, setRows] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [editing, setEditing] = useState<RosterMember | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -99,13 +101,22 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
           </p>
         </div>
         {canEdit && (
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add member
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              Import CSV
+            </button>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add member
+            </button>
+          </div>
         )}
       </div>
 
@@ -237,6 +248,17 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
 
       {showAdd && (
         <RosterMemberDialog open onClose={() => setShowAdd(false)} onSave={handleSave} committeeId={committeeId} committeeSlug={committeeSlug} />
+      )}
+      {showImport && (
+        // Stays open through its done step — onImported must not close it
+        <RosterImportDialog
+          open
+          onClose={() => setShowImport(false)}
+          onImported={(members) => setRows(members)}
+          existingMembers={rows}
+          committeeId={committeeId}
+          committeeSlug={committeeSlug}
+        />
       )}
       {editing && (
         <RosterMemberDialog key={editing.id} open onClose={() => setEditing(null)} onSave={handleSave} committeeId={committeeId} committeeSlug={committeeSlug} member={editing} />
