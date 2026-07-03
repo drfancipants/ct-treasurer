@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { FileText, Download, CheckCircle2, Clock } from 'lucide-react'
-import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution, InKindContribution } from '@/lib/types'
+import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution, InKindContribution, Reimbursement } from '@/lib/types'
 import type { Committee } from '@/lib/types'
 import type { SeecFilingRecord } from '@/actions/filings'
 import Form20ExportDialog from '@/components/filings/Form20ExportDialog'
@@ -71,12 +71,13 @@ interface Props {
   events: CommitteeEvent[]
   committeeContributions: CommitteeContribution[]
   inKindContributions: InKindContribution[]
+  reimbursements: Reimbursement[]
   committee: Committee
   filings: SeecFilingRecord[]
   canEdit: boolean
 }
 
-export default function FilingsList({ contributions, expenditures, events, committeeContributions, inKindContributions, committee, filings: initialFilings, canEdit }: Props) {
+export default function FilingsList({ contributions, expenditures, events, committeeContributions, inKindContributions, reimbursements, committee, filings: initialFilings, canEdit }: Props) {
   const [exportPeriod, setExportPeriod] = useState<{ start: string; end: string } | null>(null)
   const [filings, setFilings] = useState(initialFilings)
 
@@ -235,8 +236,9 @@ export default function FilingsList({ contributions, expenditures, events, commi
           ))}
         </div>
         <p className="text-[11px] text-slate-400 mt-3">
-          All other sections (C1, D, E, M, R, S, T…) are included in the file as empty sheets.
-          Fill them manually in Excel if needed before uploading.
+          Sections C1 (committee contributions), M (in-kind), L1 (events), and T (worker
+          reimbursements) are also filled from your data. All other sections (D, E, K, Q, R, S…)
+          are included as empty sheets — fill them manually in Excel if needed before uploading.
         </p>
       </div>
 
@@ -250,6 +252,7 @@ export default function FilingsList({ contributions, expenditures, events, commi
           events={events}
           committeeContributions={committeeContributions}
           inKindContributions={inKindContributions}
+          reimbursements={reimbursements}
           committeeName={committee.name}
           initialPeriod={exportPeriod}
           onFiled={canEdit ? handleFiled : undefined}

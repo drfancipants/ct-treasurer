@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { X, FileDown, AlertCircle, CheckCircle2, FileText, Loader2 } from 'lucide-react'
-import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution, InKindContribution } from '@/lib/types'
+import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution, InKindContribution, Reimbursement } from '@/lib/types'
 import { previewForm20, populateForm20 } from '@/lib/form20'
 import { formatCurrency } from '@/lib/utils'
 
@@ -22,6 +22,7 @@ interface Props {
   events: CommitteeEvent[]
   committeeContributions: CommitteeContribution[]
   inKindContributions: InKindContribution[]
+  reimbursements: Reimbursement[]
   committeeName: string
   initialPeriod?: { start: string; end: string }
   onFiled?: (start: string, end: string) => void
@@ -43,6 +44,7 @@ export default function Form20ExportDialog({
   events,
   committeeContributions,
   inKindContributions,
+  reimbursements,
   committeeName,
   initialPeriod,
   onFiled,
@@ -73,9 +75,9 @@ export default function Form20ExportDialog({
   const preview = useMemo(
     () =>
       periodStart && periodEnd
-        ? previewForm20(contributions, expenditures, periodStart, periodEnd, events, committeeContributions, inKindContributions)
+        ? previewForm20(contributions, expenditures, periodStart, periodEnd, events, committeeContributions, inKindContributions, reimbursements)
         : null,
-    [contributions, expenditures, events, committeeContributions, inKindContributions, periodStart, periodEnd]
+    [contributions, expenditures, events, committeeContributions, inKindContributions, reimbursements, periodStart, periodEnd]
   )
 
   const hasData =
@@ -85,7 +87,8 @@ export default function Form20ExportDialog({
       preview.expenditureCount > 0 ||
       preview.eventCount > 0 ||
       preview.committeeContribCount > 0 ||
-      preview.inKindCount > 0)
+      preview.inKindCount > 0 ||
+      preview.reimbursementCount > 0)
 
   if (!open) return null
 
@@ -101,7 +104,7 @@ export default function Form20ExportDialog({
       const buffer = await res.arrayBuffer()
 
       // Populate the template
-      const output = populateForm20(buffer, contributions, expenditures, periodStart, periodEnd, events, committeeContributions, inKindContributions)
+      const output = populateForm20(buffer, contributions, expenditures, periodStart, periodEnd, events, committeeContributions, inKindContributions, reimbursements)
 
       // Trigger download
       const blob = new Blob([new Uint8Array(output).buffer], {
@@ -264,6 +267,13 @@ export default function Form20ExportDialog({
                   note="Goods/services (fair market value)"
                 />
                 <PreviewRow
+                  label="Section T — Worker reimbursements"
+                  count={preview.reimbursementCount}
+                  total={preview.reimbursementTotal}
+                  note="Out-of-pocket payments by workers"
+                  amountColor="text-rose-700"
+                />
+                <PreviewRow
                   label="Section L1 — Fundraising events"
                   count={preview.eventCount}
                   total={preview.eventTotal}
@@ -309,7 +319,7 @@ export default function Form20ExportDialog({
 
           {/* Info note */}
           <p className="text-[11px] text-slate-400 leading-snug">
-            The downloaded file uses the official eCRIS Form 20 template with Sections A, B, and P pre-filled.
+            The downloaded file uses the official eCRIS Form 20 template with Sections A, B, C1, L1, M, P, and T pre-filled.
             Upload it directly at <span className="font-medium">seec.ct.gov → eCRIS → Upload Report</span>.
           </p>
         </div>

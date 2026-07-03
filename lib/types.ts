@@ -290,6 +290,43 @@ export interface Expenditure {
   createdAt: string
 }
 
+// ─── Worker reimbursements (SEEC Form 20 Section T) ───────────────────────────
+
+/**
+ * A payment a committee worker or consultant made to a vendor out of pocket,
+ * itemized on Form 20 Section T ("Itemization of Reimbursements and Secondary
+ * Payees"). The committee's repayment to the worker is a normal Section P
+ * expenditure (purpose code RMB) — link it via expenditureId so the export can
+ * fill Section T's Expenditure Number column.
+ */
+export interface Reimbursement {
+  id: string
+  committeeId: string
+  workerLastName: string
+  workerFirstName: string
+  workerMiddleInitial?: string
+  /** What the worker purchased */
+  description: string
+  /** Date the worker paid the vendor */
+  date: string
+  amount: number
+  method: PaymentMethod
+  checkNumber?: string
+  vendorName?: string
+  street?: string
+  city?: string
+  state: string
+  zip?: string
+  /** SEEC purpose code for the underlying purchase (same codes as Section P) */
+  category: ExpenseCategory
+  /** The Section P reimbursement payment this itemizes */
+  expenditureId?: string
+  eventId?: string
+  memo?: string
+  filedAt?: string
+  createdAt: string
+}
+
 // ─── Contributions from other committees (SEEC Form 20 Section C1) ────────────
 
 export interface CommitteeContribution {

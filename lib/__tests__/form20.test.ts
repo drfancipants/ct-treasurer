@@ -232,6 +232,75 @@ describe('Section C1 — committee contributions', () => {
   })
 })
 
+describe('Section T — worker reimbursements', () => {
+  const rb = (o: Partial<import('../types').Reimbursement> = {}): import('../types').Reimbursement => ({
+    id: 'rb_1', committeeId: 'com_1',
+    workerLastName: 'Field', workerFirstName: 'Ann', workerMiddleInitial: 'B',
+    description: 'Stamps for fall mailer', date: '2026-05-12', amount: 68,
+    method: 'CASH', vendorName: 'Guilford Post Office',
+    street: '14 Boston St', city: 'Guilford', state: 'CT', zip: '06437',
+    category: 'POST', createdAt: '2026-05-12T00:00:00Z', ...o,
+  })
+
+  it('writes reimbursements to Section T with worker, vendor, and codes', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const out = populateForm20(template, [], [], Q2_START, Q2_END, [], [], [], [rb()])
+    const r = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section T'], { header: 1 })[1]
+    expect(r[1]).toBe('Field')                  // worker last name
+    expect(r[2]).toBe('Ann')                    // first name
+    expect(r[3]).toBe('B')                      // middle initial
+    expect(r[4]).toBe('Stamps for fall mailer') // description
+    expect(r[5]).toBe('05/12/2026')             // date payment
+    expect(r[6]).toBe(68)                       // amount
+    expect(r[7]).toBe('CH')                     // CASH → CH (no cash code in P/T)
+    expect(r[9]).toBe('Guilford Post Office')   // vendor
+    expect(r[11]).toBe('Guilford')              // city
+    expect(r[15]).toBe('NONE')                  // type of expenditure
+    expect(r[16]).toBe('POST')                  // purpose code
+  })
+
+  it('fills the Expenditure Number column from the linked Section P payment', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const linked = rb({ expenditureId: 'exp_b' })
+    const out = populateForm20(template, [], expenditures, Q2_START, Q2_END, [], [], [], [linked])
+    const r = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section T'], { header: 1 })[1]
+    expect(r[14]).toBe(2)  // exp_b is the second in-period Section P row
+  })
+
+  it('leaves the Expenditure Number blank when the linked payment is out of period', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const linked = rb({ expenditureId: 'exp_c' }) // exp_c is dated 2026-07-02
+    const out = populateForm20(template, [], expenditures, Q2_START, Q2_END, [], [], [], [linked])
+    const r = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section T'], { header: 1 })[1]
+    expect(r[14]).toBe('')
+  })
+
+  it('fills Section T event columns for a linked event', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const ev: import('../types').CommitteeEvent = {
+      id: 'ev_t', committeeId: 'com_1', date: '2026-05-10', letter: 'D',
+      description: 'Picnic', isFundraiser: true, state: 'CT',
+      isPersonalResidence: false, hadDonatedGoods: false, wasTagSale: false,
+      hadProgramBook: false, soldFoodAtFair: false, foodReceipts: 0, tagSaleReceipts: 0,
+      createdAt: '2026-05-10T00:00:00Z',
+    }
+    const out = populateForm20(template, [], [], Q2_START, Q2_END, [ev], [], [], [rb({ eventId: 'ev_t' })])
+    const r = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section T'], { header: 1 })[1]
+    expect(r[17]).toBe('05/10/2026')  // event date
+    expect(r[18]).toBe('D')           // event letter
+  })
+
+  it('counts reimbursements in the preview and excludes out-of-period', () => {
+    const p = previewForm20([], [], Q2_START, Q2_END, [], [], [], [rb({ id: 'in', date: '2026-05-12' }), rb({ id: 'out', date: '2026-08-01' })])
+    expect(p.reimbursementCount).toBe(1)
+    expect(p.reimbursementTotal).toBe(68)
+  })
+})
+
 describe('Section M — in-kind contributions', () => {
   const ik = (o: Partial<import('../types').InKindContribution> = {}): import('../types').InKindContribution => ({
     id: 'ik_1', committeeId: 'com_1', entityType: 'IS',

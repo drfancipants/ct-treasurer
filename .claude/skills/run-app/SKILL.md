@@ -38,7 +38,8 @@ await ctx.addCookies([{ ...cookie, domain: 'localhost', path: '/', httpOnly: fal
 
 The same cookie works for API routes: `Cookie: ${name}=${value}` header on `fetch`.
 
-Committee slugs: `madison-democratic-town-committee`, `guilford-dtc`. Authenticated
+Committee slugs: `guilford-dtc` (has an active trial — use this one),
+`madison-dtc`, `grtc` (no subscription; entitlement may redirect). Authenticated
 pages live at `/app/<slug>/{dashboard,donations,expenses,bank,filings,members,settings}`.
 
 ## Gotchas (all hit in practice)

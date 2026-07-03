@@ -48,6 +48,7 @@ model Committee {
   events        Event[]
   committeeContributions CommitteeContribution[]
   inKindContributions    InKindContribution[]
+  reimbursements         Reimbursement[]
 }
 
 // ─── Users & membership ──────────────────────────────────────────────────────
@@ -233,6 +234,7 @@ model Event {
   expenditures  Expenditure[]
   committeeContributions CommitteeContribution[]
   inKindContributions    InKindContribution[]
+  reimbursements         Reimbursement[]
 
   @@index([committeeId, date])
 }
@@ -258,6 +260,42 @@ model Expenditure {
 
   committee Committee @relation(fields: [committeeId], references: [id])
   event     Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  reimbursements Reimbursement[]
+
+  @@index([committeeId, date])
+}
+
+// ─── Worker reimbursements (SEEC Form 20 Section T) ──────────────────────────
+
+model Reimbursement {
+  id                  String   @id @default(cuid())
+  committeeId         String
+  workerLastName      String
+  workerFirstName     String
+  workerMiddleInitial String?
+  description         String   // items the worker purchased
+  date                DateTime @db.Date // date the worker paid the vendor
+  amount              Decimal  @db.Decimal(10, 2)
+  method              PaymentMethod @default(CHECK)
+  checkNumber         String?
+  vendorName          String?
+  street              String?
+  city                String?
+  state               String   @default("CT")
+  zip                 String?
+  // SEEC Section P purpose code (e.g. "PRNT") — see lib/types.ts
+  category            String   @default("MISC")
+  expenditureId       String?  // the Section P reimbursement payment this itemizes
+  eventId             String?
+  memo                String?
+  filedAt             DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  committee   Committee    @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  expenditure Expenditure? @relation(fields: [expenditureId], references: [id], onDelete: SetNull)
+  event       Event?       @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@index([committeeId, date])
 }

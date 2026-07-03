@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution, InKindContribution } from './types'
+import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution, InKindContribution, Reimbursement } from './types'
 import { getSeecStatus } from './types'
 
 function yn(b: boolean): string {
@@ -74,7 +74,8 @@ export function populateForm20(
   periodEnd: string,
   events: CommitteeEvent[] = [],
   committeeContributions: CommitteeContribution[] = [],
-  inKindContributions: InKindContribution[] = []
+  inKindContributions: InKindContribution[] = [],
+  reimbursements: Reimbursement[] = []
 ): Uint8Array {
   const wb = XLSX.read(new Uint8Array(templateBuffer), { type: 'array' })
 
@@ -83,6 +84,7 @@ export function populateForm20(
   const evts     = events.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
   const cmteC    = committeeContributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
   const inKind   = inKindContributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
+  const reimbs   = reimbursements.filter((r) => inPeriod(r.date, periodStart, periodEnd))
 
   // Look up a linked event's date + letter for the Section B / P / C1 / M event columns
   const eventById = new Map(events.map((e) => [e.id, e]))
@@ -236,6 +238,38 @@ export function populateForm20(
     }
   }
 
+  // ── Section T: worker reimbursements ──────────────────────────────────────
+  {
+    const ws = wb.Sheets['Section T']
+    if (ws && reimbs.length > 0) {
+      // Section P rows are numbered i+1 above; a linked reimbursement points
+      // at its Section P payment through that same number
+      const expNumberById = new Map(expends.map((e, i) => [e.id, i + 1]))
+      const rows = reimbs.map((r, i) => [
+        i + 1,                                            //  0 Transaction ID
+        r.workerLastName,                                 //  1 Last Name of Worker/Consultant
+        r.workerFirstName,                                //  2 First Name
+        r.workerMiddleInitial ?? '',                      //  3 Middle Initial
+        r.description,                                    //  4 Description
+        seecDate(r.date),                                 //  5 Date Payment
+        r.amount,                                         //  6 Amount
+        EXPENDITURE_METHOD[r.method] ?? 'CH',             //  7 Method of Payment
+        r.checkNumber ?? '',                              //  8 Check
+        r.vendorName ?? '',                               //  9 Name of Vendor
+        r.street ?? '',                                   // 10 Street Address
+        r.city ?? '',                                     // 11 City
+        r.state,                                          // 12 State
+        r.zip ?? '',                                      // 13 Zip
+        r.expenditureId ? expNumberById.get(r.expenditureId) ?? '' : '', // 14 Expenditure Number (Section P row)
+        'NONE',                                           // 15 Type (NONE = not coordinated)
+        LEGACY_EXPENSE_PURPOSE[r.category] ?? r.category, // 16 Purpose code
+        r.eventId ? seecDate(eventById.get(r.eventId)?.date ?? '') : '', // 17 Event date
+        r.eventId ? eventById.get(r.eventId)?.letter ?? '' : '',      // 18 Event letter
+      ])
+      XLSX.utils.sheet_add_aoa(ws, rows, { origin: 'A2' })
+    }
+  }
+
   return XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as Uint8Array
 }
 
@@ -254,6 +288,8 @@ export interface Form20Preview {
   committeeContribTotal: number
   inKindCount: number
   inKindTotal: number
+  reimbursementCount: number
+  reimbursementTotal: number
   seecIssues: { contributionId: string; issues: string[] }[]
 }
 
@@ -264,13 +300,15 @@ export function previewForm20(
   periodEnd: string,
   events: CommitteeEvent[] = [],
   committeeContributions: CommitteeContribution[] = [],
-  inKindContributions: InKindContribution[] = []
+  inKindContributions: InKindContribution[] = [],
+  reimbursements: Reimbursement[] = []
 ): Form20Preview {
   const contribs = contributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
   const expends  = expenditures.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
   const evts     = events.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
   const cmteC    = committeeContributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
   const inKind   = inKindContributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
+  const reimbs   = reimbursements.filter((r) => inPeriod(r.date, periodStart, periodEnd))
 
   const itemized    = contribs.filter((c) =>  c.isItemized)
   const nonItemized = contribs.filter((c) => !c.isItemized)
@@ -292,6 +330,8 @@ export function previewForm20(
     committeeContribTotal: cmteC.reduce((s, c) => s + c.amount, 0),
     inKindCount: inKind.length,
     inKindTotal: inKind.reduce((s, c) => s + c.fairMarketValue, 0),
+    reimbursementCount: reimbs.length,
+    reimbursementTotal: reimbs.reduce((s, r) => s + r.amount, 0),
     seecIssues,
   }
 }
