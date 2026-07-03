@@ -45,6 +45,36 @@ export function getMonthlyData(
 }
 
 /**
+ * Windows monthly data to a fixed range of trailing calendar months ending
+ * with the current month, filling zero-activity gaps rather than skipping
+ * them. Use for display (the "Monthly activity" chart) — `getMonthlyData`
+ * itself stays unwindowed since `getCumulativeData` needs full life-to-date
+ * totals, not just the visible window.
+ */
+export function getTrailingMonths(
+  monthly: MonthlyData[],
+  count = 12,
+  now: Date = new Date()
+): MonthlyData[] {
+  const byKey = new Map(monthly.map((m) => [m.monthKey, m]))
+  const keys: string[] = []
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+  return keys.map(
+    (key) =>
+      byKey.get(key) ?? {
+        month: format(parseISO(`${key}-01`), "MMM ''yy"),
+        monthKey: key,
+        raised: 0,
+        spent: 0,
+        net: 0,
+      }
+  )
+}
+
+/**
  * Attaches a reconstructed end-of-month bank balance to each point by working
  * backward from the live `currentBalance`: balance(month) = currentBalance -
  * sum(transaction amounts posted after that month). Months before the

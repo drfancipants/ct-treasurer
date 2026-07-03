@@ -6,7 +6,7 @@ import { getBankAccounts, getTransactions } from '@/actions/bank'
 import { getRosterMembers } from '@/actions/roster'
 import { requireCommitteeMember, canEditFinances } from '@/lib/auth'
 import {
-  getMonthlyData, getCumulativeData, getDuesStatusBreakdown, withBankBalances,
+  getMonthlyData, getTrailingMonths, getCumulativeData, getDuesStatusBreakdown, withBankBalances,
   getExpenseCategoryBreakdown, getSeecSummary, getRecentActivity,
 } from '@/lib/analytics'
 import DashboardSummaryCards from '@/components/dashboard/DashboardSummaryCards'
@@ -44,12 +44,15 @@ export default async function DashboardPage({ params }: Props) {
     bankAccounts.find((a) => a.id === committee.dashboardBankAccountId) ?? bankAccounts[0]
   const bankTransactions = dashboardAccount ? await getTransactions([dashboardAccount.id]) : []
 
+  // Cumulative needs full life-to-date totals, so it runs on the unwindowed
+  // data; the monthly activity chart itself is windowed to the trailing year.
+  const monthlyAll = getMonthlyData(contributions, expenditures)
+  const cumulative = getCumulativeData(monthlyAll)
   const monthly = withBankBalances(
-    getMonthlyData(contributions, expenditures),
+    getTrailingMonths(monthlyAll),
     bankTransactions,
     dashboardAccount?.currentBalance ?? 0
   )
-  const cumulative = getCumulativeData(monthly)
   const duesStatus = getDuesStatusBreakdown(rosterMembers)
   const categories = getExpenseCategoryBreakdown(expenditures)
   const seec = getSeecSummary(contributions)
