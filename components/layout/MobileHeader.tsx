@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 import { Menu, X, Scale } from 'lucide-react'
 import type { Committee } from '@/lib/types'
 import Sidebar from './Sidebar'
@@ -19,12 +18,6 @@ export default function MobileHeader({
   activeCommittee: Committee
 }) {
   const [open, setOpen] = useState(false)
-  const pathname = usePathname()
-
-  // Close the drawer whenever navigation happens
-  useEffect(() => {
-    setOpen(false)
-  }, [pathname])
 
   return (
     <div className="md:hidden">
@@ -53,7 +46,14 @@ export default function MobileHeader({
             onClick={() => setOpen(false)}
             aria-hidden
           />
-          <div className="absolute inset-y-0 left-0 shadow-2xl">
+          {/* Close on any nav-link tap inside the drawer (avoids a
+              setState-in-effect on pathname) */}
+          <div
+            className="absolute inset-y-0 left-0 shadow-2xl"
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest('a')) setOpen(false)
+            }}
+          >
             <Sidebar committees={committees} activeCommittee={activeCommittee} />
           </div>
           <button
