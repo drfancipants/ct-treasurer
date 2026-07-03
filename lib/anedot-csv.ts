@@ -1,6 +1,7 @@
 import Papa from 'papaparse'
 import type { Contribution, PaymentMethod, RosterMember } from './types'
 import { donorKey, getDonorYearTotals, INDIVIDUAL_ANNUAL_LIMIT, CASH_CONTRIBUTION_MAX } from './limits'
+import { parseMethod, parseAmount, parseBoolish, parseContractorAnswer, matchQuestionKey } from './anedot-fields'
 
 // ─── Column name mapping ──────────────────────────────────────────────────────
 // Anedot's CSV export uses these header names (varies slightly by account config)
@@ -78,36 +79,8 @@ const COL: Record<string, string> = {
   'Status': 'status',
 }
 
-/**
- * The ledger export's CT compliance questions have long free-text headers with
- * embedded line breaks, so they're matched by substring (on a normalized
- * header) instead of exactly.
- */
-const FUZZY_COL: [string, string][] = [
-  ['principal of a state contractor', 'stateContractorAnswer'],
-  ['communicator lobbyist', 'lobbyistAnswer'],
-  // CT committees collect employer/occupation via custom questions; the
-  // built-in Employer/Occupation columns are often empty in ledger exports
-  ['name of employer', 'employer'],
-  ['principal occupation', 'occupation'],
-]
-
 // Known Anedot-format header signatures
 const ANEDOT_SIGNATURES = ['Donation ID', 'UID', 'Action Page', 'Campaign']
-
-const METHOD_MAP: Record<string, PaymentMethod> = {
-  credit_card: 'CREDIT_CARD',
-  'credit card': 'CREDIT_CARD',
-  creditcard: 'CREDIT_CARD',
-  debit_card: 'DEBIT_CARD',
-  'debit card': 'DEBIT_CARD',
-  check: 'CHECK',
-  cash: 'CASH',
-  ach: 'ONLINE',
-  bank: 'ONLINE',
-  online: 'ONLINE',
-  other: 'OTHER',
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -170,11 +143,6 @@ export interface ParseResult {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function parseAmount(raw: string): number {
-  const n = parseFloat(raw.replace(/[$,\s]/g, ''))
-  return isNaN(n) ? NaN : n
-}
-
 function parseDate(raw: string): string {
   // Handle "2024-03-22T17:36:09Z", "2024-03-22 17:36:09 UTC",
   // "2026-04-09 20:57:08 -0400", "03/22/2024"
@@ -189,36 +157,13 @@ function parseDate(raw: string): string {
   return d.toISOString().slice(0, 10)
 }
 
-function parseMethod(raw: string): PaymentMethod {
-  return METHOD_MAP[raw.toLowerCase().trim()] ?? 'OTHER'
-}
-
-function parseBoolish(raw: string | undefined): boolean {
-  const v = raw?.trim().toLowerCase() ?? ''
-  return v !== '' && !['no', 'false', '0', 'none', 'one-time', 'once'].includes(v)
-}
-
-/** "No" → false; "Yes …Executive…" → true + E; Legislative → L; both → B */
-function parseContractorAnswer(raw: string | undefined): { isStateContractor: boolean; branch?: string } {
-  const v = raw?.trim().toLowerCase() ?? ''
-  if (!v || v.startsWith('no')) return { isStateContractor: false }
-  const exec = v.includes('exec')
-  const legis = v.includes('legis')
-  return {
-    isStateContractor: true,
-    branch: exec && legis ? 'B' : exec ? 'E' : legis ? 'L' : undefined,
-  }
-}
-
 function mapRow(raw: Record<string, string>): Record<string, string> {
   const mapped: Record<string, string> = {}
   for (const [header, value] of Object.entries(raw)) {
     const v = value?.trim() ?? ''
-    let key: string | undefined = COL[header.trim()]
-    if (!key) {
-      const normalized = header.toLowerCase().replace(/\s+/g, ' ')
-      key = FUZZY_COL.find(([needle]) => normalized.includes(needle))?.[1]
-    }
+    // Exact column names first, then the fuzzy CT custom-question labels
+    // (their headers are long free text with embedded line breaks)
+    const key: string | undefined = COL[header.trim()] ?? matchQuestionKey(header)
     // Several headers can map to one key (e.g. two lobbyist questions) —
     // an affirmative/filled value must not be clobbered by an empty one
     if (key && !(key in mapped && (!v || v.toLowerCase() === 'no'))) mapped[key] = v

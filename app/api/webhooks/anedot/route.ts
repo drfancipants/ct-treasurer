@@ -3,6 +3,7 @@ import { z } from 'zod'
 import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { syncRosterContributorLinks } from '@/lib/roster-links'
+import { mapWebhookDonation } from '@/lib/anedot-webhook'
 
 function verifySignature(payload: string, signature: string): boolean {
   const secret = process.env.ANEDOT_WEBHOOK_SECRET
@@ -21,8 +22,10 @@ const anedotDonationSchema = z.object({
     amount: z.string(),
     created_at: z.string(),
     first_name: z.string(),
+    middle_initial: z.string().optional(),
     last_name: z.string(),
     email: z.string().email().optional(),
+    phone: z.string().optional(),
     employer: z.string().optional(),
     occupation: z.string().optional(),
     billing_address: z
@@ -36,6 +39,32 @@ const anedotDonationSchema = z.object({
       .optional(),
     payment_method: z.string().optional(),
     note: z.string().optional(),
+    // Processor detail — shapes vary by payload version
+    fee: z.string().optional(),
+    net_amount: z.string().optional(),
+    card_type: z.string().optional(),
+    card_last4: z.string().optional(),
+    card: z
+      .object({ brand: z.string().optional(), last_four: z.string().optional(), last4: z.string().optional() })
+      .optional(),
+    recurring: z.union([z.boolean(), z.string()]).optional(),
+    commitment_uid: z.string().optional(),
+    campaign: z.union([z.string(), z.object({ name: z.string().optional() })]).optional(),
+    action_page: z.union([z.string(), z.object({ name: z.string().optional() })]).optional(),
+    // Account-specific custom questions (CT compliance fields)
+    custom_field_responses: z
+      .array(
+        z.object({
+          name: z.string().optional(),
+          label: z.string().optional(),
+          question: z.string().optional(),
+          response: z.string().optional(),
+          value: z.string().optional(),
+          answer: z.string().optional(),
+        })
+      )
+      .optional(),
+    custom_fields: z.record(z.string(), z.string()).optional(),
   }),
   account: z.object({ uid: z.string() }).optional(),
 })
@@ -62,7 +91,8 @@ export async function POST(req: NextRequest) {
   }
 
   const { donation } = payload
-  const amount = parseFloat(donation.amount)
+  const mapped = mapWebhookDonation(donation)
+  const { amount } = mapped
 
   if (isNaN(amount) || amount <= 0) {
     return NextResponse.json({ error: 'Invalid amount' }, { status: 400 })
@@ -80,27 +110,14 @@ export async function POST(req: NextRequest) {
 
   try {
     // Find or create contributor (match by email, case-insensitive; fall back to create)
-    let contributor = donation.email
+    let contributor = mapped.contributor.email
       ? await prisma.contributor.findFirst({
-          where: { email: { equals: donation.email, mode: 'insensitive' } },
+          where: { email: { equals: mapped.contributor.email, mode: 'insensitive' } },
         })
       : null
 
     if (!contributor) {
-      contributor = await prisma.contributor.create({
-        data: {
-          firstName: donation.first_name,
-          lastName: donation.last_name,
-          email: donation.email,
-          address1: donation.billing_address?.street ?? '',
-          address2: donation.billing_address?.street_2,
-          city: donation.billing_address?.city ?? '',
-          state: donation.billing_address?.state ?? 'CT',
-          zip: donation.billing_address?.zip ?? '',
-          employer: donation.employer,
-          occupation: donation.occupation,
-        },
-      })
+      contributor = await prisma.contributor.create({ data: mapped.contributor })
     }
 
     // Upsert contribution — idempotent by anedotId
@@ -110,12 +127,10 @@ export async function POST(req: NextRequest) {
         committeeId: committee.id,
         contributorId: contributor.id,
         amount,
-        date: new Date(donation.created_at),
-        method: 'CREDIT_CARD',
         source: 'ANEDOT',
         anedotId: donation.uid,
         isItemized: amount >= 50,
-        memo: donation.note,
+        ...mapped.contribution,
       },
       update: {},
     })
