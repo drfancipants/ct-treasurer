@@ -1,8 +1,12 @@
 'use client'
 
-import { TrendingUp, TrendingDown, Scale, AlertCircle } from 'lucide-react'
+import { useState } from 'react'
+import { TrendingUp, TrendingDown, Scale, AlertCircle, Landmark } from 'lucide-react'
+import { formatDistanceToNow, parseISO } from 'date-fns'
 import { formatCurrency } from '@/lib/utils'
+import { setDashboardBankAccount } from '@/actions/bank'
 import type { SeecSummary } from '@/lib/analytics'
+import type { BankAccount } from '@/lib/types'
 
 interface Props {
   totalRaised: number
@@ -10,6 +14,10 @@ interface Props {
   seec: SeecSummary
   contributionCount: number
   expenditureCount: number
+  bankAccounts?: BankAccount[]
+  selectedBankAccountId?: string
+  canEdit?: boolean
+  committeeSlug?: string
 }
 
 export default function DashboardSummaryCards({
@@ -18,12 +26,25 @@ export default function DashboardSummaryCards({
   seec,
   contributionCount,
   expenditureCount,
+  bankAccounts = [],
+  selectedBankAccountId,
+  canEdit = false,
+  committeeSlug,
 }: Props) {
   const balance = totalRaised - totalSpent
   const balancePositive = balance >= 0
+  const showBank = bankAccounts.length > 0
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className={`grid grid-cols-2 gap-4 ${showBank ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
+      {showBank && committeeSlug && (
+        <BankBalanceCard
+          accounts={bankAccounts}
+          selectedId={selectedBankAccountId}
+          canEdit={canEdit}
+          committeeSlug={committeeSlug}
+        />
+      )}
       <Card
         label="Net balance"
         value={formatCurrency(balance)}
@@ -66,6 +87,76 @@ export default function DashboardSummaryCards({
         }
         highlight={seec.needsReview + seec.incomplete > 0}
       />
+    </div>
+  )
+}
+
+function BankBalanceCard({
+  accounts,
+  selectedId,
+  canEdit,
+  committeeSlug,
+}: {
+  accounts: BankAccount[]
+  selectedId?: string
+  canEdit: boolean
+  committeeSlug: string
+}) {
+  // Fall back to the first linked account until one is explicitly chosen
+  const initial = accounts.find((a) => a.id === selectedId) ?? accounts[0]
+  const [account, setAccount] = useState(initial)
+  const [saving, setSaving] = useState(false)
+
+  async function handleSelect(id: string) {
+    const next = accounts.find((a) => a.id === id)
+    if (!next || next.id === account.id) return
+    const prev = account
+    setAccount(next)
+    setSaving(true)
+    try {
+      await setDashboardBankAccount(id, committeeSlug)
+    } catch {
+      setAccount(prev)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const synced = account.lastSyncedAt
+    ? `Synced ${formatDistanceToNow(parseISO(account.lastSyncedAt), { addSuffix: true })}`
+    : 'Not synced yet'
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Bank balance</p>
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-50">
+          <Landmark className="w-4 h-4 text-blue-600" />
+        </div>
+      </div>
+      <p className="text-2xl font-semibold tabular leading-none mb-1 text-slate-900">
+        {formatCurrency(account.currentBalance)}
+      </p>
+      {canEdit && accounts.length > 1 ? (
+        <select
+          value={account.id}
+          onChange={(e) => handleSelect(e.target.value)}
+          disabled={saving}
+          aria-label="Bank account shown on the dashboard"
+          className="w-full mt-0.5 -ml-1 text-xs text-slate-500 bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded cursor-pointer disabled:opacity-50"
+        >
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name} ••{a.lastFour}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <p className="text-xs text-slate-400 leading-snug">
+          {account.name} ••{account.lastFour}
+        </p>
+      )}
+      <p className="text-[10px] text-slate-400 mt-0.5">{synced}</p>
     </div>
   )
 }

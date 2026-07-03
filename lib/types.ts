@@ -42,6 +42,8 @@ export interface Committee {
   phone?: string
   email?: string
   electionYear?: number
+  /** Which linked bank account's balance the dashboard shows */
+  dashboardBankAccountId?: string
   stripeCustomerId?: string
   stripeSubscriptionId?: string
   subscriptionStatus?: SubscriptionStatus

@@ -97,6 +97,19 @@ export async function removeBankAccount(accountId: string, committeeSlug: string
   revalidatePath(`/app/${committeeSlug}/bank`)
 }
 
+/** Choose which linked account's balance the dashboard shows. */
+export async function setDashboardBankAccount(accountId: string, committeeSlug: string) {
+  const { committeeId } = await requireFinanceRole(committeeSlug)
+  const account = await prisma.bankAccount.findFirst({ where: { id: accountId, committeeId } })
+  if (!account) throw new Error('Forbidden')
+
+  await prisma.committee.update({
+    where: { id: committeeId },
+    data: { dashboardBankAccountId: accountId },
+  })
+  revalidatePath(`/app/${committeeSlug}/dashboard`)
+}
+
 export async function reconcileTransaction(
   transactionId: string,
   matchType: 'CONTRIBUTION' | 'EXPENDITURE' | 'IGNORED',

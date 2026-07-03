@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation'
 import { getCommitteeBySlug } from '@/actions/committees'
 import { getContributions } from '@/actions/donations'
 import { getExpenditures } from '@/actions/expenses'
+import { getBankAccounts } from '@/actions/bank'
+import { requireCommitteeMember, canEditFinances } from '@/lib/auth'
 import {
   getMonthlyData, getCumulativeData, getPaymentMethodBreakdown,
   getExpenseCategoryBreakdown, getSeecSummary, getRecentActivity,
@@ -23,9 +25,12 @@ export default async function DashboardPage({ params }: Props) {
   const committee = await getCommitteeBySlug(committeeSlug)
   if (!committee) notFound()
 
-  const [contributions, expenditures] = await Promise.all([
+  const { role } = await requireCommitteeMember(committeeSlug)
+
+  const [contributions, expenditures, bankAccounts] = await Promise.all([
     getContributions(committee.id),
     getExpenditures(committee.id),
+    getBankAccounts(committee.id),
   ])
 
   const totalRaised = contributions.reduce((s, c) => s + c.amount, 0)
@@ -47,7 +52,17 @@ export default async function DashboardPage({ params }: Props) {
             {committee.name} · {committee.electionYear} election cycle
           </p>
         </div>
-        <DashboardSummaryCards totalRaised={totalRaised} totalSpent={totalSpent} seec={seec} contributionCount={contributions.length} expenditureCount={expenditures.length} />
+        <DashboardSummaryCards
+          totalRaised={totalRaised}
+          totalSpent={totalSpent}
+          seec={seec}
+          contributionCount={contributions.length}
+          expenditureCount={expenditures.length}
+          bankAccounts={bankAccounts}
+          selectedBankAccountId={committee.dashboardBankAccountId}
+          canEdit={canEditFinances(role)}
+          committeeSlug={committeeSlug}
+        />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2"><MonthlyChart data={monthly} /></div>
           <div><PaymentMethodsChart data={methods} total={totalRaised} /></div>

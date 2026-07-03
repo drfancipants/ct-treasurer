@@ -6,6 +6,7 @@ type CommitteeRow = {
   anedotAccountId: string | null; address1: string | null; address2: string | null
   city: string | null; state: string; zip: string | null; phone: string | null
   email: string | null; electionYear: number | null
+  dashboardBankAccountId: string | null
   stripeCustomerId: string | null; stripeSubscriptionId: string | null
   subscriptionStatus: SubscriptionStatus | null; trialEndsAt: Date | null
 }
@@ -23,6 +24,7 @@ export function mapCommittee(c: CommitteeRow): Committee {
     phone: c.phone ?? undefined,
     email: c.email ?? undefined,
     electionYear: c.electionYear ?? undefined,
+    dashboardBankAccountId: c.dashboardBankAccountId ?? undefined,
     stripeCustomerId: c.stripeCustomerId ?? undefined,
     stripeSubscriptionId: c.stripeSubscriptionId ?? undefined,
     subscriptionStatus: c.subscriptionStatus ?? undefined,

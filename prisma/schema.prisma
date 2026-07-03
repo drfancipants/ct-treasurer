@@ -33,6 +33,7 @@ model Committee {
   phone        String?
   email        String?
   electionYear         Int?
+  dashboardBankAccountId String? // which linked account's balance the dashboard shows
   stripeCustomerId     String?
   stripeSubscriptionId String?
   subscriptionStatus   SubscriptionStatus?
