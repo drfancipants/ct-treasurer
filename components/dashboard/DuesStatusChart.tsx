@@ -1,20 +1,19 @@
 'use client'
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
-import type { MethodData } from '@/lib/analytics'
-import { formatCurrency } from '@/lib/utils'
+import type { DuesStatusData } from '@/lib/analytics'
 import ChartEmptyState from './ChartEmptyState'
 
-const COLORS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#0891b2', '#64748b']
+const COLORS = ['#059669', '#d97706']
 
 interface Props {
-  data: MethodData[]
+  data: DuesStatusData[]
   total: number
 }
 
 function CustomTooltip({ active, payload }: {
   active?: boolean
-  payload?: { name: string; value: number; payload: MethodData }[]
+  payload?: { name: string; value: number }[]
 }) {
   if (!active || !payload?.length) return null
   const d = payload[0]
@@ -22,25 +21,24 @@ function CustomTooltip({ active, payload }: {
     <div className="bg-white border border-slate-200 rounded-lg shadow-lg p-3 text-xs">
       <p className="font-semibold text-slate-800">{d.name}</p>
       <p className="text-slate-500 mt-1">
-        {formatCurrency(d.value)} · {d.payload.count}{' '}
-        {d.payload.count === 1 ? 'contribution' : 'contributions'}
+        {d.value} {d.value === 1 ? 'member' : 'members'}
       </p>
     </div>
   )
 }
 
-export default function PaymentMethodsChart({ data, total }: Props) {
+export default function DuesStatusChart({ data, total }: Props) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 h-full">
       <div className="mb-4">
-        <h3 className="text-sm font-semibold text-slate-900">By payment method</h3>
-        <p className="text-xs text-slate-500 mt-0.5">How donors are giving</p>
+        <h3 className="text-sm font-semibold text-slate-900">Dues status</h3>
+        <p className="text-xs text-slate-500 mt-0.5">Roster members who have paid dues</p>
       </div>
 
-      {data.length === 0 ? (
+      {total === 0 ? (
         <ChartEmptyState
           height={160}
-          message="The payment method mix appears after your first donation"
+          message="Dues status appears once you add roster members"
         />
       ) : (
       <>
@@ -77,7 +75,7 @@ export default function PaymentMethodsChart({ data, total }: Props) {
                 {entry.name}
               </span>
               <span className="text-slate-500 tabular">
-                {pct}% · {formatCurrency(entry.value)}
+                {pct}% · {entry.value} {entry.value === 1 ? 'member' : 'members'}
               </span>
             </div>
           )

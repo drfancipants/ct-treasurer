@@ -1,6 +1,6 @@
 import { format, parseISO } from 'date-fns'
-import type { Contribution, Expenditure } from './types'
-import { getSeecStatus, EXPENSE_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from './types'
+import type { Contribution, Expenditure, RosterMember } from './types'
+import { getSeecStatus, EXPENSE_CATEGORY_LABELS } from './types'
 
 // ─── Monthly raised vs spent ──────────────────────────────────────────────────
 
@@ -66,24 +66,20 @@ export function getCumulativeData(monthly: MonthlyData[]): CumulativePoint[] {
   })
 }
 
-// ─── Payment method breakdown ─────────────────────────────────────────────────
+// ─── Roster dues status ────────────────────────────────────────────────────────
 
-export interface MethodData {
+export interface DuesStatusData {
   name: string
   value: number
-  count: number
 }
 
-export function getPaymentMethodBreakdown(contributions: Contribution[]): MethodData[] {
-  const map = new Map<string, { value: number; count: number }>()
-  for (const c of contributions) {
-    const label = PAYMENT_METHOD_LABELS[c.method]
-    const existing = map.get(label) ?? { value: 0, count: 0 }
-    map.set(label, { value: existing.value + c.amount, count: existing.count + 1 })
-  }
-  return Array.from(map.entries())
-    .map(([name, data]) => ({ name, ...data }))
-    .sort((a, b) => b.value - a.value)
+export function getDuesStatusBreakdown(rosterMembers: RosterMember[]): DuesStatusData[] {
+  const paid = rosterMembers.filter((m) => m.duesPaid).length
+  const unpaid = rosterMembers.length - paid
+  return [
+    { name: 'Paid', value: paid },
+    { name: 'Not paid', value: unpaid },
+  ]
 }
 
 // ─── Expense category breakdown ───────────────────────────────────────────────
