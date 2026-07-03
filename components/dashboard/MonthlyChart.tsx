@@ -1,8 +1,9 @@
 'use client'
 
 import {
-  BarChart,
+  ComposedChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -20,33 +21,36 @@ interface Props {
 
 function CustomTooltip({ active, payload, label }: {
   active?: boolean
-  payload?: { name: string; value: number; color: string }[]
+  payload?: { name: string; value?: number; color: string }[]
   label?: string
 }) {
   if (!active || !payload?.length) return null
+  const shown = payload.filter((entry) => entry.value != null)
+  const raised = shown.find((e) => e.name === 'Raised')
+  const spent = shown.find((e) => e.name === 'Spent')
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-lg p-3 text-xs min-w-[140px]">
       <p className="font-semibold text-slate-700 mb-2">{label}</p>
-      {payload.map((entry) => (
+      {shown.map((entry) => (
         <div key={entry.name} className="flex items-center justify-between gap-4 mb-1">
           <span className="flex items-center gap-1.5 text-slate-500">
             <span className="w-2 h-2 rounded-full" style={{ background: entry.color }} />
             {entry.name}
           </span>
           <span className="font-semibold text-slate-800 tabular">
-            {formatCurrency(entry.value)}
+            {formatCurrency(entry.value!)}
           </span>
         </div>
       ))}
-      {payload.length === 2 && (
+      {raised && spent && (
         <div className="border-t border-slate-100 mt-2 pt-2 flex justify-between">
           <span className="text-slate-400">Net</span>
           <span
             className={`font-semibold tabular ${
-              payload[0].value - payload[1].value >= 0 ? 'text-emerald-700' : 'text-rose-700'
+              raised.value! - spent.value! >= 0 ? 'text-emerald-700' : 'text-rose-700'
             }`}
           >
-            {formatCurrency(payload[0].value - payload[1].value)}
+            {formatCurrency(raised.value! - spent.value!)}
           </span>
         </div>
       )}
@@ -68,7 +72,7 @@ export default function MonthlyChart({ data }: Props) {
         />
       ) : (
       <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} barGap={4} barCategoryGap="35%">
+        <ComposedChart data={data} barGap={4} barCategoryGap="35%">
           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
           <XAxis
             dataKey="month"
@@ -77,6 +81,16 @@ export default function MonthlyChart({ data }: Props) {
             tickLine={false}
           />
           <YAxis
+            yAxisId="left"
+            tickFormatter={(v) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v}`)}
+            tick={{ fontSize: 11, fill: '#94a3b8' }}
+            axisLine={false}
+            tickLine={false}
+            width={48}
+          />
+          <YAxis
+            yAxisId="right"
+            orientation="right"
             tickFormatter={(v) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v}`)}
             tick={{ fontSize: 11, fill: '#94a3b8' }}
             axisLine={false}
@@ -89,9 +103,18 @@ export default function MonthlyChart({ data }: Props) {
             iconSize={8}
             wrapperStyle={{ fontSize: 11, paddingTop: 12 }}
           />
-          <Bar dataKey="raised" name="Raised" fill="#059669" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="spent" name="Spent" fill="#e11d48" radius={[4, 4, 0, 0]} />
-        </BarChart>
+          <Bar yAxisId="left" dataKey="raised" name="Raised" fill="#059669" radius={[4, 4, 0, 0]} />
+          <Bar yAxisId="left" dataKey="spent" name="Spent" fill="#e11d48" radius={[4, 4, 0, 0]} />
+          <Line
+            yAxisId="right"
+            dataKey="bankBalance"
+            name="Bank balance"
+            stroke="#2563eb"
+            strokeWidth={2}
+            dot={{ r: 3 }}
+            connectNulls={false}
+          />
+        </ComposedChart>
       </ResponsiveContainer>
       )}
     </div>

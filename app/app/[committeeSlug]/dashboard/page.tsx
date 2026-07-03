@@ -2,11 +2,11 @@ import { notFound } from 'next/navigation'
 import { getCommitteeBySlug } from '@/actions/committees'
 import { getContributions } from '@/actions/donations'
 import { getExpenditures } from '@/actions/expenses'
-import { getBankAccounts } from '@/actions/bank'
+import { getBankAccounts, getTransactions } from '@/actions/bank'
 import { getRosterMembers } from '@/actions/roster'
 import { requireCommitteeMember, canEditFinances } from '@/lib/auth'
 import {
-  getMonthlyData, getCumulativeData, getDuesStatusBreakdown,
+  getMonthlyData, getCumulativeData, getDuesStatusBreakdown, withBankBalances,
   getExpenseCategoryBreakdown, getSeecSummary, getRecentActivity,
 } from '@/lib/analytics'
 import DashboardSummaryCards from '@/components/dashboard/DashboardSummaryCards'
@@ -38,7 +38,17 @@ export default async function DashboardPage({ params }: Props) {
   const totalRaised = contributions.reduce((s, c) => s + c.amount, 0)
   const totalSpent = expenditures.reduce((s, e) => s + e.amount, 0)
 
-  const monthly = getMonthlyData(contributions, expenditures)
+  // Same fallback the bank balance summary card uses — the account whose
+  // balance is currently shown on the dashboard
+  const dashboardAccount =
+    bankAccounts.find((a) => a.id === committee.dashboardBankAccountId) ?? bankAccounts[0]
+  const bankTransactions = dashboardAccount ? await getTransactions([dashboardAccount.id]) : []
+
+  const monthly = withBankBalances(
+    getMonthlyData(contributions, expenditures),
+    bankTransactions,
+    dashboardAccount?.currentBalance ?? 0
+  )
   const cumulative = getCumulativeData(monthly)
   const duesStatus = getDuesStatusBreakdown(rosterMembers)
   const categories = getExpenseCategoryBreakdown(expenditures)

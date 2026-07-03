@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns'
-import type { Contribution, Expenditure, RosterMember } from './types'
+import type { Contribution, Expenditure, RosterMember, BankTransaction } from './types'
 import { getSeecStatus, EXPENSE_CATEGORY_LABELS } from './types'
 
 // ─── Monthly raised vs spent ──────────────────────────────────────────────────
@@ -10,6 +10,8 @@ export interface MonthlyData {
   raised: number
   spent: number
   net: number
+  /** Reconstructed end-of-month bank balance; undefined where we lack transaction history to place it */
+  bankBalance?: number
 }
 
 export function getMonthlyData(
@@ -40,6 +42,34 @@ export function getMonthlyData(
       spent: spentMap.get(key) ?? 0,
       net: (raisedMap.get(key) ?? 0) - (spentMap.get(key) ?? 0),
     }))
+}
+
+/**
+ * Attaches a reconstructed end-of-month bank balance to each point by working
+ * backward from the live `currentBalance`: balance(month) = currentBalance -
+ * sum(transaction amounts posted after that month). Months before the
+ * earliest known transaction are left undefined rather than guessing an
+ * opening balance we have no visibility into.
+ */
+export function withBankBalances(
+  monthly: MonthlyData[],
+  transactions: BankTransaction[],
+  currentBalance: number
+): MonthlyData[] {
+  if (transactions.length === 0) return monthly
+
+  const earliestMonthKey = transactions.reduce(
+    (min, t) => (t.date.slice(0, 7) < min ? t.date.slice(0, 7) : min),
+    transactions[0].date.slice(0, 7)
+  )
+
+  return monthly.map((m) => {
+    if (m.monthKey < earliestMonthKey) return m
+    const laterSum = transactions
+      .filter((t) => t.date.slice(0, 7) > m.monthKey)
+      .reduce((s, t) => s + t.amount, 0)
+    return { ...m, bankBalance: currentBalance - laterSum }
+  })
 }
 
 // ─── Cumulative running balance ───────────────────────────────────────────────
