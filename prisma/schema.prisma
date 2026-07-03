@@ -47,6 +47,7 @@ model Committee {
   seecFilings   SeecFiling[]
   events        Event[]
   committeeContributions CommitteeContribution[]
+  inKindContributions    InKindContribution[]
 }
 
 // ─── Users & membership ──────────────────────────────────────────────────────
@@ -171,6 +172,38 @@ model CommitteeContribution {
   @@index([committeeId, date])
 }
 
+// ─── In-kind contributions (SEEC Form 20 Section M) ───────────────────────────
+
+model InKindContribution {
+  id            String   @id @default(cuid())
+  committeeId   String
+  entityType    String   @default("IS") // IS = Individual/Sole Prop, CO = Committee, OT = Other
+  lastName      String                  // person's last name, or entity name
+  firstName     String?
+  middleInitial String?
+  entityName    String?                 // "Name of Committee" column (for CO/OT)
+  street        String?
+  city          String?
+  state         String   @default("CT")
+  zip           String?
+  date          DateTime @db.Date
+  fairMarketValue Decimal @db.Decimal(10, 2)
+  description   String
+  isStateContractorPrincipal Boolean @default(false)
+  contractorBranch String?             // E | L | B (when the above is Y)
+  isLobbyist    Boolean  @default(false)
+  eventId       String?
+  memo          String?
+  filedAt       DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  event     Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([committeeId, date])
+}
+
 // ─── Fundraising events (SEEC Form 20 Section L1) ────────────────────────────
 
 model Event {
@@ -199,6 +232,7 @@ model Event {
   contributions Contribution[]
   expenditures  Expenditure[]
   committeeContributions CommitteeContribution[]
+  inKindContributions    InKindContribution[]
 
   @@index([committeeId, date])
 }

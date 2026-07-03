@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { X, FileDown, AlertCircle, CheckCircle2, FileText, Loader2 } from 'lucide-react'
-import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution } from '@/lib/types'
+import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution, InKindContribution } from '@/lib/types'
 import { previewForm20, populateForm20 } from '@/lib/form20'
 import { formatCurrency } from '@/lib/utils'
 
@@ -21,6 +21,7 @@ interface Props {
   expenditures: Expenditure[]
   events: CommitteeEvent[]
   committeeContributions: CommitteeContribution[]
+  inKindContributions: InKindContribution[]
   committeeName: string
   initialPeriod?: { start: string; end: string }
   onFiled?: (start: string, end: string) => void
@@ -41,6 +42,7 @@ export default function Form20ExportDialog({
   expenditures,
   events,
   committeeContributions,
+  inKindContributions,
   committeeName,
   initialPeriod,
   onFiled,
@@ -71,9 +73,9 @@ export default function Form20ExportDialog({
   const preview = useMemo(
     () =>
       periodStart && periodEnd
-        ? previewForm20(contributions, expenditures, periodStart, periodEnd, events, committeeContributions)
+        ? previewForm20(contributions, expenditures, periodStart, periodEnd, events, committeeContributions, inKindContributions)
         : null,
-    [contributions, expenditures, events, committeeContributions, periodStart, periodEnd]
+    [contributions, expenditures, events, committeeContributions, inKindContributions, periodStart, periodEnd]
   )
 
   const hasData =
@@ -82,7 +84,8 @@ export default function Form20ExportDialog({
       preview.nonItemizedCount > 0 ||
       preview.expenditureCount > 0 ||
       preview.eventCount > 0 ||
-      preview.committeeContribCount > 0)
+      preview.committeeContribCount > 0 ||
+      preview.inKindCount > 0)
 
   if (!open) return null
 
@@ -98,7 +101,7 @@ export default function Form20ExportDialog({
       const buffer = await res.arrayBuffer()
 
       // Populate the template
-      const output = populateForm20(buffer, contributions, expenditures, periodStart, periodEnd, events, committeeContributions)
+      const output = populateForm20(buffer, contributions, expenditures, periodStart, periodEnd, events, committeeContributions, inKindContributions)
 
       // Trigger download
       const blob = new Blob([new Uint8Array(output).buffer], {
@@ -253,6 +256,12 @@ export default function Form20ExportDialog({
                   count={preview.committeeContribCount}
                   total={preview.committeeContribTotal}
                   note="Received from other committees"
+                />
+                <PreviewRow
+                  label="Section M — In-kind contributions"
+                  count={preview.inKindCount}
+                  total={preview.inKindTotal}
+                  note="Goods/services (fair market value)"
                 />
                 <PreviewRow
                   label="Section L1 — Fundraising events"

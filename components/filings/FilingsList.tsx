@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { FileText, Download, CheckCircle2, Clock } from 'lucide-react'
-import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution } from '@/lib/types'
+import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution, InKindContribution } from '@/lib/types'
 import type { Committee } from '@/lib/types'
 import type { SeecFilingRecord } from '@/actions/filings'
 import Form20ExportDialog from '@/components/filings/Form20ExportDialog'
@@ -70,12 +70,13 @@ interface Props {
   expenditures: Expenditure[]
   events: CommitteeEvent[]
   committeeContributions: CommitteeContribution[]
+  inKindContributions: InKindContribution[]
   committee: Committee
   filings: SeecFilingRecord[]
   canEdit: boolean
 }
 
-export default function FilingsList({ contributions, expenditures, events, committeeContributions, committee, filings: initialFilings, canEdit }: Props) {
+export default function FilingsList({ contributions, expenditures, events, committeeContributions, inKindContributions, committee, filings: initialFilings, canEdit }: Props) {
   const [exportPeriod, setExportPeriod] = useState<{ start: string; end: string } | null>(null)
   const [filings, setFilings] = useState(initialFilings)
 
@@ -248,6 +249,7 @@ export default function FilingsList({ contributions, expenditures, events, commi
           expenditures={expenditures}
           events={events}
           committeeContributions={committeeContributions}
+          inKindContributions={inKindContributions}
           committeeName={committee.name}
           initialPeriod={exportPeriod}
           onFiled={canEdit ? handleFiled : undefined}

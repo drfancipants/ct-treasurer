@@ -309,6 +309,40 @@ export interface CommitteeContribution {
   createdAt: string
 }
 
+// ─── In-kind contributions (SEEC Form 20 Section M) ───────────────────────────
+
+export type InKindEntityType = 'IS' | 'CO' | 'OT'
+
+export const IN_KIND_ENTITY_LABELS: Record<InKindEntityType, string> = {
+  IS: 'Individual / Sole proprietorship',
+  CO: 'Committee',
+  OT: 'Other',
+}
+
+export interface InKindContribution {
+  id: string
+  committeeId: string
+  entityType: InKindEntityType
+  lastName: string
+  firstName?: string
+  middleInitial?: string
+  entityName?: string
+  street?: string
+  city?: string
+  state: string
+  zip?: string
+  date: string
+  fairMarketValue: number
+  description: string
+  isStateContractorPrincipal: boolean
+  contractorBranch?: string
+  isLobbyist: boolean
+  eventId?: string
+  memo?: string
+  filedAt?: string
+  createdAt: string
+}
+
 // ─── Fundraising events (SEEC Form 20 Section L1) ─────────────────────────────
 
 export interface CommitteeEvent {

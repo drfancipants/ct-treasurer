@@ -52,6 +52,7 @@ export async function markFiled(
     prisma.contribution.updateMany({ where: period, data: { filedAt: filing.filedAt } }),
     prisma.expenditure.updateMany({ where: period, data: { filedAt: filing.filedAt } }),
     prisma.committeeContribution.updateMany({ where: period, data: { filedAt: filing.filedAt } }),
+    prisma.inKindContribution.updateMany({ where: period, data: { filedAt: filing.filedAt } }),
   ])
 
   revalidatePath(`/app/${committeeSlug}/filings`)

@@ -231,3 +231,48 @@ describe('Section C1 — committee contributions', () => {
     expect(p.committeeContribTotal).toBe(500)
   })
 })
+
+describe('Section M — in-kind contributions', () => {
+  const ik = (o: Partial<import('../types').InKindContribution> = {}): import('../types').InKindContribution => ({
+    id: 'ik_1', committeeId: 'com_1', entityType: 'IS',
+    lastName: 'Baker', firstName: 'Sam', middleInitial: 'Q',
+    street: '3 Oak St', city: 'Guilford', state: 'CT', zip: '06437',
+    date: '2026-05-08', fairMarketValue: 250, description: 'Printing of palm cards',
+    isStateContractorPrincipal: false, isLobbyist: false,
+    createdAt: '2026-05-08T00:00:00Z', ...o,
+  })
+
+  it('writes in-kind contributions to Section M', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const out = populateForm20(template, [], [], Q2_START, Q2_END, [], [], [ik()])
+    const r = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section M'], { header: 1 })[1]
+    expect(r[1]).toBe('Baker')                 // last name
+    expect(r[2]).toBe('Sam')                   // first name
+    expect(r[6]).toBe('Guilford')              // city
+    expect(r[9]).toBe('05/08/2026')            // date received
+    expect(r[10]).toBe(250)                    // fair market value
+    expect(r[11]).toBe('IS')                   // entity type
+    expect(r[12]).toBe('Printing of palm cards')
+    expect(r[13]).toBe('N')                    // not a contractor principal
+    expect(r[18]).toBe('N')                    // not a lobbyist
+  })
+
+  it('writes committee entity name and contractor branch', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const row = ik({ entityType: 'CO', lastName: 'Acme PAC', firstName: undefined, entityName: 'Acme PAC', isStateContractorPrincipal: true, contractorBranch: 'L' })
+    const out = populateForm20(template, [], [], Q2_START, Q2_END, [], [], [row])
+    const r = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section M'], { header: 1 })[1]
+    expect(r[4]).toBe('Acme PAC')  // Name of Committee
+    expect(r[11]).toBe('CO')
+    expect(r[13]).toBe('Y')
+    expect(r[14]).toBe('L')        // branch
+  })
+
+  it('counts in-kind in the preview and excludes out-of-period', () => {
+    const p = previewForm20([], [], Q2_START, Q2_END, [], [], [ik({ id: 'in', date: '2026-05-08' }), ik({ id: 'out', date: '2026-09-01' })])
+    expect(p.inKindCount).toBe(1)
+    expect(p.inKindTotal).toBe(250)
+  })
+})

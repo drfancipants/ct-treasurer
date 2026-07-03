@@ -1,17 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import type { Contribution, CommitteeContribution, CommitteeEvent } from '@/lib/types'
+import type { Contribution, CommitteeContribution, InKindContribution, CommitteeEvent } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import DonationSummaryCards from './DonationSummaryCards'
 import DonationsTable from './DonationsTable'
 import CommitteeContributionsTable from './CommitteeContributionsTable'
+import InKindContributionsTable from './InKindContributionsTable'
 
-type Tab = 'individuals' | 'committees'
+type Tab = 'individuals' | 'committees' | 'inkind'
 
 interface Props {
   contributions: Contribution[]
   committeeContributions: CommitteeContribution[]
+  inKindContributions: InKindContribution[]
   events: CommitteeEvent[]
   committeeId: string
   committeeSlug: string
@@ -19,14 +21,14 @@ interface Props {
 }
 
 export default function DonationsTabs({
-  contributions, committeeContributions, events, committeeId, committeeSlug, canEdit,
+  contributions, committeeContributions, inKindContributions, events, committeeId, committeeSlug, canEdit,
 }: Props) {
   const [tab, setTab] = useState<Tab>('individuals')
 
   return (
     <div className="space-y-6">
       <div className="flex gap-1 border-b border-slate-200">
-        {([['individuals', 'Individuals'], ['committees', 'Other committees']] as [Tab, string][]).map(([key, label]) => (
+        {([['individuals', 'Individuals'], ['committees', 'Other committees'], ['inkind', 'In-kind']] as [Tab, string][]).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -39,11 +41,14 @@ export default function DonationsTabs({
             {key === 'committees' && committeeContributions.length > 0 && (
               <span className="ml-1.5 text-xs text-slate-400">{committeeContributions.length}</span>
             )}
+            {key === 'inkind' && inKindContributions.length > 0 && (
+              <span className="ml-1.5 text-xs text-slate-400">{inKindContributions.length}</span>
+            )}
           </button>
         ))}
       </div>
 
-      {tab === 'individuals' ? (
+      {tab === 'individuals' && (
         <>
           <DonationSummaryCards contributions={contributions} />
           <DonationsTable
@@ -54,9 +59,19 @@ export default function DonationsTabs({
             canEdit={canEdit}
           />
         </>
-      ) : (
+      )}
+      {tab === 'committees' && (
         <CommitteeContributionsTable
           contributions={committeeContributions}
+          events={events}
+          committeeId={committeeId}
+          committeeSlug={committeeSlug}
+          canEdit={canEdit}
+        />
+      )}
+      {tab === 'inkind' && (
+        <InKindContributionsTable
+          contributions={inKindContributions}
           events={events}
           committeeId={committeeId}
           committeeSlug={committeeSlug}
