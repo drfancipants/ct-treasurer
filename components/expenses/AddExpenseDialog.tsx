@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import type { Expenditure, ExpenseCategory, PaymentMethod } from '@/lib/types'
+import type { Expenditure, ExpenseCategory, PaymentMethod, CommitteeEvent } from '@/lib/types'
 import { createExpenditure, updateExpenditure } from '@/actions/expenses'
 import { EXPENSE_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/types'
+import { formatDate } from '@/lib/utils'
 
 interface Props {
   open: boolean
@@ -13,6 +14,7 @@ interface Props {
   committeeId: string
   committeeSlug: string
   expenditure?: Expenditure // pre-fills the form for edit mode
+  events?: CommitteeEvent[]
 }
 
 interface FormData {
@@ -24,6 +26,7 @@ interface FormData {
   method: PaymentMethod
   checkNumber: string
   memo: string
+  eventId: string
 }
 
 const EMPTY: FormData = {
@@ -35,9 +38,10 @@ const EMPTY: FormData = {
   method: 'CHECK',
   checkNumber: '',
   memo: '',
+  eventId: '',
 }
 
-export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, committeeSlug, expenditure }: Props) {
+export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, committeeSlug, expenditure, events = [] }: Props) {
   const isEdit = !!expenditure
   const [form, setForm] = useState<FormData>(
     expenditure
@@ -50,6 +54,7 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
           method: expenditure.method,
           checkNumber: expenditure.checkNumber ?? '',
           memo: expenditure.memo ?? '',
+          eventId: expenditure.eventId ?? '',
         }
       : EMPTY
   )
@@ -89,6 +94,7 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
         method: form.method,
         checkNumber: form.checkNumber.trim() || undefined,
         memo: form.memo.trim() || undefined,
+        eventId: form.eventId || undefined,
       }
       const saved = isEdit && expenditure
         ? await updateExpenditure(expenditure.id, payload, committeeSlug)
@@ -237,6 +243,23 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
               className={inputCls(false)}
             />
           </Field>
+
+          {events.length > 0 && (
+            <Field label="Linked event (optional)">
+              <select
+                value={form.eventId}
+                onChange={(e) => set('eventId', e.target.value)}
+                className={inputCls(false)}
+              >
+                <option value="">— None —</option>
+                {events.map((ev) => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.letter} · {ev.description} ({formatDate(ev.date)})
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3 pt-2">

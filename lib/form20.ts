@@ -80,6 +80,9 @@ export function populateForm20(
   const expends  = expenditures.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
   const evts     = events.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
 
+  // Look up a linked event's date + letter for the Section B / P event columns
+  const eventById = new Map(events.map((e) => [e.id, e]))
+
   const itemized    = contribs.filter((c) => c.isItemized)
   const nonItemized = contribs.filter((c) => !c.isItemized)
   const smallTotal  = nonItemized.reduce((s, c) => s + c.amount, 0)
@@ -112,9 +115,9 @@ export function populateForm20(
         CONTRIBUTION_METHOD[c.method] ?? 'PC',            // 12 Method code
         'N',                                              // 13 State contractor?
         '',                                               // 14 Which branch?
-        'N',                                              // 15 L1 event?
-        '',                                               // 16 Event date
-        '',                                               // 17 Event letter
+        c.eventId && eventById.has(c.eventId) ? 'Y' : 'N',            // 15 Associated with an L1 event?
+        c.eventId ? seecDate(eventById.get(c.eventId)?.date ?? '') : '', // 16 Event date
+        c.eventId ? eventById.get(c.eventId)?.letter ?? '' : '',      // 17 Event letter
         'N',                                              // 18 Lobbyist?
         'N',                                              // 19 Municipality contract?
         '',                                               // 20 Aggregate correction
@@ -139,8 +142,8 @@ export function populateForm20(
         EXPENDITURE_METHOD[e.method] ?? 'CH',             //  8 Method code
         e.checkNumber ?? '',                              //  9 Check number
         e.purpose,                                        // 10 Description
-        '',                                               // 11 Event date
-        '',                                               // 12 Event letter
+        e.eventId ? seecDate(eventById.get(e.eventId)?.date ?? '') : '', // 11 Event date
+        e.eventId ? eventById.get(e.eventId)?.letter ?? '' : '',      // 12 Event letter
         i + 1,                                            // 13 Expenditure number
         'NONE',                                           // 14 Type (NONE = not coordinated)
         LEGACY_EXPENSE_PURPOSE[e.category] ?? e.category, // 15 Purpose code (stored directly)

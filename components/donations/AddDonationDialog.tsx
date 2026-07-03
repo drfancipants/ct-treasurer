@@ -2,11 +2,11 @@
 
 import { useState } from 'react'
 import { X, AlertCircle } from 'lucide-react'
-import type { Contribution, PaymentMethod } from '@/lib/types'
+import type { Contribution, PaymentMethod, CommitteeEvent } from '@/lib/types'
 import { createContribution, updateContribution } from '@/actions/donations'
 import { PAYMENT_METHOD_LABELS } from '@/lib/types'
 import { checkProspective, INDIVIDUAL_ANNUAL_LIMIT, CASH_CONTRIBUTION_MAX } from '@/lib/limits'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 
 interface Props {
   open: boolean
@@ -16,6 +16,7 @@ interface Props {
   committeeSlug: string
   contribution?: Contribution // pre-fills the form for edit mode
   existingContributions?: Contribution[] // for the annual-limit check
+  events?: CommitteeEvent[] // for the optional event link
 }
 
 interface FormData {
@@ -26,6 +27,7 @@ interface FormData {
   checkNumber: string
   isItemized: boolean
   memo: string
+  eventId: string
   // Contributor
   firstName: string
   lastName: string
@@ -46,6 +48,7 @@ const EMPTY: FormData = {
   checkNumber: '',
   isItemized: true,
   memo: '',
+  eventId: '',
   firstName: '',
   lastName: '',
   email: '',
@@ -58,7 +61,7 @@ const EMPTY: FormData = {
   occupation: '',
 }
 
-export default function AddDonationDialog({ open, onClose, onAdd, committeeId, committeeSlug, contribution, existingContributions }: Props) {
+export default function AddDonationDialog({ open, onClose, onAdd, committeeId, committeeSlug, contribution, existingContributions, events = [] }: Props) {
   const isEdit = !!contribution
   const [form, setForm] = useState<FormData>(
     contribution
@@ -69,6 +72,7 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
           checkNumber: contribution.checkNumber ?? '',
           isItemized: contribution.isItemized,
           memo: contribution.memo ?? '',
+          eventId: contribution.eventId ?? '',
           firstName: contribution.contributor.firstName,
           lastName: contribution.contributor.lastName,
           email: contribution.contributor.email ?? '',
@@ -150,6 +154,7 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
         date: form.date,
         method: form.method,
         checkNumber: form.checkNumber.trim() || undefined,
+        eventId: form.eventId || undefined,
         memo: form.memo.trim() || undefined,
         isItemized: form.isItemized,
       }
@@ -287,6 +292,23 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
                   className={inputCls(false)}
                 />
               </Field>
+
+              {events.length > 0 && (
+                <Field label="Linked event (optional)" className="mt-4">
+                  <select
+                    value={form.eventId}
+                    onChange={(e) => set('eventId', e.target.value)}
+                    className={inputCls(false)}
+                  >
+                    <option value="">— None —</option>
+                    {events.map((ev) => (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.letter} · {ev.description} ({formatDate(ev.date)})
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
             </section>
 
             {/* ── Contributor information ─────────────────────────────── */}

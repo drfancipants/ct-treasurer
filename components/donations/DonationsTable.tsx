@@ -14,7 +14,7 @@ import {
   CheckCircle2,
   XCircle,
 } from 'lucide-react'
-import type { Contribution, PaymentMethod, ContributionSource } from '@/lib/types'
+import type { Contribution, PaymentMethod, ContributionSource, CommitteeEvent } from '@/lib/types'
 import {
   getSeecStatus,
   PAYMENT_METHOD_LABELS,
@@ -45,12 +45,13 @@ const SOURCE_COLORS: Record<ContributionSource, string> = {
 
 interface Props {
   contributions: Contribution[]
+  events: CommitteeEvent[]
   committeeId: string
   committeeSlug: string
   canEdit: boolean
 }
 
-export default function DonationsTable({ contributions: initial, committeeId, committeeSlug, canEdit }: Props) {
+export default function DonationsTable({ contributions: initial, events, committeeId, committeeSlug, canEdit }: Props) {
   const [contributions, setContributions] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Contribution | null>(null)
@@ -407,6 +408,7 @@ export default function DonationsTable({ contributions: initial, committeeId, co
           committeeId={committeeId}
           committeeSlug={committeeSlug}
           existingContributions={contributions}
+          events={events}
         />
       )}
       {editing && (
@@ -419,6 +421,7 @@ export default function DonationsTable({ contributions: initial, committeeId, co
           committeeSlug={committeeSlug}
           contribution={editing}
           existingContributions={contributions}
+          events={events}
         />
       )}
       <AnedotImportDialog

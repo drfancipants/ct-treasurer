@@ -115,6 +115,8 @@ export interface Contribution {
   isItemized: boolean
   /** When the covering SEEC filing period was marked filed */
   filedAt?: string
+  /** Linked fundraising event (SEEC Section B event columns) */
+  eventId?: string
   createdAt: string
 }
 
@@ -283,6 +285,8 @@ export interface Expenditure {
   memo?: string
   /** When the covering SEEC filing period was marked filed */
   filedAt?: string
+  /** Linked fundraising event (SEEC Section P event columns) */
+  eventId?: string
   createdAt: string
 }
 

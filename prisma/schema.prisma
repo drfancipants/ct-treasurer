@@ -118,11 +118,13 @@ model Contribution {
   anedotId      String?            @unique // Deduplication key for Anedot imports
   isItemized    Boolean            @default(true)
   filedAt       DateTime?          // Stamped when the covering period is marked filed
+  eventId       String?            // Linked fundraising event (SEEC Section B event columns)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
   committee   Committee   @relation(fields: [committeeId], references: [id])
   contributor Contributor @relation(fields: [contributorId], references: [id])
+  event       Event?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@index([committeeId, date])
   @@index([contributorId])
@@ -167,7 +169,9 @@ model Event {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  committee     Committee      @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  contributions Contribution[]
+  expenditures  Expenditure[]
 
   @@index([committeeId, date])
 }
@@ -187,10 +191,12 @@ model Expenditure {
   checkNumber String?
   memo        String?
   filedAt     DateTime?     // Stamped when the covering period is marked filed
+  eventId     String?       // Linked fundraising event (SEEC Section P event columns)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
   committee Committee @relation(fields: [committeeId], references: [id])
+  event     Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@index([committeeId, date])
 }

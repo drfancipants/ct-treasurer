@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Plus, Search, ChevronDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
-import type { Expenditure, ExpenseCategory, PaymentMethod } from '@/lib/types'
+import type { Expenditure, ExpenseCategory, PaymentMethod, CommitteeEvent } from '@/lib/types'
 import {
   EXPENSE_CATEGORY_LABELS,
   expenseCategoryColor,
@@ -25,12 +25,13 @@ const METHOD_COLORS: Record<PaymentMethod, string> = {
 
 interface Props {
   expenditures: Expenditure[]
+  events: CommitteeEvent[]
   committeeId: string
   committeeSlug: string
   canEdit: boolean
 }
 
-export default function ExpensesTable({ expenditures: initial, committeeId, committeeSlug, canEdit }: Props) {
+export default function ExpensesTable({ expenditures: initial, events, committeeId, committeeSlug, canEdit }: Props) {
   const [expenditures, setExpenditures] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Expenditure | null>(null)
@@ -313,6 +314,7 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
           onAdd={handleAdd}
           committeeId={committeeId}
           committeeSlug={committeeSlug}
+          events={events}
         />
       )}
       {editing && (
@@ -324,6 +326,7 @@ export default function ExpensesTable({ expenditures: initial, committeeId, comm
           committeeId={committeeId}
           committeeSlug={committeeSlug}
           expenditure={editing}
+          events={events}
         />
       )}
     </>

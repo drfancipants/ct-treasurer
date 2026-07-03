@@ -4,6 +4,7 @@ import { requireCommitteeMember, canEditFinances } from '@/lib/auth'
 import { getContributions } from '@/actions/donations'
 import DonationSummaryCards from '@/components/donations/DonationSummaryCards'
 import DonationsTable from '@/components/donations/DonationsTable'
+import { getEvents } from '@/actions/events'
 
 interface Props {
   params: Promise<{ committeeSlug: string }>
@@ -17,13 +18,16 @@ export default async function DonationsPage({ params }: Props) {
   const { role } = await requireCommitteeMember(committeeSlug)
   const canEdit = canEditFinances(role)
 
-  const contributions = await getContributions(committee.id)
+  const [contributions, events] = await Promise.all([
+    getContributions(committee.id),
+    getEvents(committee.id),
+  ])
 
   return (
     <div className="p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <DonationSummaryCards contributions={contributions} />
-        <DonationsTable contributions={contributions} committeeId={committee.id} committeeSlug={committeeSlug} canEdit={canEdit} />
+        <DonationsTable contributions={contributions} events={events} committeeId={committee.id} committeeSlug={committeeSlug} canEdit={canEdit} />
       </div>
     </div>
   )

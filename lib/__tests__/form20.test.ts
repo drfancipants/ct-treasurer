@@ -164,3 +164,43 @@ describe('Section L1 — events', () => {
     expect(p.eventTotal).toBe(340)
   })
 })
+
+describe('contribution/expense event linkage', () => {
+  const ev: import('../types').CommitteeEvent = {
+    id: 'ev_link', committeeId: 'com_1', date: '2026-05-10', letter: 'C',
+    description: 'Gala', isFundraiser: true, state: 'CT',
+    isPersonalResidence: false, hadDonatedGoods: false, wasTagSale: false,
+    hadProgramBook: false, soldFoodAtFair: false, foodReceipts: 0, tagSaleReceipts: 0,
+    createdAt: '2026-05-10T00:00:00Z',
+  }
+
+  it('fills Section B event columns for a linked contribution', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const linked = makeContribution({ id: 'c_link', amount: 100, date: '2026-05-15', eventId: 'ev_link' })
+    const out = populateForm20(template, [linked], [], Q2_START, Q2_END, [ev])
+    const r = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section B'], { header: 1 })[1]
+    expect(r[15]).toBe('Y')            // associated with an event
+    expect(r[16]).toBe('05/10/2026')   // event date
+    expect(r[17]).toBe('C')            // event letter
+  })
+
+  it('fills Section P event columns for a linked expense', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const linked = makeExpenditure({ id: 'e_link', amount: 200, date: '2026-05-20', eventId: 'ev_link' })
+    const out = populateForm20(template, [], [linked], Q2_START, Q2_END, [ev])
+    const r = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section P'], { header: 1 })[1]
+    expect(r[11]).toBe('05/10/2026')   // event date
+    expect(r[12]).toBe('C')            // event letter
+  })
+
+  it('leaves event columns blank when unlinked (N in Section B)', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const out = populateForm20(template, [makeContribution({ id: 'c_no', amount: 100, date: '2026-05-15' })], [], Q2_START, Q2_END, [ev])
+    const r = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section B'], { header: 1 })[1]
+    expect(r[15]).toBe('N')
+    expect(r[17]).toBe('')
+  })
+})

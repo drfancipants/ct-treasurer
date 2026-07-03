@@ -18,6 +18,7 @@ type ContributionWithContributor = {
   anedotId: string | null
   isItemized: boolean
   filedAt: Date | null
+  eventId: string | null
   createdAt: Date
   contributor: {
     id: string
@@ -62,6 +63,7 @@ function mapContribution(c: ContributionWithContributor): Contribution {
     anedotId: c.anedotId ?? undefined,
     isItemized: c.isItemized,
     filedAt: c.filedAt?.toISOString() ?? undefined,
+    eventId: c.eventId ?? undefined,
     createdAt: c.createdAt.toISOString(),
   }
 }
@@ -97,11 +99,13 @@ export async function createContribution(
     checkNumber?: string
     memo?: string
     isItemized: boolean
+    eventId?: string
   },
   committeeSlug: string
 ): Promise<Contribution> {
   const { committeeId: verifiedId } = await requireFinanceRole(committeeSlug)
   if (verifiedId !== committeeId) throw new Error('Forbidden')
+  const eventId = await resolveEventId(data.eventId, committeeId)
 
   // Find existing contributor by email, or create new
   let contributor = data.contributor.email
@@ -138,6 +142,7 @@ export async function createContribution(
       memo: data.memo,
       source: 'MANUAL',
       isItemized: data.isItemized,
+      eventId,
     },
     include: { contributor: true },
   })
@@ -145,6 +150,14 @@ export async function createContribution(
   revalidatePath(`/app/${committeeSlug}/donations`)
   revalidatePath(`/app/${committeeSlug}/dashboard`)
   return mapContribution(contribution)
+}
+
+/** Validate an event belongs to the committee; returns null if unset. */
+async function resolveEventId(eventId: string | undefined, committeeId: string): Promise<string | null> {
+  if (!eventId) return null
+  const event = await prisma.event.findFirst({ where: { id: eventId, committeeId }, select: { id: true } })
+  if (!event) throw new Error('Event not found for this committee')
+  return event.id
 }
 
 export async function updateContribution(
@@ -169,12 +182,14 @@ export async function updateContribution(
     checkNumber?: string
     memo?: string
     isItemized: boolean
+    eventId?: string
   },
   committeeSlug: string
 ): Promise<Contribution> {
   const { committeeId } = await requireFinanceRole(committeeSlug)
   const existing = await prisma.contribution.findFirst({ where: { id: contributionId, committeeId } })
   if (!existing || existing.contributorId !== contributorId) throw new Error('Forbidden')
+  const eventId = await resolveEventId(data.eventId, committeeId)
 
   // Update contributor first so the subsequent contribution fetch returns fresh data
   await prisma.contributor.update({
@@ -202,6 +217,7 @@ export async function updateContribution(
       checkNumber: data.checkNumber ?? null,
       memo: data.memo ?? null,
       isItemized: data.isItemized,
+      eventId,
     },
     include: { contributor: true },
   })
