@@ -1,7 +1,8 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/db'
 import { mapCommittee } from '@/lib/map-committee'
+import { isCommitteeEntitled } from '@/lib/entitlement'
 import Sidebar from '@/components/layout/Sidebar'
 import MobileHeader from '@/components/layout/MobileHeader'
 import SubscriptionBanner from '@/components/layout/SubscriptionBanner'
@@ -26,6 +27,13 @@ export default async function CommitteeLayout({ children, params }: Props) {
   const committees = memberships.map((m: { committee: Parameters<typeof mapCommittee>[0] }) => mapCommittee(m.committee))
   const activeCommittee = committees.find((c: { slug: string }) => c.slug === committeeSlug)
   if (!activeCommittee) notFound()
+
+  // Per-committee paywall: an unpaid/expired committee can't be opened; send
+  // the treasurer to its subscribe page. The subscribe route lives outside
+  // this layout, so there's no redirect loop.
+  if (!isCommitteeEntitled(activeCommittee)) {
+    redirect(`/app/subscribe?committee=${committeeSlug}`)
+  }
 
   return (
     <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50">
