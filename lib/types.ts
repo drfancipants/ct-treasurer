@@ -290,6 +290,25 @@ export interface Expenditure {
   createdAt: string
 }
 
+// ─── Contributions from other committees (SEEC Form 20 Section C1) ────────────
+
+export interface CommitteeContribution {
+  id: string
+  committeeId: string
+  fromName: string
+  treasurerName?: string
+  street?: string
+  city?: string
+  state: string
+  zip?: string
+  date: string
+  amount: number
+  eventId?: string
+  memo?: string
+  filedAt?: string
+  createdAt: string
+}
+
 // ─── Fundraising events (SEEC Form 20 Section L1) ─────────────────────────────
 
 export interface CommitteeEvent {

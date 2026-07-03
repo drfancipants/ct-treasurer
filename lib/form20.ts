@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import type { Contribution, Expenditure, CommitteeEvent } from './types'
+import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution } from './types'
 import { getSeecStatus } from './types'
 
 function yn(b: boolean): string {
@@ -72,15 +72,17 @@ export function populateForm20(
   expenditures: Expenditure[],
   periodStart: string,
   periodEnd: string,
-  events: CommitteeEvent[] = []
+  events: CommitteeEvent[] = [],
+  committeeContributions: CommitteeContribution[] = []
 ): Uint8Array {
   const wb = XLSX.read(new Uint8Array(templateBuffer), { type: 'array' })
 
   const contribs = contributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
   const expends  = expenditures.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
   const evts     = events.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
+  const cmteC    = committeeContributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
 
-  // Look up a linked event's date + letter for the Section B / P event columns
+  // Look up a linked event's date + letter for the Section B / P / C1 event columns
   const eventById = new Map(events.map((e) => [e.id, e]))
 
   const itemized    = contribs.filter((c) => c.isItemized)
@@ -92,6 +94,29 @@ export function populateForm20(
     const ws = wb.Sheets['Section A']
     if (ws && smallTotal > 0) {
       XLSX.utils.sheet_add_aoa(ws, [[smallTotal]], { origin: 'A2' })
+    }
+  }
+
+  // ── Section C1: contributions from other committees ──────────────────────
+  {
+    const ws = wb.Sheets['Section C1']
+    if (ws && cmteC.length > 0) {
+      const rows = cmteC.map((c, i) => [
+        i + 1,                                            //  0 Transaction ID
+        c.fromName,                                       //  1 Name of Committee
+        c.treasurerName ?? '',                            //  2 Name of Treasurer
+        c.street ?? '',                                   //  3 Committee Street Address
+        c.city ?? '',                                     //  4 City
+        c.state,                                          //  5 State
+        c.zip ?? '',                                      //  6 Zip
+        seecDate(c.date),                                 //  7 Date Received
+        c.amount,                                         //  8 Amount
+        c.eventId && eventById.has(c.eventId) ? 'Y' : 'N',            //  9 Associated with an L1 event?
+        c.eventId ? seecDate(eventById.get(c.eventId)?.date ?? '') : '', // 10 Event date
+        c.eventId ? eventById.get(c.eventId)?.letter ?? '' : '',      // 11 Event letter
+        '',                                               // 12 Aggregate correction
+      ])
+      XLSX.utils.sheet_add_aoa(ws, rows, { origin: 'A2' })
     }
   }
 
@@ -192,6 +217,8 @@ export interface Form20Preview {
   expenditureTotal: number
   eventCount: number
   eventTotal: number
+  committeeContribCount: number
+  committeeContribTotal: number
   seecIssues: { contributionId: string; issues: string[] }[]
 }
 
@@ -200,11 +227,13 @@ export function previewForm20(
   expenditures: Expenditure[],
   periodStart: string,
   periodEnd: string,
-  events: CommitteeEvent[] = []
+  events: CommitteeEvent[] = [],
+  committeeContributions: CommitteeContribution[] = []
 ): Form20Preview {
   const contribs = contributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
   const expends  = expenditures.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
   const evts     = events.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
+  const cmteC    = committeeContributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
 
   const itemized    = contribs.filter((c) =>  c.isItemized)
   const nonItemized = contribs.filter((c) => !c.isItemized)
@@ -222,6 +251,8 @@ export function previewForm20(
     expenditureTotal: expends.reduce((s, e) => s + e.amount, 0),
     eventCount: evts.length,
     eventTotal: evts.reduce((s, e) => s + e.foodReceipts + e.tagSaleReceipts, 0),
+    committeeContribCount: cmteC.length,
+    committeeContribTotal: cmteC.reduce((s, c) => s + c.amount, 0),
     seecIssues,
   }
 }

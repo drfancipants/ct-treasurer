@@ -46,6 +46,7 @@ model Committee {
   bankAccounts  BankAccount[]
   seecFilings   SeecFiling[]
   events        Event[]
+  committeeContributions CommitteeContribution[]
 }
 
 // ─── Users & membership ──────────────────────────────────────────────────────
@@ -145,6 +146,31 @@ enum ContributionSource {
   BANK_IMPORT
 }
 
+// ─── Contributions from other committees (SEEC Form 20 Section C1) ────────────
+
+model CommitteeContribution {
+  id            String   @id @default(cuid())
+  committeeId   String   // the receiving committee
+  fromName      String   // Name of the contributing committee
+  treasurerName String?
+  street        String?
+  city          String?
+  state         String   @default("CT")
+  zip           String?
+  date          DateTime @db.Date
+  amount        Decimal  @db.Decimal(10, 2)
+  eventId       String?  // optional link to an L1 event
+  memo          String?
+  filedAt       DateTime? // Stamped when the covering period is marked filed
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  event     Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@index([committeeId, date])
+}
+
 // ─── Fundraising events (SEEC Form 20 Section L1) ────────────────────────────
 
 model Event {
@@ -172,6 +198,7 @@ model Event {
   committee     Committee      @relation(fields: [committeeId], references: [id], onDelete: Cascade)
   contributions Contribution[]
   expenditures  Expenditure[]
+  committeeContributions CommitteeContribution[]
 
   @@index([committeeId, date])
 }

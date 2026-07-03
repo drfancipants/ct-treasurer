@@ -204,3 +204,30 @@ describe('contribution/expense event linkage', () => {
     expect(r[17]).toBe('')
   })
 })
+
+describe('Section C1 — committee contributions', () => {
+  const cc = (o: Partial<import('../types').CommitteeContribution> = {}): import('../types').CommitteeContribution => ({
+    id: 'cc_1', committeeId: 'com_1', fromName: 'Madison DTC', treasurerName: 'Pat Jones',
+    street: '1 Main St', city: 'Madison', state: 'CT', zip: '06443',
+    date: '2026-05-05', amount: 500, createdAt: '2026-05-05T00:00:00Z', ...o,
+  })
+
+  it('writes committee contributions to Section C1', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const out = populateForm20(template, [], [], Q2_START, Q2_END, [], [cc()])
+    const r = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section C1'], { header: 1 })[1]
+    expect(r[1]).toBe('Madison DTC')     // committee name
+    expect(r[2]).toBe('Pat Jones')       // treasurer
+    expect(r[4]).toBe('Madison')         // city
+    expect(r[7]).toBe('05/05/2026')      // date received
+    expect(r[8]).toBe(500)               // amount
+    expect(r[9]).toBe('N')               // not event-associated
+  })
+
+  it('counts committee contributions in the preview and excludes out-of-period', () => {
+    const p = previewForm20([], [], Q2_START, Q2_END, [], [cc({ id: 'in', date: '2026-05-05' }), cc({ id: 'out', date: '2026-09-01' })])
+    expect(p.committeeContribCount).toBe(1)
+    expect(p.committeeContribTotal).toBe(500)
+  })
+})

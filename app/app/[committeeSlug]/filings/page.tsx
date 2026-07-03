@@ -4,6 +4,7 @@ import { getContributions } from '@/actions/donations'
 import { getExpenditures } from '@/actions/expenses'
 import { getFilings } from '@/actions/filings'
 import { getEvents } from '@/actions/events'
+import { getCommitteeContributions } from '@/actions/committee-contributions'
 import { requireCommitteeMember, canEditFinances } from '@/lib/auth'
 import FilingsList from '@/components/filings/FilingsList'
 
@@ -19,11 +20,12 @@ export default async function FilingsPage({ params }: Props) {
   const { role } = await requireCommitteeMember(committeeSlug)
   const canEdit = canEditFinances(role)
 
-  const [contributions, expenditures, filings, events] = await Promise.all([
+  const [contributions, expenditures, filings, events, committeeContributions] = await Promise.all([
     getContributions(committee.id),
     getExpenditures(committee.id),
     getFilings(committee.id),
     getEvents(committee.id),
+    getCommitteeContributions(committee.id),
   ])
 
   return (
@@ -33,6 +35,7 @@ export default async function FilingsPage({ params }: Props) {
           contributions={contributions}
           expenditures={expenditures}
           events={events}
+          committeeContributions={committeeContributions}
           committee={committee}
           filings={filings}
           canEdit={canEdit}
