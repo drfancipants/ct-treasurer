@@ -15,6 +15,7 @@ import {
   Settings,
   Scale,
   LogOut,
+  Mail,
 } from 'lucide-react'
 import CommitteeSwitcher from './CommitteeSwitcher'
 import type { Committee } from '@/lib/types'
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { segment: 'filings', label: 'SEEC filings', icon: FileText },
   { segment: 'events', label: 'Events', icon: CalendarDays },
   { segment: 'reports', label: 'Reports', icon: FileBarChart },
+  { segment: 'newsletter', label: 'Newsletter', icon: Mail },
 ]
 
 interface Props {

@@ -38,6 +38,9 @@ model Committee {
   stripeSubscriptionId String?
   subscriptionStatus   SubscriptionStatus?
   trialEndsAt          DateTime?
+  newsletterGmailEmail       String?   // treasurer's own Gmail address used to send newsletters (not secret)
+  newsletterGmailAppPassword String?   // AES-256-GCM ciphertext — never stored or returned as plaintext
+  newsletterGmailConnectedAt DateTime?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -51,6 +54,7 @@ model Committee {
   inKindContributions    InKindContribution[]
   reimbursements         Reimbursement[]
   rosterMembers          RosterMember[]
+  newsletters            Newsletter[]
 }
 
 // ─── Users & membership ──────────────────────────────────────────────────────
@@ -117,6 +121,21 @@ model RosterMember {
 
   @@unique([committeeId, contributorId])
   @@index([committeeId, lastName])
+}
+
+// Audit log for sent roster newsletters — no body/recipient-address storage, just enough to confirm a send happened.
+model Newsletter {
+  id             String   @id @default(cuid())
+  committeeId    String
+  subject        String
+  recipientCount Int
+  includedChart  Boolean  @default(false)
+  sentByUserId   String
+  sentAt         DateTime @default(now())
+
+  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+
+  @@index([committeeId, sentAt])
 }
 
 // ─── Donors & contributions ──────────────────────────────────────────────────

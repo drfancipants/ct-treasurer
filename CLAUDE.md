@@ -93,3 +93,7 @@ Access is invitation-only (plus self-serve signup). `POST /api/invite` calls `su
 ### Plaid bank sync
 
 Uses cursor-based `transactionsSync` (`syncCursor` on `BankAccount` makes repeat syncs incremental). Plaid amounts are sign-flipped on ingest so positive = deposit. Sandbox credentials: `user_good` / `pass_good`. Set `PLAID_ENV=sandbox` for local development.
+
+### Newsletter email
+
+Each committee connects its own Gmail account (SMTP + App Password, not OAuth) via Settings — `actions/newsletter.ts` sends roster newsletters through it. The app password is encrypted at rest with `lib/crypto.ts` (AES-256-GCM, key from `CREDENTIALS_ENCRYPTION_KEY`) — never stored or returned to a client as plaintext. Gated by `requireRosterRole()` (`lib/auth.ts`), same as other roster mutations. Sends go out as a single message with all recipients in `Bcc`; recipient email addresses are always re-derived server-side from committee-scoped `RosterMember` ids, never trusted from the client. The optional "donor contributions" chart is rendered server-side per send with `@napi-rs/canvas` (`lib/newsletter-chart.ts`) from the same trailing-12-month window as the dashboard's Monthly activity chart, and embedded via CID attachment (not a data URI, which most webmail clients strip).

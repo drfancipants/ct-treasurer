@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation'
 import { CheckCircle2 } from 'lucide-react'
 import { getCommitteeBySlug } from '@/actions/committees'
+import { getGmailConnection } from '@/actions/newsletter'
 import CommitteeSettingsForm from '@/components/settings/CommitteeSettingsForm'
 import BillingCard from '@/components/settings/BillingCard'
+import GmailConnectCard from '@/components/settings/GmailConnectCard'
 
 interface Props {
   params: Promise<{ committeeSlug: string }>
@@ -14,6 +16,7 @@ export default async function SettingsPage({ params, searchParams }: Props) {
   const { billing } = await searchParams
   const committee = await getCommitteeBySlug(committeeSlug)
   if (!committee) notFound()
+  const gmailConnection = await getGmailConnection(committeeSlug)
 
   return (
     <div className="p-4 md:p-8">
@@ -42,6 +45,10 @@ export default async function SettingsPage({ params, searchParams }: Props) {
         <div>
           <h2 className="text-sm font-semibold text-slate-700 mb-4 pb-2 border-b border-slate-200">Billing</h2>
           <BillingCard committee={committee} />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700 mb-4 pb-2 border-b border-slate-200">Newsletter email</h2>
+          <GmailConnectCard committeeSlug={committeeSlug} initialConnection={gmailConnection} />
         </div>
       </div>
     </div>
