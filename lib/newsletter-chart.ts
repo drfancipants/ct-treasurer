@@ -1,4 +1,3 @@
-import { createCanvas } from '@napi-rs/canvas'
 import type { MonthlyData } from './analytics'
 
 const WIDTH = 700
@@ -10,8 +9,16 @@ function formatAxisDollar(v: number): string {
   return v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${Math.round(v)}`
 }
 
-/** Renders a static "donor contributions by month" bar chart (the `raised` series only) as a PNG buffer for email embedding. */
-export function renderContributionsChart(monthly: MonthlyData[]): Buffer {
+/**
+ * Renders a static "donor contributions by month" bar chart (the `raised` series only) as a PNG
+ * buffer for email embedding. `@napi-rs/canvas` (a native addon) is imported lazily here — not at
+ * module top-level — so that a native-loading failure (e.g. a missing system library on some
+ * serverless runtimes) only breaks chart rendering, not every page/action that merely imports this
+ * module's siblings (`actions/newsletter.ts` exports several Gmail-connection functions that never
+ * touch a canvas at all).
+ */
+export async function renderContributionsChart(monthly: MonthlyData[]): Promise<Buffer> {
+  const { createCanvas } = await import('@napi-rs/canvas')
   const canvas = createCanvas(WIDTH, HEIGHT)
   const ctx = canvas.getContext('2d')
 
