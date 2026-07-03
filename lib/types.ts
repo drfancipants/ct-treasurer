@@ -80,8 +80,12 @@ export interface RosterMember {
   isActive: boolean
   duesPaid: boolean
   notes?: string
-  /** Sum of this committee's contributions from the Contributor matching this email (derived, read-only) */
+  /** Linked donor record (set automatically when donations match this member) */
+  contributorId?: string
+  /** Sum of this committee's contributions from the linked donor (or email match if unlinked) — derived, read-only */
   contributionTotal: number
+  /** Number of contributions behind contributionTotal — derived, read-only */
+  contributionCount: number
   createdAt: string
 }
 

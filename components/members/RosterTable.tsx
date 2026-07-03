@@ -8,6 +8,7 @@ import { formatCurrency, cn } from '@/lib/utils'
 import ErrorBanner from '@/components/ui/ErrorBanner'
 import RosterMemberDialog from './RosterMemberDialog'
 import RosterImportDialog from './RosterImportDialog'
+import RosterMemberDonationsDialog from './RosterMemberDonationsDialog'
 
 interface Props {
   members: RosterMember[]
@@ -32,6 +33,7 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [editing, setEditing] = useState<RosterMember | null>(null)
+  const [viewingDonations, setViewingDonations] = useState<RosterMember | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
@@ -200,7 +202,18 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
                 </td>
                 <td className="px-4 py-3.5 text-right hidden md:table-cell">
                   {r.contributionTotal > 0 ? (
-                    <span className="text-sm font-medium text-emerald-700 tabular">{formatCurrency(r.contributionTotal)}</span>
+                    <button
+                      onClick={() => setViewingDonations(r)}
+                      className="text-right hover:opacity-75 transition-opacity"
+                      title="View donation history"
+                    >
+                      <span className="text-sm font-medium text-emerald-700 tabular underline decoration-emerald-200 underline-offset-2">
+                        {formatCurrency(r.contributionTotal)}
+                      </span>
+                      <span className="block text-xs text-slate-400 mt-0.5">
+                        {r.contributionCount} {r.contributionCount === 1 ? 'gift' : 'gifts'}
+                      </span>
+                    </button>
                   ) : (
                     <span className="text-sm text-slate-400">—</span>
                   )}
@@ -316,6 +329,15 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
       )}
       {editing && (
         <RosterMemberDialog key={editing.id} open onClose={() => setEditing(null)} onSave={handleSave} committeeId={committeeId} committeeSlug={committeeSlug} member={editing} />
+      )}
+      {viewingDonations && (
+        <RosterMemberDonationsDialog
+          key={viewingDonations.id}
+          open
+          onClose={() => setViewingDonations(null)}
+          member={viewingDonations}
+          committeeSlug={committeeSlug}
+        />
       )}
     </>
   )

@@ -2,8 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
-import { requireCommitteeMemberById, requireRosterRole } from '@/lib/auth'
-import type { RosterMember } from '@/lib/types'
+import { requireCommitteeMemberById, requireRosterRole, requireCommitteeMember } from '@/lib/auth'
+import { syncRosterContributorLinks } from '@/lib/roster-links'
+import type { RosterMember, PaymentMethod, ContributionSource } from '@/lib/types'
 import type { ParsedRosterRow } from '@/lib/roster-csv'
 
 type PrismaRow = {
@@ -21,10 +22,16 @@ type PrismaRow = {
   isActive: boolean
   duesPaid: boolean
   notes: string | null
+  contributorId: string | null
   createdAt: Date
 }
 
-function mapRow(r: PrismaRow, contributionTotal = 0): RosterMember {
+interface GivingStats {
+  total: number
+  count: number
+}
+
+function mapRow(r: PrismaRow, giving: GivingStats = { total: 0, count: 0 }): RosterMember {
   return {
     id: r.id,
     committeeId: r.committeeId,
@@ -40,39 +47,54 @@ function mapRow(r: PrismaRow, contributionTotal = 0): RosterMember {
     isActive: r.isActive,
     duesPaid: r.duesPaid,
     notes: r.notes ?? undefined,
-    contributionTotal,
+    contributorId: r.contributorId ?? undefined,
+    contributionTotal: giving.total,
+    contributionCount: giving.count,
     createdAt: r.createdAt.toISOString(),
   }
 }
 
-/**
- * Contribution totals are matched through Contributor.email (Contributor is
- * global and email-matched by design — see CLAUDE.md), scoped to this
- * committee's contributions only.
- */
-async function contributionTotalsByEmail(committeeId: string, emails: string[]): Promise<Map<string, number>> {
-  const totals = new Map<string, number>()
-  if (emails.length === 0) return totals
-
-  const contributors = await prisma.contributor.findMany({
-    where: { email: { in: emails, mode: 'insensitive' } },
-    select: { id: true, email: true },
-  })
-  if (contributors.length === 0) return totals
-
+async function givingByContributorId(committeeId: string, contributorIds: string[]): Promise<Map<string, GivingStats>> {
+  if (contributorIds.length === 0) return new Map()
   const sums = await prisma.contribution.groupBy({
     by: ['contributorId'],
-    where: { committeeId, contributorId: { in: contributors.map((c) => c.id) } },
+    where: { committeeId, contributorId: { in: contributorIds } },
     _sum: { amount: true },
+    _count: true,
   })
-  const sumByContributor = new Map(sums.map((s) => [s.contributorId, Number(s._sum.amount?.toString() ?? 0)]))
+  return new Map(sums.map((s) => [
+    s.contributorId,
+    { total: Number(s._sum.amount?.toString() ?? 0), count: s._count },
+  ]))
+}
 
-  for (const c of contributors) {
+/**
+ * Every contributor record a roster member's giving flows through: the linked
+ * contributor plus any others sharing the member's email (duplicate donor
+ * records can exist when the same address was entered with different casing).
+ */
+async function memberContributorIds(
+  rows: { contributorId: string | null; email: string | null }[]
+): Promise<{ idsFor: (r: { contributorId: string | null; email: string | null }) => string[] }> {
+  const emails = [...new Set(rows.filter((r) => r.email).map((r) => r.email!.toLowerCase()))]
+  const emailContributors = emails.length > 0
+    ? await prisma.contributor.findMany({
+        where: { email: { in: emails, mode: 'insensitive' } },
+        select: { id: true, email: true },
+      })
+    : []
+  const idsByEmail = new Map<string, string[]>()
+  for (const c of emailContributors) {
     if (!c.email) continue
     const key = c.email.toLowerCase()
-    totals.set(key, (totals.get(key) ?? 0) + (sumByContributor.get(c.id) ?? 0))
+    idsByEmail.set(key, [...(idsByEmail.get(key) ?? []), c.id])
   }
-  return totals
+  return {
+    idsFor: (r) => [...new Set([
+      ...(r.contributorId ? [r.contributorId] : []),
+      ...(r.email ? idsByEmail.get(r.email.toLowerCase()) ?? [] : []),
+    ])],
+  }
 }
 
 async function fetchRoster(committeeId: string): Promise<RosterMember[]> {
@@ -81,10 +103,26 @@ async function fetchRoster(committeeId: string): Promise<RosterMember[]> {
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
   })
 
-  const emails = [...new Set(rows.map((r) => r.email?.toLowerCase()).filter((e): e is string => !!e))]
-  const totals = await contributionTotalsByEmail(committeeId, emails)
+  const { idsFor } = await memberContributorIds(rows)
+  const allIds = [...new Set(rows.flatMap(idsFor))]
+  const stats = await givingByContributorId(committeeId, allIds)
 
-  return rows.map((r) => mapRow(r, r.email ? totals.get(r.email.toLowerCase()) ?? 0 : 0))
+  return rows.map((r) => {
+    const giving = idsFor(r).reduce<GivingStats>(
+      (acc, id) => {
+        const s = stats.get(id)
+        return s ? { total: acc.total + s.total, count: acc.count + s.count } : acc
+      },
+      { total: 0, count: 0 }
+    )
+    return mapRow(r, giving)
+  })
+}
+
+async function fetchRosterMember(committeeId: string, id: string): Promise<RosterMember> {
+  const member = (await fetchRoster(committeeId)).find((r) => r.id === id)
+  if (!member) throw new Error('Not found')
+  return member
 }
 
 export async function getRosterMembers(committeeId: string): Promise<RosterMember[]> {
@@ -124,12 +162,6 @@ function toData(data: RosterMemberInput) {
   }
 }
 
-async function totalForEmail(committeeId: string, email: string | null): Promise<number> {
-  if (!email) return 0
-  const totals = await contributionTotalsByEmail(committeeId, [email.toLowerCase()])
-  return totals.get(email.toLowerCase()) ?? 0
-}
-
 export async function createRosterMember(
   committeeId: string,
   data: RosterMemberInput,
@@ -139,8 +171,9 @@ export async function createRosterMember(
   if (verifiedId !== committeeId) throw new Error('Forbidden')
 
   const row = await prisma.rosterMember.create({ data: { committeeId, ...toData(data) } })
+  await syncRosterContributorLinks(committeeId)
   revalidatePath(`/app/${committeeSlug}/members`)
-  return mapRow(row, await totalForEmail(committeeId, row.email))
+  return fetchRosterMember(committeeId, row.id)
 }
 
 export async function updateRosterMember(
@@ -152,9 +185,16 @@ export async function updateRosterMember(
   const existing = await prisma.rosterMember.findFirst({ where: { id, committeeId } })
   if (!existing) throw new Error('Forbidden')
 
-  const row = await prisma.rosterMember.update({ where: { id }, data: toData(data) })
+  // If the email changed, the old link may be wrong — clear it and let the
+  // sync re-establish the right one
+  const emailChanged = (toData(data).email ?? null) !== existing.email
+  await prisma.rosterMember.update({
+    where: { id },
+    data: { ...toData(data), ...(emailChanged ? { contributorId: null } : {}) },
+  })
+  await syncRosterContributorLinks(committeeId)
   revalidatePath(`/app/${committeeSlug}/members`)
-  return mapRow(row, await totalForEmail(committeeId, row.email))
+  return fetchRosterMember(committeeId, id)
 }
 
 /** Quick toggles for the two "maintain" flags, used inline in the table. */
@@ -264,8 +304,50 @@ export async function importRosterMembers(
     })
   )
 
+  await syncRosterContributorLinks(committeeId)
   revalidatePath(`/app/${committeeSlug}/members`)
   return { members: await fetchRoster(committeeId), created, updated }
+}
+
+// ─── Per-member donation history ──────────────────────────────────────────────
+
+export interface RosterDonation {
+  id: string
+  date: string
+  amount: number
+  method: PaymentMethod
+  source: ContributionSource
+  memo?: string
+}
+
+/**
+ * This committee's contributions from a roster member — through the
+ * contributor link when present, else by email match.
+ */
+export async function getRosterMemberDonations(
+  rosterMemberId: string,
+  committeeSlug: string
+): Promise<RosterDonation[]> {
+  const { committeeId } = await requireCommitteeMember(committeeSlug)
+  const member = await prisma.rosterMember.findFirst({ where: { id: rosterMemberId, committeeId } })
+  if (!member) throw new Error('Forbidden')
+
+  const { idsFor } = await memberContributorIds([member])
+  const contributorIds = idsFor(member)
+  if (contributorIds.length === 0) return []
+
+  const rows = await prisma.contribution.findMany({
+    where: { committeeId, contributorId: { in: contributorIds } },
+    orderBy: { date: 'desc' },
+  })
+  return rows.map((c) => ({
+    id: c.id,
+    date: c.date.toISOString().split('T')[0],
+    amount: Number(c.amount.toString()),
+    method: c.method as PaymentMethod,
+    source: c.source as ContributionSource,
+    memo: c.memo ?? undefined,
+  }))
 }
 
 /** Annual reset: mark every member's dues as unpaid at the start of a new year. */

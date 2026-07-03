@@ -9,6 +9,43 @@ function csv(...rows: string[]): string {
   return [ANEDOT_HEADER, ...rows].join('\n')
 }
 
+describe('roster member matching', () => {
+  const roster = (o: Partial<import('../types').RosterMember> = {}): import('../types').RosterMember => ({
+    id: 'rm_1', committeeId: 'com_1', firstName: 'Jane', lastName: 'Donor',
+    email: 'jane@x.com', state: 'CT', isActive: true, duesPaid: false,
+    contributionTotal: 0, contributionCount: 0, createdAt: '2026-01-01T00:00:00Z', ...o,
+  })
+
+  it('annotates rows matching a roster member by email, case-insensitively', () => {
+    const result = parseAnedotCsv(
+      csv('an_r1,2026-05-01,J,Donor,JANE@X.com,100,credit_card,12 Elm St,Madison,CT,06443,Acme,Engineer,Completed'),
+      [],
+      [roster()]
+    )
+    expect(result.rows[0].rosterMatch).toBe('Jane Donor')
+    expect(result.rosterMatchCount).toBe(1)
+  })
+
+  it('falls back to name matching when emails differ', () => {
+    const result = parseAnedotCsv(
+      csv('an_r2,2026-05-01,jane,DONOR,other@x.com,100,credit_card,12 Elm St,Madison,CT,06443,Acme,Engineer,Completed'),
+      [],
+      [roster({ email: 'jane.personal@x.com' })]
+    )
+    expect(result.rows[0].rosterMatch).toBe('Jane Donor')
+  })
+
+  it('leaves non-members unannotated and counts zero', () => {
+    const result = parseAnedotCsv(
+      csv('an_r3,2026-05-01,Sam,Stranger,sam@x.com,100,credit_card,12 Elm St,Madison,CT,06443,Acme,Engineer,Completed'),
+      [],
+      [roster()]
+    )
+    expect(result.rows[0].rosterMatch).toBeUndefined()
+    expect(result.rosterMatchCount).toBe(0)
+  })
+})
+
 describe('parseAnedotCsv', () => {
   it('detects the Anedot format and parses a clean row', () => {
     const result = parseAnedotCsv(

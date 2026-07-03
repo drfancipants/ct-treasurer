@@ -11,7 +11,7 @@ import {
   ArrowLeft,
   Copy,
 } from 'lucide-react'
-import type { Contribution } from '@/lib/types'
+import type { Contribution, RosterMember } from '@/lib/types'
 import { parseAnedotCsv, type ParseResult, type ParsedRow } from '@/lib/anedot-csv'
 import { importContributions } from '@/actions/donations'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
@@ -23,6 +23,7 @@ interface Props {
   onClose: () => void
   onImport: (contributions: Contribution[]) => void
   existingContributions: Contribution[]
+  rosterMembers?: RosterMember[]
   committeeId: string
   committeeSlug: string
 }
@@ -32,6 +33,7 @@ export default function AnedotImportDialog({
   onClose,
   onImport,
   existingContributions,
+  rosterMembers = [],
   committeeId,
   committeeSlug,
 }: Props) {
@@ -70,7 +72,7 @@ export default function AnedotImportDialog({
     const reader = new FileReader()
     reader.onload = (e) => {
       const text = e.target?.result as string
-      const result = parseAnedotCsv(text, existingContributions)
+      const result = parseAnedotCsv(text, existingContributions, rosterMembers)
       setParseResult(result)
       setStep('preview')
     }
@@ -302,6 +304,7 @@ function PreviewStep({ result }: { result: ParseResult }) {
       {/* Summary pills */}
       <div className="flex flex-wrap gap-2">
         <Pill color="emerald" label={`${importableCount} to import`} value={formatCurrency(result.totalAmount)} />
+        {result.rosterMatchCount > 0 && <Pill color="blue" label="from roster members" value={String(result.rosterMatchCount)} />}
         {duplicateCount > 0 && <Pill color="slate" label={`${duplicateCount} already imported`} value="Skipping" />}
         {seecIssueCount > 0 && <Pill color="amber" label={`${seecIssueCount} SEEC issues`} value="Will flag" />}
         {limitIssueCount > 0 && <Pill color="red" label={`${limitIssueCount} over contribution limit`} value="Review" />}
@@ -335,6 +338,14 @@ function PreviewStep({ result }: { result: ParseResult }) {
                     <span className="font-medium text-slate-800">
                       {row.firstName} {row.lastName}
                     </span>
+                    {row.rosterMatch && (
+                      <span
+                        className="inline-flex items-center ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 ring-1 ring-blue-200 align-middle"
+                        title={`Matches roster member ${row.rosterMatch}`}
+                      >
+                        Roster
+                      </span>
+                    )}
                     {row.email && (
                       <span className="text-slate-400 ml-1">· {row.email}</span>
                     )}
@@ -391,6 +402,14 @@ function ConfirmStep({ result }: { result: ParseResult }) {
 
       {/* Detail breakdown */}
       <div className="space-y-2">
+        {result.rosterMatchCount > 0 && (
+          <DetailRow
+            icon={<CheckCircle2 className="w-3.5 h-3.5 text-blue-500" />}
+            label={`${result.rosterMatchCount} donation${result.rosterMatchCount !== 1 ? 's' : ''} from committee roster members`}
+            note="Will be linked to their roster records and counted in member giving totals"
+            color="blue"
+          />
+        )}
         {duplicateCount > 0 && (
           <DetailRow
             icon={<Copy className="w-3.5 h-3.5 text-slate-400" />}
@@ -482,7 +501,7 @@ function Pill({
   label,
   value,
 }: {
-  color: 'emerald' | 'amber' | 'red' | 'slate'
+  color: 'emerald' | 'amber' | 'red' | 'slate' | 'blue'
   label: string
   value: string
 }) {
@@ -491,6 +510,7 @@ function Pill({
     amber: 'bg-amber-50 text-amber-700 ring-amber-200',
     red: 'bg-red-50 text-red-700 ring-red-200',
     slate: 'bg-slate-100 text-slate-600 ring-slate-200',
+    blue: 'bg-blue-50 text-blue-700 ring-blue-200',
   }
   return (
     <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ring-1', colors[color])}>
@@ -551,9 +571,9 @@ function DetailRow({
   icon: React.ReactNode
   label: string
   note: string
-  color: 'amber' | 'red' | 'slate'
+  color: 'amber' | 'red' | 'slate' | 'blue'
 }) {
-  const bg = { amber: 'bg-amber-50 border-amber-200', red: 'bg-red-50 border-red-200', slate: 'bg-slate-50 border-slate-200' }
+  const bg = { amber: 'bg-amber-50 border-amber-200', red: 'bg-red-50 border-red-200', slate: 'bg-slate-50 border-slate-200', blue: 'bg-blue-50 border-blue-200' }
   return (
     <div className={cn('flex items-start gap-2.5 px-3 py-2.5 rounded-lg border text-xs', bg[color])}>
       <span className="mt-0.5 shrink-0">{icon}</span>

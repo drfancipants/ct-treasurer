@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import crypto from 'crypto'
 import { prisma } from '@/lib/db'
+import { syncRosterContributorLinks } from '@/lib/roster-links'
 
 function verifySignature(payload: string, signature: string): boolean {
   const secret = process.env.ANEDOT_WEBHOOK_SECRET
@@ -78,9 +79,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Find or create contributor (match by email; fall back to create)
+    // Find or create contributor (match by email, case-insensitive; fall back to create)
     let contributor = donation.email
-      ? await prisma.contributor.findFirst({ where: { email: donation.email } })
+      ? await prisma.contributor.findFirst({
+          where: { email: { equals: donation.email, mode: 'insensitive' } },
+        })
       : null
 
     if (!contributor) {
@@ -116,6 +119,9 @@ export async function POST(req: NextRequest) {
       },
       update: {},
     })
+
+    // The donor may be a roster member — link them up
+    await syncRosterContributorLinks(committee.id)
 
     console.log(`[anedot-webhook] Saved $${amount} from ${donation.first_name} ${donation.last_name} (${donation.uid})`)
     return NextResponse.json({ received: true })

@@ -1,5 +1,5 @@
 import Papa from 'papaparse'
-import type { Contribution, PaymentMethod } from './types'
+import type { Contribution, PaymentMethod, RosterMember } from './types'
 import { donorKey, getDonorYearTotals, INDIVIDUAL_ANNUAL_LIMIT, CASH_CONTRIBUTION_MAX } from './limits'
 
 // ─── Column name mapping ──────────────────────────────────────────────────────
@@ -108,6 +108,8 @@ export interface ParsedRow {
   isDuplicate: boolean
   isError: boolean
   errorMessage?: string
+  /** Name of the committee roster member this donor matches, if any */
+  rosterMatch?: string
   rawRow: Record<string, string>
 }
 
@@ -120,6 +122,8 @@ export interface ParseResult {
   seecIssueCount: number
   limitIssueCount: number
   errorCount: number
+  /** Importable rows whose donor matches a committee roster member */
+  rosterMatchCount: number
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -155,7 +159,8 @@ function mapRow(raw: Record<string, string>): Record<string, string> {
 
 export function parseAnedotCsv(
   csvText: string,
-  existingContributions: Contribution[]
+  existingContributions: Contribution[],
+  rosterMembers: RosterMember[] = []
 ): ParseResult {
   const { data, errors } = Papa.parse<Record<string, string>>(csvText, {
     header: true,
@@ -172,7 +177,17 @@ export function parseAnedotCsv(
       seecIssueCount: 0,
       limitIssueCount: 0,
       errorCount: 1,
+      rosterMatchCount: 0,
     }
+  }
+
+  // Roster lookups: email is a strong signal; name is a fallback
+  const rosterByEmail = new Map<string, string>()
+  const rosterByName = new Map<string, string>()
+  for (const m of rosterMembers) {
+    const name = `${m.firstName} ${m.lastName}`.trim()
+    if (m.email) rosterByEmail.set(m.email.toLowerCase(), name)
+    rosterByName.set(`${m.firstName.trim().toLowerCase()}|${m.lastName.trim().toLowerCase()}`, name)
   }
 
   const headers = data.length > 0 ? Object.keys(data[0]) : []
@@ -244,6 +259,10 @@ export function parseAnedotCsv(
 
     const isDuplicate = !!m.anedotId && existingIds.has(m.anedotId)
 
+    const rosterMatch =
+      (m.email ? rosterByEmail.get(m.email.toLowerCase()) : undefined) ??
+      rosterByName.get(`${firstName.trim().toLowerCase()}|${lastName.trim().toLowerCase()}`)
+
     return {
       rowIndex: idx + 2,
       anedotId: m.anedotId || undefined,
@@ -268,6 +287,7 @@ export function parseAnedotCsv(
       isDuplicate,
       isError,
       errorMessage,
+      rosterMatch,
       rawRow: raw,
     }
   })
@@ -307,6 +327,7 @@ export function parseAnedotCsv(
     seecIssueCount: importable.filter((r) => r.seecIssues.length > 0).length,
     limitIssueCount: importable.filter((r) => r.limitIssues.length > 0).length,
     errorCount: rows.filter((r) => r.isError).length,
+    rosterMatchCount: importable.filter((r) => r.rosterMatch).length,
   }
 }
 

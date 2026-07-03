@@ -14,7 +14,7 @@ import {
   CheckCircle2,
   XCircle,
 } from 'lucide-react'
-import type { Contribution, PaymentMethod, ContributionSource, CommitteeEvent } from '@/lib/types'
+import type { Contribution, PaymentMethod, ContributionSource, CommitteeEvent, RosterMember } from '@/lib/types'
 import {
   getSeecStatus,
   PAYMENT_METHOD_LABELS,
@@ -46,12 +46,13 @@ const SOURCE_COLORS: Record<ContributionSource, string> = {
 interface Props {
   contributions: Contribution[]
   events: CommitteeEvent[]
+  rosterMembers: RosterMember[]
   committeeId: string
   committeeSlug: string
   canEdit: boolean
 }
 
-export default function DonationsTable({ contributions: initial, events, committeeId, committeeSlug, canEdit }: Props) {
+export default function DonationsTable({ contributions: initial, events, rosterMembers, committeeId, committeeSlug, canEdit }: Props) {
   const [contributions, setContributions] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Contribution | null>(null)
@@ -429,6 +430,7 @@ export default function DonationsTable({ contributions: initial, events, committ
         onClose={() => setShowImport(false)}
         onImport={handleImport}
         existingContributions={contributions}
+        rosterMembers={rosterMembers}
         committeeId={committeeId}
         committeeSlug={committeeSlug}
       />

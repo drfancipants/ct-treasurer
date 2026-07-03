@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Contribution, CommitteeContribution, InKindContribution, CommitteeEvent } from '@/lib/types'
+import type { Contribution, CommitteeContribution, InKindContribution, CommitteeEvent, RosterMember } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import DonationSummaryCards from './DonationSummaryCards'
 import DonationsTable from './DonationsTable'
@@ -14,6 +14,7 @@ interface Props {
   contributions: Contribution[]
   committeeContributions: CommitteeContribution[]
   inKindContributions: InKindContribution[]
+  rosterMembers: RosterMember[]
   events: CommitteeEvent[]
   committeeId: string
   committeeSlug: string
@@ -21,7 +22,7 @@ interface Props {
 }
 
 export default function DonationsTabs({
-  contributions, committeeContributions, inKindContributions, events, committeeId, committeeSlug, canEdit,
+  contributions, committeeContributions, inKindContributions, rosterMembers, events, committeeId, committeeSlug, canEdit,
 }: Props) {
   const [tab, setTab] = useState<Tab>('individuals')
 
@@ -54,6 +55,7 @@ export default function DonationsTabs({
           <DonationsTable
             contributions={contributions}
             events={events}
+            rosterMembers={rosterMembers}
             committeeId={committeeId}
             committeeSlug={committeeSlug}
             canEdit={canEdit}

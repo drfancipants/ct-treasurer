@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { requireCommitteeMemberById, requireFinanceRole } from '@/lib/auth'
+import { syncRosterContributorLinks } from '@/lib/roster-links'
 import type { Contribution, PaymentMethod, ContributionSource } from '@/lib/types'
 import type { ParsedRow } from '@/lib/anedot-csv'
 
@@ -107,10 +108,10 @@ export async function createContribution(
   if (verifiedId !== committeeId) throw new Error('Forbidden')
   const eventId = await resolveEventId(data.eventId, committeeId)
 
-  // Find existing contributor by email, or create new
+  // Find existing contributor by email (case-insensitive), or create new
   let contributor = data.contributor.email
     ? await prisma.contributor.findFirst({
-        where: { email: data.contributor.email },
+        where: { email: { equals: data.contributor.email, mode: 'insensitive' } },
       })
     : null
 
@@ -146,6 +147,9 @@ export async function createContribution(
     },
     include: { contributor: true },
   })
+
+  // A new donation may belong to a roster member — link them up
+  await syncRosterContributorLinks(committeeId)
 
   revalidatePath(`/app/${committeeSlug}/donations`)
   revalidatePath(`/app/${committeeSlug}/dashboard`)
@@ -253,17 +257,19 @@ export async function importContributions(
     return { imported: 0, skipped: extraSkipped, contributions: [] }
   }
 
-  // 1. Batch-load existing contributors by email (one query instead of N)
-  const emails = [...new Set(validRows.map(r => r.email).filter(Boolean))] as string[]
+  // 1. Batch-load existing contributors by email (one query instead of N).
+  // All email keying is lowercased so "Jane@X.com" and "jane@x.com" resolve
+  // to the same contributor instead of creating a duplicate.
+  const emails = [...new Set(validRows.map(r => r.email?.toLowerCase()).filter(Boolean))] as string[]
   const existingContributors = await prisma.contributor.findMany({
-    where: { email: { in: emails } },
+    where: { email: { in: emails, mode: 'insensitive' } },
     select: { id: true, email: true },
   })
-  const emailToId = new Map(existingContributors.map(c => [c.email!, c.id]))
+  const emailToId = new Map(existingContributors.map(c => [c.email!.toLowerCase(), c.id]))
 
   // 2. Create missing contributors (only new donors, not the full list)
   const missingEmails = emails.filter(e => !emailToId.has(e))
-  const emailToRow = new Map(validRows.filter(r => r.email).map(r => [r.email!, r]))
+  const emailToRow = new Map(validRows.filter(r => r.email).map(r => [r.email!.toLowerCase(), r]))
   for (const email of missingEmails) {
     const r = emailToRow.get(email)!
     try {
@@ -302,7 +308,7 @@ export async function importContributions(
   type ContributionInput = { committeeId: string; contributorId: string; amount: number; date: Date; method: PaymentMethod; checkNumber: string | null; memo: string | null; source: 'ANEDOT'; anedotId: string | null; isItemized: boolean }
   const contributionData: ContributionInput[] = []
   for (const r of validRows.filter(r => r.email)) {
-    const contributorId = emailToId.get(r.email!)
+    const contributorId = emailToId.get(r.email!.toLowerCase())
     if (!contributorId) continue
     contributionData.push({
       committeeId, contributorId, amount: r.amount,
@@ -332,6 +338,9 @@ export async function importContributions(
     skipDuplicates: true,
     include: { contributor: true },
   })
+
+  // Imported donations may belong to roster members — link them up
+  await syncRosterContributorLinks(committeeId)
 
   revalidatePath(`/app/${committeeSlug}/donations`)
   revalidatePath(`/app/${committeeSlug}/dashboard`)
