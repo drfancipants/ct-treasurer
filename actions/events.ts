@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { requireCommitteeMemberById, requireFinanceRole } from '@/lib/auth'
+import { chooseEventLetter } from '@/lib/events'
 import type { CommitteeEvent } from '@/lib/types'
 
 type PrismaEvent = {
@@ -52,6 +53,8 @@ function mapEvent(e: PrismaEvent): CommitteeEvent {
 }
 
 export interface EventInput {
+  /** Optional event letter to assign; must be unused in the committee. Auto-assigned if omitted. */
+  letter?: string
   date: string
   description: string
   isFundraiser: boolean
@@ -75,15 +78,20 @@ export async function getEvents(committeeId: string): Promise<CommitteeEvent[]> 
   return rows.map(mapEvent)
 }
 
-/** Next event letter (A, B, … Z, AA, …) for a committee. */
-function nextLetter(count: number): string {
-  let n = count
-  let s = ''
-  do {
-    s = String.fromCharCode(65 + (n % 26)) + s
-    n = Math.floor(n / 26) - 1
-  } while (n >= 0)
-  return s
+/**
+ * Resolve the letter to store: a user-chosen unused letter, or the first
+ * available one. `exceptId` lets an event keep its own letter on update.
+ */
+async function resolveLetter(
+  committeeId: string,
+  requested: string | undefined,
+  exceptId?: string
+): Promise<string> {
+  const others = await prisma.event.findMany({
+    where: { committeeId, ...(exceptId ? { id: { not: exceptId } } : {}) },
+    select: { letter: true },
+  })
+  return chooseEventLetter(requested, others.map((e) => e.letter))
 }
 
 export async function createEvent(
@@ -94,11 +102,11 @@ export async function createEvent(
   const { committeeId: verifiedId } = await requireFinanceRole(committeeSlug)
   if (verifiedId !== committeeId) throw new Error('Forbidden')
 
-  const count = await prisma.event.count({ where: { committeeId } })
+  const letter = await resolveLetter(committeeId, data.letter)
   const event = await prisma.event.create({
     data: {
       committeeId,
-      letter: nextLetter(count),
+      letter,
       date: new Date(data.date),
       description: data.description,
       isFundraiser: data.isFundraiser,
@@ -129,9 +137,12 @@ export async function updateEvent(
   const existing = await prisma.event.findFirst({ where: { id: eventId, committeeId } })
   if (!existing) throw new Error('Forbidden')
 
+  // Keep the current letter unless a different (unused) one was chosen
+  const letter = await resolveLetter(committeeId, data.letter || existing.letter, eventId)
   const event = await prisma.event.update({
     where: { id: eventId },
     data: {
+      letter,
       date: new Date(data.date),
       description: data.description,
       isFundraiser: data.isFundraiser,

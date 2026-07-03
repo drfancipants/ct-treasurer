@@ -12,9 +12,11 @@ interface Props {
   committeeId: string
   committeeSlug: string
   event?: CommitteeEvent
+  usedLetters: string[]
 }
 
 type FormState = {
+  letter: string
   date: string
   description: string
   isFundraiser: boolean
@@ -32,8 +34,9 @@ type FormState = {
   notes: string
 }
 
-function initial(event?: CommitteeEvent): FormState {
+function initial(event: CommitteeEvent | undefined, defaultLetter: string): FormState {
   return {
+    letter: event?.letter ?? defaultLetter,
     date: event?.date ?? new Date().toISOString().split('T')[0],
     description: event?.description ?? '',
     isFundraiser: event?.isFundraiser ?? true,
@@ -52,9 +55,17 @@ function initial(event?: CommitteeEvent): FormState {
   }
 }
 
-export default function EventDialog({ open, onClose, onSave, committeeId, committeeSlug, event }: Props) {
+export default function EventDialog({ open, onClose, onSave, committeeId, committeeSlug, event, usedLetters }: Props) {
+  // Letters free to assign: A–Z not used by another event, plus this event's own
+  const usedByOthers = new Set(
+    usedLetters.filter((l) => l.toUpperCase() !== event?.letter?.toUpperCase()).map((l) => l.toUpperCase())
+  )
+  const available = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)).filter(
+    (l) => !usedByOthers.has(l)
+  )
+  const defaultLetter = event?.letter ?? available[0] ?? 'A'
   const isEdit = !!event
-  const [form, setForm] = useState<FormState>(() => initial(event))
+  const [form, setForm] = useState<FormState>(() => initial(event, defaultLetter))
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -72,6 +83,7 @@ export default function EventDialog({ open, onClose, onSave, committeeId, commit
     setSaving(true)
     setError('')
     const payload: EventInput = {
+      letter: form.letter,
       date: form.date,
       description: form.description.trim(),
       isFundraiser: form.isFundraiser,
@@ -117,13 +129,20 @@ export default function EventDialog({ open, onClose, onSave, committeeId, commit
             <div className="px-3 py-2.5 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Event #">
+              <select value={form.letter} onChange={(e) => set('letter', e.target.value)} className={inputCls}>
+                {available.map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+            </Field>
             <Field label="Date" required>
               <input type="date" value={form.date} onChange={(e) => set('date', e.target.value)} className={inputCls} />
             </Field>
             <label className="flex items-end gap-2 pb-2">
               <input type="checkbox" checked={form.isFundraiser} onChange={(e) => set('isFundraiser', e.target.checked)} className={checkCls} />
-              <span className="text-sm text-slate-700">Fundraising event</span>
+              <span className="text-sm text-slate-700">Fundraiser</span>
             </label>
           </div>
 

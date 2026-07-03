@@ -182,6 +182,7 @@ export default function EventsList({ events: initial, committeeId, committeeSlug
           onSave={handleSave}
           committeeId={committeeId}
           committeeSlug={committeeSlug}
+          usedLetters={events.map((e) => e.letter)}
         />
       )}
       {editing && (
@@ -193,6 +194,7 @@ export default function EventsList({ events: initial, committeeId, committeeSlug
           committeeId={committeeId}
           committeeSlug={committeeSlug}
           event={editing}
+          usedLetters={events.map((e) => e.letter)}
         />
       )}
     </>
