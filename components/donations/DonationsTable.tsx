@@ -6,6 +6,7 @@ import {
   Upload,
   Search,
   ChevronDown,
+  ChevronUp,
   MoreHorizontal,
   ExternalLink,
   Pencil,
@@ -43,6 +44,9 @@ const SOURCE_COLORS: Record<ContributionSource, string> = {
   BANK_IMPORT: 'bg-teal-50 text-teal-700',
 }
 
+type SortKey = 'date' | 'donor' | 'amount'
+type SortDir = 'asc' | 'desc'
+
 interface Props {
   contributions: Contribution[]
   events: CommitteeEvent[]
@@ -61,8 +65,21 @@ export default function DonationsTable({ contributions: initial, events, rosterM
   const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'ALL'>('ALL')
   const [sourceFilter, setSourceFilter] = useState<ContributionSource | 'ALL'>('ALL')
   const [seecFilter, setSeecFilter] = useState<'ALL' | 'compliant' | 'issues'>('ALL')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('date')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [error, setError] = useState('')
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir(key === 'donor' ? 'asc' : 'desc')
+    }
+  }
 
   const filtered = useMemo(() => {
     return contributions
@@ -72,6 +89,8 @@ export default function DonationsTable({ contributions: initial, events, rosterM
         if (search && !name.includes(search.toLowerCase())) return false
         if (methodFilter !== 'ALL' && c.method !== methodFilter) return false
         if (sourceFilter !== 'ALL' && c.source !== sourceFilter) return false
+        if (dateFrom && c.date.slice(0, 10) < dateFrom) return false
+        if (dateTo && c.date.slice(0, 10) > dateTo) return false
         if (seecFilter !== 'ALL') {
           const status = getSeecStatus(c).status
           if (seecFilter === 'compliant' && status !== 'compliant') return false
@@ -79,8 +98,20 @@ export default function DonationsTable({ contributions: initial, events, rosterM
         }
         return true
       })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [contributions, search, methodFilter, sourceFilter, seecFilter])
+      .sort((a, b) => {
+        let cmp = 0
+        if (sortKey === 'date') {
+          cmp = new Date(a.date).getTime() - new Date(b.date).getTime()
+        } else if (sortKey === 'amount') {
+          cmp = a.amount - b.amount
+        } else {
+          const nameA = `${a.contributor.firstName} ${a.contributor.lastName}`.toLowerCase()
+          const nameB = `${b.contributor.firstName} ${b.contributor.lastName}`.toLowerCase()
+          cmp = nameA.localeCompare(nameB)
+        }
+        return sortDir === 'asc' ? cmp : -cmp
+      })
+  }, [contributions, search, methodFilter, sourceFilter, seecFilter, dateFrom, dateTo, sortKey, sortDir])
 
   const filteredTotal = filtered.reduce((s, c) => s + c.amount, 0)
 
@@ -199,6 +230,32 @@ export default function DonationsTable({ contributions: initial, events, rosterM
           <option value="compliant">Compliant only</option>
           <option value="issues">Has issues</option>
         </FilterSelect>
+
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            aria-label="From date"
+            className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <span className="text-xs text-slate-400">to</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            aria-label="To date"
+            className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => { setDateFrom(''); setDateTo('') }}
+              className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
@@ -206,15 +263,9 @@ export default function DonationsTable({ contributions: initial, events, rosterM
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">
-                Date
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">
-                Donor
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wide">
-                Amount
-              </th>
+              <SortableHeader label="Date" sortKey="date" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortableHeader label="Donor" sortKey="donor" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortableHeader label="Amount" sortKey="amount" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="right" />
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide hidden sm:table-cell">
                 Method
               </th>
@@ -483,6 +534,43 @@ function SeecBadge({
       <XCircle className="w-3 h-3" />
       Incomplete
     </span>
+  )
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  activeKey,
+  dir,
+  onSort,
+  align = 'left',
+}: {
+  label: string
+  sortKey: SortKey
+  activeKey: SortKey
+  dir: SortDir
+  onSort: (key: SortKey) => void
+  align?: 'left' | 'right'
+}) {
+  const active = activeKey === sortKey
+  return (
+    <th className={cn('px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide', align === 'right' ? 'text-right' : 'text-left')}>
+      <button
+        onClick={() => onSort(sortKey)}
+        className={cn(
+          'inline-flex items-center gap-1 hover:text-slate-700 transition-colors',
+          align === 'right' && 'flex-row-reverse',
+          active && 'text-slate-700'
+        )}
+      >
+        {label}
+        {active ? (
+          dir === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+        ) : (
+          <ChevronDown className="w-3 h-3 opacity-0" />
+        )}
+      </button>
+    </th>
   )
 }
 
