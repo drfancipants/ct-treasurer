@@ -10,7 +10,8 @@ import {
 } from '@/lib/types'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import AddExpenseDialog from './AddExpenseDialog'
-import { deleteExpenditure } from '@/actions/expenses'
+import AnedotFeesBanner from './AnedotFeesBanner'
+import { deleteExpenditure, type UnrecordedFees } from '@/actions/expenses'
 import ErrorBanner from '@/components/ui/ErrorBanner'
 import FiledBadge from '@/components/ui/FiledBadge'
 
@@ -29,9 +30,10 @@ interface Props {
   committeeId: string
   committeeSlug: string
   canEdit: boolean
+  unrecordedFees?: UnrecordedFees
 }
 
-export default function ExpensesTable({ expenditures: initial, events, committeeId, committeeSlug, canEdit }: Props) {
+export default function ExpensesTable({ expenditures: initial, events, committeeId, committeeSlug, canEdit, unrecordedFees }: Props) {
   const [expenditures, setExpenditures] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Expenditure | null>(null)
@@ -106,6 +108,17 @@ export default function ExpensesTable({ expenditures: initial, events, committee
           </button>
         )}
       </div>
+
+      {canEdit && unrecordedFees && (
+        <div className="mt-4">
+          <AnedotFeesBanner
+            fees={unrecordedFees}
+            committeeId={committeeId}
+            committeeSlug={committeeSlug}
+            onRecorded={(created) => setExpenditures((prev) => [...created, ...prev])}
+          />
+        </div>
+      )}
 
       {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
 

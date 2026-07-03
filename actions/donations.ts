@@ -272,7 +272,28 @@ export async function importContributions(
   const validRows = rows.filter(r => !r.isError && !r.isDuplicate)
   let extraSkipped = rows.length - validRows.length
 
+  // Duplicate rows still carry value: webhook-created donations have no fee
+  // detail (Anedot doesn't send it), so a ledger re-import backfills those
+  // fields onto the existing record instead of discarding them
+  const enrichable = rows.filter(
+    r => r.isDuplicate && r.anedotId && (r.netAmount != null || r.processingFee != null)
+  )
+  for (const r of enrichable) {
+    await prisma.contribution.updateMany({
+      where: { anedotId: r.anedotId!, committeeId, processingFee: null },
+      data: {
+        processedDate: r.processedDate ? new Date(r.processedDate) : null,
+        netAmount: r.netAmount ?? null,
+        processingFee: r.processingFee ?? null,
+        donorCoveredFees: r.donorCoveredFees ?? false,
+        cardType: r.cardType ?? null,
+        cardLast4: r.cardLast4 ?? null,
+      },
+    })
+  }
+
   if (validRows.length === 0) {
+    if (enrichable.length > 0) revalidatePath(`/app/${committeeSlug}/donations`)
     return { imported: 0, skipped: extraSkipped, contributions: [] }
   }
 

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { Contribution, Expenditure, Reimbursement, CommitteeEvent } from '@/lib/types'
+import type { UnrecordedFees } from '@/actions/expenses'
 import { cn } from '@/lib/utils'
 import ExpenseSummaryCards from './ExpenseSummaryCards'
 import ExpensesTable from './ExpensesTable'
@@ -17,10 +18,11 @@ interface Props {
   committeeId: string
   committeeSlug: string
   canEdit: boolean
+  unrecordedFees?: UnrecordedFees
 }
 
 export default function ExpensesTabs({
-  expenditures, contributions, reimbursements, events, committeeId, committeeSlug, canEdit,
+  expenditures, contributions, reimbursements, events, committeeId, committeeSlug, canEdit, unrecordedFees,
 }: Props) {
   const [tab, setTab] = useState<Tab>('expenses')
 
@@ -53,6 +55,7 @@ export default function ExpensesTabs({
             committeeId={committeeId}
             committeeSlug={committeeSlug}
             canEdit={canEdit}
+            unrecordedFees={unrecordedFees}
           />
         </>
       )}

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { requireCommitteeMemberById, requireFinanceRole } from '@/lib/auth'
+import { groupFeesByQuarter } from '@/lib/anedot-fees'
 import type { Expenditure, PaymentMethod, ExpenseCategory } from '@/lib/types'
 
 type PrismaExpenditure = {
@@ -132,6 +133,91 @@ export async function updateExpenditure(
   revalidatePath(`/app/${committeeSlug}/expenses`)
   revalidatePath(`/app/${committeeSlug}/dashboard`)
   return mapExpenditure(expenditure)
+}
+
+// ─── Anedot processing fees ───────────────────────────────────────────────────
+
+export interface UnrecordedFees {
+  total: number
+  count: number
+}
+
+/** Anedot fees captured on donations but not yet reported as an expenditure. */
+export async function getUnrecordedAnedotFees(committeeId: string): Promise<UnrecordedFees> {
+  await requireCommitteeMemberById(committeeId)
+  const agg = await prisma.contribution.aggregate({
+    where: { committeeId, processingFee: { gt: 0 }, feeExpenditureId: null },
+    _sum: { processingFee: true },
+    _count: true,
+  })
+  return {
+    total: Number(agg._sum.processingFee?.toString() ?? 0),
+    count: agg._count,
+  }
+}
+
+/**
+ * Report accumulated Anedot fees as expenditures — one per calendar quarter
+ * (payee "Anedot", SEEC purpose BNK) so each lands in the same Form 20 filing
+ * period as its donations. Each donation's fee links to the expenditure that
+ * recorded it, so re-running never double-counts; deleting a fee expenditure
+ * returns its fees to "unrecorded".
+ */
+export async function recordAnedotFees(
+  committeeId: string,
+  committeeSlug: string
+): Promise<Expenditure[]> {
+  const { committeeId: verifiedId } = await requireFinanceRole(committeeSlug)
+  if (verifiedId !== committeeId) throw new Error('Forbidden')
+
+  const rows = await prisma.contribution.findMany({
+    where: { committeeId, processingFee: { gt: 0 }, feeExpenditureId: null },
+    select: { id: true, date: true, processingFee: true },
+  })
+  const batches = groupFeesByQuarter(
+    rows.map((r) => ({
+      id: r.id,
+      date: r.date.toISOString().split('T')[0],
+      processingFee: Number(r.processingFee!.toString()),
+    }))
+  )
+  if (batches.length === 0) return []
+
+  const created: Expenditure[] = []
+  for (const batch of batches) {
+    const expenditure = await prisma.$transaction(async (tx) => {
+      const exp = await tx.expenditure.create({
+        data: {
+          committeeId,
+          amount: batch.total,
+          date: new Date(batch.date),
+          payee: 'Anedot',
+          purpose: `Payment processing fees — ${batch.count} donation${batch.count !== 1 ? 's' : ''} (${seecRange(batch.fromDate, batch.date)})`,
+          category: 'BNK',
+          method: 'ONLINE', // withheld from deposits → EFT on Form 20
+        },
+      })
+      await tx.contribution.updateMany({
+        where: { id: { in: batch.contributionIds }, committeeId },
+        data: { feeExpenditureId: exp.id },
+      })
+      return exp
+    })
+    created.push(mapExpenditure(expenditure))
+  }
+
+  revalidatePath(`/app/${committeeSlug}/expenses`)
+  revalidatePath(`/app/${committeeSlug}/dashboard`)
+  return created
+}
+
+function seecRange(from: string, to: string): string {
+  return from === to ? formatShort(from) : `${formatShort(from)} – ${formatShort(to)}`
+}
+
+function formatShort(iso: string): string {
+  const [y, m, d] = iso.split('-')
+  return `${Number(m)}/${Number(d)}/${y}`
 }
 
 export async function deleteExpenditure(id: string, committeeSlug: string) {

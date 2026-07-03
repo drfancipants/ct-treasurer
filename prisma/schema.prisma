@@ -169,12 +169,16 @@ model Contribution {
   isStateContractor Boolean @default(false)
   contractorBranch  String? // E | L | B (when the above is true)
   isLobbyist        Boolean @default(false)
+  // The Section P expenditure that recorded this donation's processing fee —
+  // null means the fee (if any) is not yet reported as an expense
+  feeExpenditureId String?
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
-  committee   Committee   @relation(fields: [committeeId], references: [id])
-  contributor Contributor @relation(fields: [contributorId], references: [id])
-  event       Event?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  committee      Committee    @relation(fields: [committeeId], references: [id])
+  contributor    Contributor  @relation(fields: [contributorId], references: [id])
+  event          Event?       @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  feeExpenditure Expenditure? @relation("AnedotFees", fields: [feeExpenditureId], references: [id], onDelete: SetNull)
 
   @@index([committeeId, date])
   @@index([contributorId])
@@ -309,6 +313,7 @@ model Expenditure {
   event     Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   reimbursements Reimbursement[]
+  feeContributions Contribution[] @relation("AnedotFees")
 
   @@index([committeeId, date])
 }
