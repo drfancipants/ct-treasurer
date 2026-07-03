@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, ChevronDown, Building2 } from 'lucide-react'
+import { Check, ChevronDown, Building2, Plus } from 'lucide-react'
 import type { Committee } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -84,6 +84,17 @@ export default function CommitteeSwitcher({ committees, activeCommittee }: Props
                 )}
               </button>
             ))}
+            <div className="border-t border-white/10 mt-1 pt-1">
+              <button
+                onClick={() => { setOpen(false); router.push('/app/create-committee') }}
+                className="flex items-center gap-2.5 w-full px-3 py-2.5 text-left hover:bg-white/8 transition-colors"
+              >
+                <div className="w-5 h-5 rounded-md bg-white/10 flex items-center justify-center shrink-0">
+                  <Plus className="w-3 h-3 text-slate-300" />
+                </div>
+                <span className="text-[12px] text-slate-300 font-medium">New committee</span>
+              </button>
+            </div>
           </div>
         </>
       )}
