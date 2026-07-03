@@ -268,6 +268,19 @@ export async function importRosterMembers(
   return { members: await fetchRoster(committeeId), created, updated }
 }
 
+/** Annual reset: mark every member's dues as unpaid at the start of a new year. */
+export async function resetAllDues(committeeId: string, committeeSlug: string): Promise<number> {
+  const { committeeId: verifiedId } = await requireRosterRole(committeeSlug)
+  if (verifiedId !== committeeId) throw new Error('Forbidden')
+
+  const { count } = await prisma.rosterMember.updateMany({
+    where: { committeeId, duesPaid: true },
+    data: { duesPaid: false },
+  })
+  revalidatePath(`/app/${committeeSlug}/members`)
+  return count
+}
+
 export async function deleteRosterMember(id: string, committeeSlug: string) {
   const { committeeId } = await requireRosterRole(committeeSlug)
   const existing = await prisma.rosterMember.findFirst({ where: { id, committeeId } })

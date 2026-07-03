@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, MoreHorizontal, Pencil, Trash2, Search, Upload } from 'lucide-react'
+import { Plus, MoreHorizontal, Pencil, Trash2, Search, Upload, RotateCcw } from 'lucide-react'
 import type { RosterMember } from '@/lib/types'
-import { deleteRosterMember, setRosterMemberFlags } from '@/actions/roster'
+import { deleteRosterMember, setRosterMemberFlags, resetAllDues } from '@/actions/roster'
 import { formatCurrency, cn } from '@/lib/utils'
 import ErrorBanner from '@/components/ui/ErrorBanner'
 import RosterMemberDialog from './RosterMemberDialog'
@@ -29,6 +29,8 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
   const [rows, setRows] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [resetting, setResetting] = useState(false)
   const [editing, setEditing] = useState<RosterMember | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -79,6 +81,19 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
     }
   }
 
+  async function handleResetDues() {
+    setResetting(true)
+    try {
+      await resetAllDues(committeeId, committeeSlug)
+      setRows((prev) => prev.map((r) => ({ ...r, duesPaid: false })))
+      setShowResetConfirm(false)
+    } catch {
+      setError('Failed to reset dues. Please try again.')
+    } finally {
+      setResetting(false)
+    }
+  }
+
   async function handleDelete(id: string) {
     const snapshot = rows
     setRows((prev) => prev.filter((r) => r.id !== id))
@@ -102,6 +117,15 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
         </div>
         {canEdit && (
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              disabled={duesPaidCount === 0}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              title="Mark all members as dues unpaid for a new membership year"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset dues
+            </button>
             <button
               onClick={() => setShowImport(true)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors"
@@ -248,6 +272,36 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
 
       {showAdd && (
         <RosterMemberDialog open onClose={() => setShowAdd(false)} onSave={handleSave} committeeId={committeeId} committeeSlug={committeeSlug} />
+      )}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
+              <RotateCcw className="w-5 h-5 text-amber-600" />
+            </div>
+            <h2 className="text-base font-semibold text-slate-900">Reset dues for the new year?</h2>
+            <p className="text-sm text-slate-500 mt-1.5">
+              This marks all {duesPaidCount} paid {duesPaidCount === 1 ? 'member' : 'members'} as
+              dues unpaid. Do this at the start of each membership year, then mark members paid as
+              their dues come in.
+            </p>
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetDues}
+                disabled={resetting}
+                className="flex-1 px-4 py-2.5 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 disabled:opacity-50 transition-colors"
+              >
+                {resetting ? 'Resetting…' : 'Reset all dues'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {showImport && (
         // Stays open through its done step — onImported must not close it
