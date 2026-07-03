@@ -15,7 +15,11 @@ const COL: Record<string, string> = {
   'Last Name': 'lastName',
   // Contact
   'Email': 'email',
+  'Email Address': 'email',
   'Phone': 'phone',
+  'Phone Number': 'phone',
+  'Mobile': 'phone',
+  'Cell Phone': 'phone',
   // Amount
   'Amount': 'amount',
   'Total Amount': 'amount',
@@ -47,6 +51,15 @@ const COL: Record<string, string> = {
   'UID': 'anedotId',
   'ID': 'anedotId',
   'Transaction ID': 'anedotId',
+  // Notes / designation → contribution memo
+  'Note': 'memo',
+  'Notes': 'memo',
+  'Comment': 'memo',
+  'Comments': 'memo',
+  'Memo': 'memo',
+  'Message': 'memo',
+  'Designation': 'memo',
+  'Fund': 'memo',
   // Status (used to filter out refunds)
   'Status': 'status',
 }
@@ -77,9 +90,11 @@ export interface ParsedRow {
   firstName: string
   lastName: string
   email?: string
+  phone?: string
   amount: number
   method: PaymentMethod
   checkNumber?: string
+  memo?: string
   address1: string
   address2?: string
   city: string
@@ -236,9 +251,11 @@ export function parseAnedotCsv(
       firstName,
       lastName,
       email: m.email || undefined,
+      phone: m.phone || undefined,
       amount,
       method: parseMethod(m.method ?? ''),
       checkNumber: m.checkNumber || undefined,
+      memo: m.memo || undefined,
       address1,
       address2: m.address2 || undefined,
       city,
@@ -310,6 +327,7 @@ export function parsedRowToContribution(
       firstName: row.firstName,
       lastName: row.lastName,
       email: row.email,
+      phone: row.phone,
       address1: row.address1,
       address2: row.address2,
       city: row.city,
@@ -322,6 +340,7 @@ export function parsedRowToContribution(
     date: row.date,
     method: row.method,
     checkNumber: row.checkNumber,
+    memo: row.memo,
     source: 'ANEDOT',
     anedotId: row.anedotId,
     isItemized: row.amount >= 50,

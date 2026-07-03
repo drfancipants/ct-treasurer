@@ -151,3 +151,31 @@ describe('contribution limit flags', () => {
     expect(result.rows[0].limitIssues[0]).toMatch(/Cash contribution over \$100/)
   })
 })
+
+describe('extended field capture', () => {
+  it('captures phone, check number, and note/memo', () => {
+    const header = 'Donation ID,Date,First Name,Last Name,Email,Phone,Amount,Payment Method,Check Number,Address Line 1,City,State,Zip,Employer,Occupation,Note,Status'
+    const row = 'an_x1,2026-05-01,Jane,Donor,jane@x.com,203-555-0199,100,check,1042,12 Elm St,Madison,CT,06443,Acme,Engineer,In memory of Pat,Completed'
+    const result = parseAnedotCsv([header, row].join('\n'), [])
+    const r = result.rows[0]
+    expect(r.phone).toBe('203-555-0199')
+    expect(r.checkNumber).toBe('1042')
+    expect(r.memo).toBe('In memory of Pat')
+  })
+
+  it('maps note-column variants (Designation) to memo', () => {
+    const header = 'UID,Created At,First Name,Last Name,Email,Total Amount,Payment Type,Mobile,Designation'
+    const row = 'an_x2,2026-05-02,Bob,Giver,bob@x.com,25,cash,860-555-0100,General Fund'
+    const r = parseAnedotCsv([header, row].join('\n'), []).rows[0]
+    expect(r.phone).toBe('860-555-0100')
+    expect(r.memo).toBe('General Fund')
+  })
+
+  it('leaves new fields undefined when columns are absent', () => {
+    const header = 'Donation ID,Date,First Name,Last Name,Email,Amount,Payment Method,Address Line 1,City,State,Zip'
+    const row = 'an_x3,2026-05-01,Jane,Donor,jane@x.com,20,cash,12 Elm St,Madison,CT,06443'
+    const r = parseAnedotCsv([header, row].join('\n'), []).rows[0]
+    expect(r.phone).toBeUndefined()
+    expect(r.memo).toBeUndefined()
+  })
+})

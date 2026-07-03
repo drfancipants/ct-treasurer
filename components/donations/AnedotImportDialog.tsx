@@ -338,6 +338,11 @@ function PreviewStep({ result }: { result: ParseResult }) {
                     {row.email && (
                       <span className="text-slate-400 ml-1">· {row.email}</span>
                     )}
+                    {(row.phone || row.memo) && (
+                      <span className="block text-[11px] text-slate-400 mt-0.5">
+                        {[row.phone, row.memo].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular font-medium text-emerald-700">
                     {row.isError ? '—' : formatCurrency(row.amount)}

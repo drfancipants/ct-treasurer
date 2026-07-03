@@ -253,7 +253,7 @@ export async function importContributions(
     try {
       const c = await prisma.contributor.create({
         data: {
-          firstName: r.firstName, lastName: r.lastName, email: r.email,
+          firstName: r.firstName, lastName: r.lastName, email: r.email, phone: r.phone,
           address1: r.address1, address2: r.address2,
           city: r.city, state: r.state || 'CT', zip: r.zip,
           employer: r.employer, occupation: r.occupation,
@@ -271,7 +271,7 @@ export async function importContributions(
     try {
       const c = await prisma.contributor.create({
         data: {
-          firstName: r.firstName, lastName: r.lastName,
+          firstName: r.firstName, lastName: r.lastName, phone: r.phone,
           address1: r.address1, address2: r.address2,
           city: r.city, state: r.state || 'CT', zip: r.zip,
           employer: r.employer, occupation: r.occupation,
@@ -283,7 +283,7 @@ export async function importContributions(
   }
 
   // 4. Build contribution records and batch-insert (skipDuplicates handles anedotId conflicts)
-  type ContributionInput = { committeeId: string; contributorId: string; amount: number; date: Date; method: PaymentMethod; source: 'ANEDOT'; anedotId: string | null; isItemized: boolean }
+  type ContributionInput = { committeeId: string; contributorId: string; amount: number; date: Date; method: PaymentMethod; checkNumber: string | null; memo: string | null; source: 'ANEDOT'; anedotId: string | null; isItemized: boolean }
   const contributionData: ContributionInput[] = []
   for (const r of validRows.filter(r => r.email)) {
     const contributorId = emailToId.get(r.email!)
@@ -291,6 +291,7 @@ export async function importContributions(
     contributionData.push({
       committeeId, contributorId, amount: r.amount,
       date: new Date(r.date), method: r.method,
+      checkNumber: r.checkNumber ?? null, memo: r.memo ?? null,
       source: 'ANEDOT', anedotId: r.anedotId ?? null,
       isItemized: r.amount >= 50,
     })
@@ -302,6 +303,7 @@ export async function importContributions(
     contributionData.push({
       committeeId, contributorId, amount: r.amount,
       date: new Date(r.date), method: r.method,
+      checkNumber: r.checkNumber ?? null, memo: r.memo ?? null,
       source: 'ANEDOT', anedotId: r.anedotId ?? null,
       isItemized: r.amount >= 50,
     })
