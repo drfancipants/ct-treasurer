@@ -28,8 +28,12 @@ interface FormData {
   isItemized: boolean
   memo: string
   eventId: string
+  isStateContractor: boolean
+  contractorBranch: string
+  isLobbyist: boolean
   // Contributor
   firstName: string
+  middleInitial: string
   lastName: string
   email: string
   address1: string
@@ -49,7 +53,11 @@ const EMPTY: FormData = {
   isItemized: true,
   memo: '',
   eventId: '',
+  isStateContractor: false,
+  contractorBranch: 'E',
+  isLobbyist: false,
   firstName: '',
+  middleInitial: '',
   lastName: '',
   email: '',
   address1: '',
@@ -73,7 +81,11 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
           isItemized: contribution.isItemized,
           memo: contribution.memo ?? '',
           eventId: contribution.eventId ?? '',
+          isStateContractor: contribution.isStateContractor ?? false,
+          contractorBranch: contribution.contractorBranch ?? 'E',
+          isLobbyist: contribution.isLobbyist ?? false,
           firstName: contribution.contributor.firstName,
+          middleInitial: contribution.contributor.middleInitial ?? '',
           lastName: contribution.contributor.lastName,
           email: contribution.contributor.email ?? '',
           address1: contribution.contributor.address1,
@@ -140,6 +152,7 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
       const payload = {
         contributor: {
           firstName: form.firstName.trim(),
+          middleInitial: form.middleInitial.trim() || undefined,
           lastName: form.lastName.trim(),
           email: form.email.trim() || undefined,
           address1: form.address1.trim(),
@@ -157,6 +170,9 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
         eventId: form.eventId || undefined,
         memo: form.memo.trim() || undefined,
         isItemized: form.isItemized,
+        isStateContractor: form.isStateContractor,
+        contractorBranch: form.isStateContractor ? form.contractorBranch : undefined,
+        isLobbyist: form.isLobbyist,
       }
 
       const saved = isEdit && contribution
@@ -336,15 +352,28 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
                   />
                 </Field>
 
-                <Field label="Last name" required error={errors.lastName}>
-                  <input
-                    type="text"
-                    value={form.lastName}
-                    onChange={(e) => set('lastName', e.target.value)}
-                    placeholder="Smith"
-                    className={inputCls(!!errors.lastName)}
-                  />
-                </Field>
+                <div className="grid grid-cols-3 gap-3">
+                  <Field label="M.I.">
+                    <input
+                      type="text"
+                      value={form.middleInitial}
+                      onChange={(e) => set('middleInitial', e.target.value.toUpperCase().slice(0, 1))}
+                      maxLength={1}
+                      className={inputCls(false)}
+                    />
+                  </Field>
+                  <div className="col-span-2">
+                    <Field label="Last name" required error={errors.lastName}>
+                      <input
+                        type="text"
+                        value={form.lastName}
+                        onChange={(e) => set('lastName', e.target.value)}
+                        placeholder="Smith"
+                        className={inputCls(!!errors.lastName)}
+                      />
+                    </Field>
+                  </div>
+                </div>
 
                 <Field label="Email">
                   <input
@@ -435,6 +464,45 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
                     className={inputCls(!!errors.occupation)}
                   />
                 </Field>
+              </div>
+
+              {/* SEEC disclosure questions (Form 20 Section B columns) */}
+              <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isStateContractor}
+                    onChange={(e) => set('isStateContractor', e.target.checked)}
+                    className="w-4 h-4 mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-xs text-slate-600">
+                    Contributor is a principal of a state contractor or prospective state contractor
+                  </span>
+                </label>
+                {form.isStateContractor && (
+                  <Field label="Contract branch">
+                    <select
+                      value={form.contractorBranch}
+                      onChange={(e) => set('contractorBranch', e.target.value)}
+                      className={inputCls(false)}
+                    >
+                      <option value="E">Executive</option>
+                      <option value="L">Legislative</option>
+                      <option value="B">Both</option>
+                    </select>
+                  </Field>
+                )}
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isLobbyist}
+                    onChange={(e) => set('isLobbyist', e.target.checked)}
+                    className="w-4 h-4 mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-xs text-slate-600">
+                    Contributor is a communicator lobbyist (or spouse/dependent child of one)
+                  </span>
+                </label>
               </div>
             </section>
           </div>

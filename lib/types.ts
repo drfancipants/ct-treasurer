@@ -119,6 +119,7 @@ export const SOURCE_LABELS: Record<ContributionSource, string> = {
 export interface Contributor {
   id: string
   firstName: string
+  middleInitial?: string
   lastName: string
   email?: string
   phone?: string
@@ -135,6 +136,7 @@ export interface Contribution {
   id: string
   committeeId: string
   contributor: Contributor
+  /** Full amount the donor gave, including donor-covered fees */
   amount: number
   date: string
   method: PaymentMethod
@@ -147,6 +149,22 @@ export interface Contribution {
   filedAt?: string
   /** Linked fundraising event (SEEC Section B event columns) */
   eventId?: string
+  // ── Processor detail (Anedot ledger export) ──
+  /** When the processor settled the payment */
+  processedDate?: string
+  /** What actually hit the bank after fees */
+  netAmount?: number
+  processingFee?: number
+  donorCoveredFees?: boolean
+  cardType?: string
+  cardLast4?: string
+  isRecurring?: boolean
+  campaign?: string
+  // ── SEEC answers captured at donation time (Form 20 Section B) ──
+  isStateContractor?: boolean
+  /** E | L | B — branch of government the contract is with */
+  contractorBranch?: string
+  isLobbyist?: boolean
   createdAt: string
 }
 

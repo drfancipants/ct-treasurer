@@ -267,6 +267,11 @@ export default function DonationsTable({ contributions: initial, events, rosterM
                     {!contribution.isItemized && (
                       <span className="block text-[10px] text-slate-400">non-itemized</span>
                     )}
+                    {contribution.netAmount != null && contribution.netAmount !== contribution.amount && (
+                      <span className="block text-[10px] text-slate-400" title="Amount deposited after processing fees">
+                        {formatCurrency(contribution.netAmount)} net
+                      </span>
+                    )}
                   </td>
 
                   {/* Method */}
@@ -281,7 +286,13 @@ export default function DonationsTable({ contributions: initial, events, rosterM
                       {contribution.checkNumber && (
                         <span className="ml-1 opacity-60">#{contribution.checkNumber}</span>
                       )}
+                      {contribution.cardLast4 && (
+                        <span className="ml-1 opacity-60">•{contribution.cardLast4}</span>
+                      )}
                     </span>
+                    {contribution.isRecurring && (
+                      <span className="block text-[10px] text-slate-400 mt-0.5">recurring</span>
+                    )}
                   </td>
 
                   {/* Source */}

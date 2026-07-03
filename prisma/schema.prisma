@@ -121,10 +121,11 @@ model RosterMember {
 // ─── Donors & contributions ──────────────────────────────────────────────────
 
 model Contributor {
-  id         String   @id @default(cuid())
-  firstName  String
-  lastName   String
-  email      String?
+  id            String   @id @default(cuid())
+  firstName     String
+  middleInitial String?
+  lastName      String
+  email         String?
   phone      String?
   address1   String
   address2   String?
@@ -144,7 +145,7 @@ model Contribution {
   id            String             @id @default(cuid())
   committeeId   String
   contributorId String
-  amount        Decimal            @db.Decimal(10, 2)
+  amount        Decimal            @db.Decimal(10, 2) // full amount the donor gave (incl. donor-covered fees)
   date          DateTime           @db.Date
   method        PaymentMethod
   checkNumber   String?
@@ -154,6 +155,19 @@ model Contribution {
   isItemized    Boolean            @default(true)
   filedAt       DateTime?          // Stamped when the covering period is marked filed
   eventId       String?            // Linked fundraising event (SEEC Section B event columns)
+  // ── Processor detail (from the Anedot ledger export) ──
+  processedDate    DateTime? @db.Date // when the processor settled it (vs. donation date)
+  netAmount        Decimal?  @db.Decimal(10, 2) // what actually hit the bank
+  processingFee    Decimal?  @db.Decimal(10, 2)
+  donorCoveredFees Boolean   @default(false)
+  cardType         String?   // visa | master | american_express | …
+  cardLast4        String?
+  isRecurring      Boolean   @default(false)
+  campaign         String?   // Anedot campaign / action page
+  // ── SEEC compliance answers captured at donation time (Form 20 Section B) ──
+  isStateContractor Boolean @default(false)
+  contractorBranch  String? // E | L | B (when the above is true)
+  isLobbyist        Boolean @default(false)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 

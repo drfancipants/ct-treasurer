@@ -132,7 +132,7 @@ export function populateForm20(
         i + 1,                                            //  0 Transaction ID
         c.contributor.lastName,                           //  1 Last Name
         c.contributor.firstName,                          //  2 First Name
-        '',                                               //  3 Middle Initials
+        c.contributor.middleInitial ?? '',                //  3 Middle Initials
         c.contributor.address1,                           //  4 Street Address
         c.contributor.city,                               //  5 City
         c.contributor.state,                              //  6 State
@@ -142,12 +142,12 @@ export function populateForm20(
         seecDate(c.date),                                 // 10 Date Received
         c.amount,                                         // 11 Amount
         CONTRIBUTION_METHOD[c.method] ?? 'PC',            // 12 Method code
-        'N',                                              // 13 State contractor?
-        '',                                               // 14 Which branch?
+        c.isStateContractor ? 'Y' : 'N',                  // 13 State contractor?
+        c.isStateContractor ? (c.contractorBranch ?? '') : '', // 14 Which branch?
         c.eventId && eventById.has(c.eventId) ? 'Y' : 'N',            // 15 Associated with an L1 event?
         c.eventId ? seecDate(eventById.get(c.eventId)?.date ?? '') : '', // 16 Event date
         c.eventId ? eventById.get(c.eventId)?.letter ?? '' : '',      // 17 Event letter
-        'N',                                              // 18 Lobbyist?
+        c.isLobbyist ? 'Y' : 'N',                         // 18 Lobbyist?
         'N',                                              // 19 Municipality contract?
         '',                                               // 20 Aggregate correction
       ])

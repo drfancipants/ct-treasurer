@@ -20,10 +20,22 @@ type ContributionWithContributor = {
   isItemized: boolean
   filedAt: Date | null
   eventId: string | null
+  processedDate: Date | null
+  netAmount: { toString(): string } | null
+  processingFee: { toString(): string } | null
+  donorCoveredFees: boolean
+  cardType: string | null
+  cardLast4: string | null
+  isRecurring: boolean
+  campaign: string | null
+  isStateContractor: boolean
+  contractorBranch: string | null
+  isLobbyist: boolean
   createdAt: Date
   contributor: {
     id: string
     firstName: string
+    middleInitial: string | null
     lastName: string
     email: string | null
     phone: string | null
@@ -44,6 +56,7 @@ function mapContribution(c: ContributionWithContributor): Contribution {
     contributor: {
       id: c.contributor.id,
       firstName: c.contributor.firstName,
+      middleInitial: c.contributor.middleInitial ?? undefined,
       lastName: c.contributor.lastName,
       email: c.contributor.email ?? undefined,
       phone: c.contributor.phone ?? undefined,
@@ -65,6 +78,17 @@ function mapContribution(c: ContributionWithContributor): Contribution {
     isItemized: c.isItemized,
     filedAt: c.filedAt?.toISOString() ?? undefined,
     eventId: c.eventId ?? undefined,
+    processedDate: c.processedDate?.toISOString().split('T')[0],
+    netAmount: c.netAmount ? Number(c.netAmount.toString()) : undefined,
+    processingFee: c.processingFee ? Number(c.processingFee.toString()) : undefined,
+    donorCoveredFees: c.donorCoveredFees,
+    cardType: c.cardType ?? undefined,
+    cardLast4: c.cardLast4 ?? undefined,
+    isRecurring: c.isRecurring,
+    campaign: c.campaign ?? undefined,
+    isStateContractor: c.isStateContractor,
+    contractorBranch: c.contractorBranch ?? undefined,
+    isLobbyist: c.isLobbyist,
     createdAt: c.createdAt.toISOString(),
   }
 }
@@ -79,29 +103,36 @@ export async function getContributions(committeeId: string): Promise<Contributio
   return rows.map(mapContribution)
 }
 
+interface ContributionFieldsInput {
+  amount: number
+  date: string
+  method: PaymentMethod
+  checkNumber?: string
+  memo?: string
+  isItemized: boolean
+  eventId?: string
+  isStateContractor?: boolean
+  contractorBranch?: string
+  isLobbyist?: boolean
+}
+
+interface ContributorFieldsInput {
+  firstName: string
+  middleInitial?: string
+  lastName: string
+  email?: string
+  address1: string
+  address2?: string
+  city: string
+  state: string
+  zip: string
+  employer?: string
+  occupation?: string
+}
+
 export async function createContribution(
   committeeId: string,
-  data: {
-    contributor: {
-      firstName: string
-      lastName: string
-      email?: string
-      address1: string
-      address2?: string
-      city: string
-      state: string
-      zip: string
-      employer?: string
-      occupation?: string
-    }
-    amount: number
-    date: string
-    method: PaymentMethod
-    checkNumber?: string
-    memo?: string
-    isItemized: boolean
-    eventId?: string
-  },
+  data: ContributionFieldsInput & { contributor: ContributorFieldsInput },
   committeeSlug: string
 ): Promise<Contribution> {
   const { committeeId: verifiedId } = await requireFinanceRole(committeeSlug)
@@ -119,6 +150,7 @@ export async function createContribution(
     contributor = await prisma.contributor.create({
       data: {
         firstName: data.contributor.firstName,
+        middleInitial: data.contributor.middleInitial,
         lastName: data.contributor.lastName,
         email: data.contributor.email,
         address1: data.contributor.address1,
@@ -144,6 +176,9 @@ export async function createContribution(
       source: 'MANUAL',
       isItemized: data.isItemized,
       eventId,
+      isStateContractor: data.isStateContractor ?? false,
+      contractorBranch: data.isStateContractor ? (data.contractorBranch ?? null) : null,
+      isLobbyist: data.isLobbyist ?? false,
     },
     include: { contributor: true },
   })
@@ -167,27 +202,7 @@ async function resolveEventId(eventId: string | undefined, committeeId: string):
 export async function updateContribution(
   contributionId: string,
   contributorId: string,
-  data: {
-    contributor: {
-      firstName: string
-      lastName: string
-      email?: string
-      address1: string
-      address2?: string
-      city: string
-      state: string
-      zip: string
-      employer?: string
-      occupation?: string
-    }
-    amount: number
-    date: string
-    method: PaymentMethod
-    checkNumber?: string
-    memo?: string
-    isItemized: boolean
-    eventId?: string
-  },
+  data: ContributionFieldsInput & { contributor: ContributorFieldsInput },
   committeeSlug: string
 ): Promise<Contribution> {
   const { committeeId } = await requireFinanceRole(committeeSlug)
@@ -200,6 +215,7 @@ export async function updateContribution(
     where: { id: contributorId },
     data: {
       firstName: data.contributor.firstName,
+      middleInitial: data.contributor.middleInitial ?? null,
       lastName: data.contributor.lastName,
       email: data.contributor.email ?? null,
       address1: data.contributor.address1,
@@ -222,6 +238,9 @@ export async function updateContribution(
       memo: data.memo ?? null,
       isItemized: data.isItemized,
       eventId,
+      isStateContractor: data.isStateContractor ?? false,
+      contractorBranch: data.isStateContractor ? (data.contractorBranch ?? null) : null,
+      isLobbyist: data.isLobbyist ?? false,
     },
     include: { contributor: true },
   })
@@ -275,7 +294,8 @@ export async function importContributions(
     try {
       const c = await prisma.contributor.create({
         data: {
-          firstName: r.firstName, lastName: r.lastName, email: r.email, phone: r.phone,
+          firstName: r.firstName, middleInitial: r.middleInitial, lastName: r.lastName,
+          email: r.email, phone: r.phone,
           address1: r.address1, address2: r.address2,
           city: r.city, state: r.state || 'CT', zip: r.zip,
           employer: r.employer, occupation: r.occupation,
@@ -293,7 +313,7 @@ export async function importContributions(
     try {
       const c = await prisma.contributor.create({
         data: {
-          firstName: r.firstName, lastName: r.lastName, phone: r.phone,
+          firstName: r.firstName, middleInitial: r.middleInitial, lastName: r.lastName, phone: r.phone,
           address1: r.address1, address2: r.address2,
           city: r.city, state: r.state || 'CT', zip: r.zip,
           employer: r.employer, occupation: r.occupation,
@@ -305,30 +325,35 @@ export async function importContributions(
   }
 
   // 4. Build contribution records and batch-insert (skipDuplicates handles anedotId conflicts)
-  type ContributionInput = { committeeId: string; contributorId: string; amount: number; date: Date; method: PaymentMethod; checkNumber: string | null; memo: string | null; source: 'ANEDOT'; anedotId: string | null; isItemized: boolean }
-  const contributionData: ContributionInput[] = []
+  const toContributionData = (r: ParsedRow, contributorId: string) => ({
+    committeeId, contributorId, amount: r.amount,
+    date: new Date(r.date), method: r.method,
+    checkNumber: r.checkNumber ?? null, memo: r.memo ?? null,
+    source: 'ANEDOT' as const, anedotId: r.anedotId ?? null,
+    isItemized: r.amount >= 50,
+    processedDate: r.processedDate ? new Date(r.processedDate) : null,
+    netAmount: r.netAmount ?? null,
+    processingFee: r.processingFee ?? null,
+    donorCoveredFees: r.donorCoveredFees ?? false,
+    cardType: r.cardType ?? null,
+    cardLast4: r.cardLast4 ?? null,
+    isRecurring: r.isRecurring ?? false,
+    campaign: r.campaign ?? null,
+    isStateContractor: r.isStateContractor ?? false,
+    contractorBranch: r.contractorBranch ?? null,
+    isLobbyist: r.isLobbyist ?? false,
+  })
+  const contributionData: ReturnType<typeof toContributionData>[] = []
   for (const r of validRows.filter(r => r.email)) {
     const contributorId = emailToId.get(r.email!.toLowerCase())
     if (!contributorId) continue
-    contributionData.push({
-      committeeId, contributorId, amount: r.amount,
-      date: new Date(r.date), method: r.method,
-      checkNumber: r.checkNumber ?? null, memo: r.memo ?? null,
-      source: 'ANEDOT', anedotId: r.anedotId ?? null,
-      isItemized: r.amount >= 50,
-    })
+    contributionData.push(toContributionData(r, contributorId))
   }
   let noEmailIdx = 0
   for (const r of noEmailRows) {
     const contributorId = noEmailIds[noEmailIdx++]
     if (!contributorId) continue
-    contributionData.push({
-      committeeId, contributorId, amount: r.amount,
-      date: new Date(r.date), method: r.method,
-      checkNumber: r.checkNumber ?? null, memo: r.memo ?? null,
-      source: 'ANEDOT', anedotId: r.anedotId ?? null,
-      isItemized: r.amount >= 50,
-    })
+    contributionData.push(toContributionData(r, contributorId))
   }
 
   // Insert and return the created rows (with real DB IDs) in one statement,

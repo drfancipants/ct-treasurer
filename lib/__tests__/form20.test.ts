@@ -106,6 +106,22 @@ describe('populateForm20 (against the real eCRIS template)', () => {
     expect(signage[15]).toBe('A-SIGN')
   })
 
+  it('writes middle initial, state-contractor, and lobbyist answers to Section B', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const flagged = makeContribution({
+      id: 'don_flags', amount: 100, date: '2026-05-01',
+      isStateContractor: true, contractorBranch: 'L', isLobbyist: true,
+      contributor: { middleInitial: 'Q' },
+    })
+    const out = populateForm20(template, [flagged], [], Q2_START, Q2_END)
+    const r = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section B'], { header: 1 })[1]
+    expect(r[3]).toBe('Q')    // middle initial
+    expect(r[13]).toBe('Y')   // state contractor
+    expect(r[14]).toBe('L')   // branch
+    expect(r[18]).toBe('Y')   // lobbyist
+  })
+
   it('maps legacy app categories to SEEC codes', () => {
     const buf = readFileSync(TEMPLATE_PATH)
     const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)

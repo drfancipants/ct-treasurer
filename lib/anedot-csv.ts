@@ -10,8 +10,10 @@ const COL: Record<string, string> = {
   'Date': 'date',
   'Created At': 'date',
   'Donation Date': 'date',
+  'Processed Date': 'processedDate',
   // Name
   'First Name': 'firstName',
+  'Middle Initial': 'middleInitial',
   'Last Name': 'lastName',
   // Contact
   'Email': 'email',
@@ -24,9 +26,21 @@ const COL: Record<string, string> = {
   'Amount': 'amount',
   'Total Amount': 'amount',
   'Donation Amount': 'amount',
+  // Processor money detail (ledger export)
+  'Net Amount': 'netAmount',
+  'Anedot Fee': 'fee',
+  'Donor Covered Fees': 'donorCoveredFees',
   // Method
   'Payment Method': 'method',
   'Payment Type': 'method',
+  'Source Type': 'method', // ledger export: credit_card / check / …
+  'Card Type': 'cardType',
+  'Card Last 4': 'cardLast4',
+  // Record type (ledger export mixes donations with refunds/withdrawals)
+  'Type': 'recordType',
+  // Recurring / campaign
+  'Recurring': 'recurring',
+  'Campaign': 'campaign',
   // Check
   'Check Number': 'checkNumber',
   'Check #': 'checkNumber',
@@ -64,6 +78,20 @@ const COL: Record<string, string> = {
   'Status': 'status',
 }
 
+/**
+ * The ledger export's CT compliance questions have long free-text headers with
+ * embedded line breaks, so they're matched by substring (on a normalized
+ * header) instead of exactly.
+ */
+const FUZZY_COL: [string, string][] = [
+  ['principal of a state contractor', 'stateContractorAnswer'],
+  ['communicator lobbyist', 'lobbyistAnswer'],
+  // CT committees collect employer/occupation via custom questions; the
+  // built-in Employer/Occupation columns are often empty in ledger exports
+  ['name of employer', 'employer'],
+  ['principal occupation', 'occupation'],
+]
+
 // Known Anedot-format header signatures
 const ANEDOT_SIGNATURES = ['Donation ID', 'UID', 'Action Page', 'Campaign']
 
@@ -88,6 +116,7 @@ export interface ParsedRow {
   anedotId?: string
   date: string
   firstName: string
+  middleInitial?: string
   lastName: string
   email?: string
   phone?: string
@@ -102,6 +131,19 @@ export interface ParsedRow {
   zip: string
   employer?: string
   occupation?: string
+  // Processor detail (ledger export)
+  processedDate?: string
+  netAmount?: number
+  processingFee?: number
+  donorCoveredFees?: boolean
+  cardType?: string
+  cardLast4?: string
+  isRecurring?: boolean
+  campaign?: string
+  // SEEC answers (ledger export)
+  isStateContractor?: boolean
+  contractorBranch?: string
+  isLobbyist?: boolean
   // Flags
   seecIssues: string[]
   limitIssues: string[]
@@ -134,8 +176,13 @@ function parseAmount(raw: string): number {
 }
 
 function parseDate(raw: string): string {
-  // Handle "2024-03-22T17:36:09Z", "2024-03-22 17:36:09 UTC", "03/22/2024"
+  // Handle "2024-03-22T17:36:09Z", "2024-03-22 17:36:09 UTC",
+  // "2026-04-09 20:57:08 -0400", "03/22/2024"
   if (!raw) return ''
+  // ISO-dated strings: take the date part as-is — round-tripping through
+  // Date would shift evening times with timezone offsets to the next day
+  const iso = raw.trim().match(/^(\d{4}-\d{2}-\d{2})/)
+  if (iso) return iso[1]
   const clean = raw.trim().replace(' UTC', 'Z').replace(' ', 'T')
   const d = new Date(clean)
   if (isNaN(d.getTime())) return ''
@@ -146,11 +193,35 @@ function parseMethod(raw: string): PaymentMethod {
   return METHOD_MAP[raw.toLowerCase().trim()] ?? 'OTHER'
 }
 
+function parseBoolish(raw: string | undefined): boolean {
+  const v = raw?.trim().toLowerCase() ?? ''
+  return v !== '' && !['no', 'false', '0', 'none', 'one-time', 'once'].includes(v)
+}
+
+/** "No" → false; "Yes …Executive…" → true + E; Legislative → L; both → B */
+function parseContractorAnswer(raw: string | undefined): { isStateContractor: boolean; branch?: string } {
+  const v = raw?.trim().toLowerCase() ?? ''
+  if (!v || v.startsWith('no')) return { isStateContractor: false }
+  const exec = v.includes('exec')
+  const legis = v.includes('legis')
+  return {
+    isStateContractor: true,
+    branch: exec && legis ? 'B' : exec ? 'E' : legis ? 'L' : undefined,
+  }
+}
+
 function mapRow(raw: Record<string, string>): Record<string, string> {
   const mapped: Record<string, string> = {}
   for (const [header, value] of Object.entries(raw)) {
-    const key = COL[header.trim()]
-    if (key) mapped[key] = value?.trim() ?? ''
+    const v = value?.trim() ?? ''
+    let key: string | undefined = COL[header.trim()]
+    if (!key) {
+      const normalized = header.toLowerCase().replace(/\s+/g, ' ')
+      key = FUZZY_COL.find(([needle]) => normalized.includes(needle))?.[1]
+    }
+    // Several headers can map to one key (e.g. two lobbyist questions) —
+    // an affirmative/filled value must not be clobbered by an empty one
+    if (key && !(key in mapped && (!v || v.toLowerCase() === 'no'))) mapped[key] = v
   }
   return mapped
 }
@@ -200,6 +271,30 @@ export function parseAnedotCsv(
 
   const rows: ParsedRow[] = data.map((raw, idx) => {
     const m = mapRow(raw)
+
+    // Ledger exports mix donations with refunds, withdrawals, and fees —
+    // only Donation rows are contributions
+    if (m.recordType && m.recordType.toLowerCase() !== 'donation') {
+      return {
+        rowIndex: idx + 2,
+        anedotId: m.anedotId || undefined,
+        date: '',
+        firstName: m.firstName ?? '',
+        lastName: m.lastName ?? '',
+        amount: 0,
+        method: 'OTHER' as PaymentMethod,
+        address1: '',
+        city: '',
+        state: '',
+        zip: '',
+        seecIssues: [],
+        limitIssues: [],
+        isDuplicate: false,
+        isError: true,
+        errorMessage: `Skipped — type: ${m.recordType}`,
+        rawRow: raw,
+      }
+    }
 
     // Skip refunds / non-completed
     if (m.status && !['completed', 'complete', ''].includes(m.status.toLowerCase())) {
@@ -263,16 +358,26 @@ export function parseAnedotCsv(
       (m.email ? rosterByEmail.get(m.email.toLowerCase()) : undefined) ??
       rosterByName.get(`${firstName.trim().toLowerCase()}|${lastName.trim().toLowerCase()}`)
 
+    // Ledger export has no Payment Method column — derive from Source Type
+    // (mapped to method) and fall back to card presence
+    let method = parseMethod(m.method ?? '')
+    if (method === 'OTHER' && (m.cardType || m.cardLast4)) method = 'CREDIT_CARD'
+
+    const netAmount = m.netAmount ? parseAmount(m.netAmount) : NaN
+    const fee = m.fee ? parseAmount(m.fee) : NaN
+    const contractor = parseContractorAnswer(m.stateContractorAnswer)
+
     return {
       rowIndex: idx + 2,
       anedotId: m.anedotId || undefined,
       date,
       firstName,
+      middleInitial: m.middleInitial ? m.middleInitial.slice(0, 1) : undefined,
       lastName,
       email: m.email || undefined,
       phone: m.phone || undefined,
       amount,
-      method: parseMethod(m.method ?? ''),
+      method,
       checkNumber: m.checkNumber || undefined,
       memo: m.memo || undefined,
       address1,
@@ -282,6 +387,17 @@ export function parseAnedotCsv(
       zip,
       employer,
       occupation,
+      processedDate: m.processedDate ? parseDate(m.processedDate) || undefined : undefined,
+      netAmount: isNaN(netAmount) ? undefined : netAmount,
+      processingFee: isNaN(fee) ? undefined : fee,
+      donorCoveredFees: m.donorCoveredFees ? parseBoolish(m.donorCoveredFees) : undefined,
+      cardType: m.cardType || undefined,
+      cardLast4: m.cardLast4 || undefined,
+      isRecurring: m.recurring ? parseBoolish(m.recurring) : undefined,
+      campaign: m.campaign || undefined,
+      isStateContractor: m.stateContractorAnswer ? contractor.isStateContractor : undefined,
+      contractorBranch: contractor.branch,
+      isLobbyist: m.lobbyistAnswer ? m.lobbyistAnswer.trim().toLowerCase().startsWith('yes') : undefined,
       seecIssues,
       limitIssues: [],
       isDuplicate,
@@ -346,6 +462,7 @@ export function parsedRowToContribution(
     contributor: {
       id: `con_import_${uid}`,
       firstName: row.firstName,
+      middleInitial: row.middleInitial,
       lastName: row.lastName,
       email: row.email,
       phone: row.phone,
@@ -365,6 +482,17 @@ export function parsedRowToContribution(
     source: 'ANEDOT',
     anedotId: row.anedotId,
     isItemized: row.amount >= 50,
+    processedDate: row.processedDate,
+    netAmount: row.netAmount,
+    processingFee: row.processingFee,
+    donorCoveredFees: row.donorCoveredFees,
+    cardType: row.cardType,
+    cardLast4: row.cardLast4,
+    isRecurring: row.isRecurring,
+    campaign: row.campaign,
+    isStateContractor: row.isStateContractor,
+    contractorBranch: row.contractorBranch,
+    isLobbyist: row.isLobbyist,
     createdAt: new Date().toISOString(),
   }
 }
