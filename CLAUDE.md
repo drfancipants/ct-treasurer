@@ -22,7 +22,7 @@ The Prisma CLI only reads `.env`; Next.js runtime reads `.env.local`. Both must 
 
 ## Deployment
 
-Production runs on Vercel: **https://ct-treasurer.vercel.app** (project `ct-treasurer`, deployed via `npx vercel --prod` from this directory — no git integration yet). All env vars from `.env.local` are mirrored in Vercel production, except `NEXT_PUBLIC_APP_URL` (set to the production URL) and `STRIPE_WEBHOOK_SECRET` (the production value is the signing secret of the Stripe webhook endpoint registered at `/api/webhooks/stripe`, not the local CLI one). `postinstall` runs `prisma generate` for Vercel builds. Production uses the same Supabase database as local dev and Plaid sandbox.
+Production runs on Vercel: **https://ct-treasurer.vercel.app** (project `ct-treasurer`, deployed via `npx vercel --prod` from this directory — no git integration yet). Most env vars from `.env.local` are mirrored in Vercel production, except: `NEXT_PUBLIC_APP_URL` (set to the production URL), `STRIPE_WEBHOOK_SECRET` (the production value is the signing secret of the Stripe webhook endpoint registered at `/api/webhooks/stripe`, not the local CLI one), and **all Supabase/database vars** (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL`) — local dev and production point at **separate Supabase projects** (separate Postgres databases and separate Auth user pools), so a `User.id` or committee that exists in one does not exist in the other. `postinstall` runs `prisma generate` for Vercel builds.
 
 ## Architecture
 
