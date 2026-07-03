@@ -59,6 +59,32 @@ export interface CommitteeMember {
   joinedAt: string
 }
 
+// ─── Committee roster ─────────────────────────────────────────────────────────
+
+/**
+ * A member of the political committee itself (the DTC/RTC roster) — distinct
+ * from CommitteeMember, which is an app user with login access.
+ */
+export interface RosterMember {
+  id: string
+  committeeId: string
+  firstName: string
+  lastName: string
+  email?: string
+  phone?: string
+  address1?: string
+  address2?: string
+  city?: string
+  state: string
+  zip?: string
+  isActive: boolean
+  duesPaid: boolean
+  notes?: string
+  /** Sum of this committee's contributions from the Contributor matching this email (derived, read-only) */
+  contributionTotal: number
+  createdAt: string
+}
+
 // ─── Contributions ───────────────────────────────────────────────────────────
 
 export type PaymentMethod =

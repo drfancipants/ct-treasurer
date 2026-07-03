@@ -49,6 +49,7 @@ model Committee {
   committeeContributions CommitteeContribution[]
   inKindContributions    InKindContribution[]
   reimbursements         Reimbursement[]
+  rosterMembers          RosterMember[]
 }
 
 // ─── Users & membership ──────────────────────────────────────────────────────
@@ -85,6 +86,31 @@ enum MemberRole {
   SECRETARY
   MEMBER
   VIEWER
+}
+
+// ─── Committee roster (the political body's member list, not app users) ──────
+
+model RosterMember {
+  id          String   @id @default(cuid())
+  committeeId String
+  firstName   String
+  lastName    String
+  email       String?  // also the match key for contribution totals (Contributor.email)
+  phone       String?
+  address1    String?
+  address2    String?
+  city        String?
+  state       String   @default("CT")
+  zip         String?
+  isActive    Boolean  @default(true)
+  duesPaid    Boolean  @default(false)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+
+  @@index([committeeId, lastName])
 }
 
 // ─── Donors & contributions ──────────────────────────────────────────────────

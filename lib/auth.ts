@@ -47,3 +47,25 @@ export async function requireFinanceRole(committeeSlug: string) {
   if (!canEditFinances(ctx.role)) throw new Error('Forbidden')
   return ctx
 }
+
+/**
+ * Roles allowed to maintain the committee roster (member list, dues, active
+ * status). Not a financial record, so officers beyond the treasurer may edit.
+ */
+export const ROSTER_ROLES: MemberRole[] = [
+  MemberRole.TREASURER,
+  MemberRole.ASSISTANT_TREASURER,
+  MemberRole.CHAIRPERSON,
+  MemberRole.SECRETARY,
+]
+
+export function canEditRoster(role: string): boolean {
+  return (ROSTER_ROLES as string[]).includes(role)
+}
+
+/** Verify membership AND a role that may maintain the committee roster. */
+export async function requireRosterRole(committeeSlug: string) {
+  const ctx = await requireCommitteeMember(committeeSlug)
+  if (!canEditRoster(ctx.role)) throw new Error('Forbidden')
+  return ctx
+}
