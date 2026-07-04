@@ -124,7 +124,7 @@ export default function CommitteeContributionDialog({
           )}
 
           <Field label="Contributing committee" required>
-            <input value={form.fromName} onChange={(e) => set('fromName', e.target.value)} placeholder="Madison Democratic Town Committee" className={inputCls} maxLength={25} />
+            <input value={form.fromName} onChange={(e) => set('fromName', e.target.value)} placeholder="Madison Democratic Town Committee" className={inputCls} />
           </Field>
           <Field label="Treasurer name">
             <input value={form.treasurerName} onChange={(e) => set('treasurerName', e.target.value)} placeholder="Jane Smith" className={inputCls} maxLength={25} />
