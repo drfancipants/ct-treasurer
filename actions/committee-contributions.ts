@@ -17,6 +17,7 @@ type PrismaRow = {
   date: Date
   amount: { toString(): string }
   method: string | null
+  checkNumber: string | null
   eventId: string | null
   memo: string | null
   filedAt: Date | null
@@ -36,6 +37,7 @@ function mapRow(r: PrismaRow): CommitteeContribution {
     date: r.date.toISOString().split('T')[0],
     amount: Number(r.amount.toString()),
     method: (r.method as PaymentMethod) ?? undefined,
+    checkNumber: r.checkNumber ?? undefined,
     eventId: r.eventId ?? undefined,
     memo: r.memo ?? undefined,
     filedAt: r.filedAt?.toISOString() ?? undefined,
@@ -53,6 +55,7 @@ export interface CommitteeContributionInput {
   date: string
   amount: number
   method?: PaymentMethod
+  checkNumber?: string
   eventId?: string
   memo?: string
 }
@@ -92,6 +95,7 @@ export async function createCommitteeContribution(
       date: new Date(data.date),
       amount: data.amount,
       method: data.method || null,
+      checkNumber: data.checkNumber || null,
       eventId,
       memo: data.memo || null,
     },
@@ -123,6 +127,7 @@ export async function updateCommitteeContribution(
       date: new Date(data.date),
       amount: data.amount,
       method: data.method || null,
+      checkNumber: data.checkNumber || null,
       eventId,
       memo: data.memo || null,
     },

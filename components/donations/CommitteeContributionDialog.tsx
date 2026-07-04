@@ -31,6 +31,7 @@ type FormState = {
   date: string
   amount: string
   method: PaymentMethod | ''
+  checkNumber: string
   eventId: string
   memo: string
 }
@@ -46,6 +47,7 @@ function initial(c?: CommitteeContribution): FormState {
     date: c?.date ?? new Date().toISOString().split('T')[0],
     amount: c ? c.amount.toFixed(2) : '',
     method: c?.method ?? '',
+    checkNumber: c?.checkNumber ?? '',
     eventId: c?.eventId ?? '',
     memo: c?.memo ?? '',
   }
@@ -84,6 +86,7 @@ export default function CommitteeContributionDialog({
       date: form.date,
       amount,
       method: form.method || undefined,
+      checkNumber: form.checkNumber.trim() || undefined,
       eventId: form.eventId || undefined,
       memo: form.memo.trim() || undefined,
     }
@@ -143,14 +146,21 @@ export default function CommitteeContributionDialog({
             </Field>
           </div>
 
-          <Field label="Donation method">
-            <select value={form.method} onChange={(e) => set('method', e.target.value as PaymentMethod | '')} className={inputCls}>
-              <option value="">— Unspecified —</option>
-              {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map((m) => (
-                <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
-              ))}
-            </select>
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Donation method">
+              <select value={form.method} onChange={(e) => set('method', e.target.value as PaymentMethod | '')} className={inputCls}>
+                <option value="">— Unspecified —</option>
+                {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map((m) => (
+                  <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
+                ))}
+              </select>
+            </Field>
+            {form.method === 'CHECK' && (
+              <Field label="Check number">
+                <input value={form.checkNumber} onChange={(e) => set('checkNumber', e.target.value)} placeholder="e.g. 1042" className={inputCls} />
+              </Field>
+            )}
+          </div>
 
           {events.length > 0 && (
             <Field label="Linked event (optional)">

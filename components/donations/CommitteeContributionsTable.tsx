@@ -114,6 +114,7 @@ export default function CommitteeContributionsTable({ contributions: initial, ev
                   {r.method ? (
                     <span className={cn('inline-flex px-2 py-0.5 rounded-md text-xs font-medium', METHOD_COLORS[r.method])}>
                       {PAYMENT_METHOD_LABELS[r.method]}
+                      {r.checkNumber && <span className="ml-1 opacity-60">#{r.checkNumber}</span>}
                     </span>
                   ) : (
                     <span className="text-xs text-slate-400">—</span>

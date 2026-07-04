@@ -233,6 +233,7 @@ model CommitteeContribution {
   date          DateTime @db.Date
   amount        Decimal  @db.Decimal(10, 2)
   method        PaymentMethod?
+  checkNumber   String?
   eventId       String?  // optional link to an L1 event
   memo          String?
   filedAt       DateTime? // Stamped when the covering period is marked filed

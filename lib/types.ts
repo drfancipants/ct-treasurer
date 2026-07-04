@@ -411,6 +411,7 @@ export interface CommitteeContribution {
   date: string
   amount: number
   method?: PaymentMethod
+  checkNumber?: string
   eventId?: string
   memo?: string
   filedAt?: string
