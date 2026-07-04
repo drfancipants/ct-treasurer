@@ -287,8 +287,11 @@ function UploadStep({
 
 function PreviewStep({ result }: { result: ParseResult }) {
   const { rows, formatDetected, importableCount, duplicateCount, seecIssueCount, limitIssueCount, errorCount } = result
+  const [errorsOnly, setErrorsOnly] = useState(false)
 
-  const previewRows = rows.slice(0, 25)
+  const errorRows = rows.filter((r) => r.isError)
+  const displayRows = errorsOnly ? errorRows : rows
+  const previewRows = displayRows.slice(0, 25)
 
   return (
     <div className="p-6 space-y-4">
@@ -312,8 +315,26 @@ function PreviewStep({ result }: { result: ParseResult }) {
         {duplicateCount > 0 && <Pill color="slate" label={`${duplicateCount} already imported`} value="Skipping" />}
         {seecIssueCount > 0 && <Pill color="amber" label={`${seecIssueCount} SEEC issues`} value="Will flag" />}
         {limitIssueCount > 0 && <Pill color="red" label={`${limitIssueCount} over contribution limit`} value="Review" />}
-        {errorCount > 0 && <Pill color="red" label={`${errorCount} errors`} value="Skipping" />}
+        {errorCount > 0 && (
+          <button type="button" onClick={() => setErrorsOnly((v) => !v)}>
+            <Pill color="red" label={`${errorCount} error${errorCount !== 1 ? 's' : ''}`} value="Skipping" />
+          </button>
+        )}
       </div>
+
+      {errorCount > 0 && (
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={errorsOnly}
+              onChange={(e) => setErrorsOnly(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-slate-700">Show only skipped rows with errors</span>
+          </label>
+        </div>
+      )}
 
       {/* Preview table */}
       <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -367,12 +388,19 @@ function PreviewStep({ result }: { result: ParseResult }) {
                   </td>
                 </tr>
               ))}
+              {previewRows.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-3 py-8 text-center text-slate-400">
+                    No rows with errors
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-        {rows.length > 25 && (
+        {displayRows.length > 25 && (
           <div className="px-4 py-2.5 border-t border-slate-200 bg-slate-50 text-xs text-slate-500 text-center">
-            Showing 25 of {rows.length} rows
+            Showing 25 of {displayRows.length} {errorsOnly ? 'error rows' : 'rows'}
           </div>
         )}
       </div>
