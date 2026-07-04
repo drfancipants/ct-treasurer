@@ -24,6 +24,10 @@ interface FormData {
   amount: string
   date: string
   payee: string
+  payeeAddress1: string
+  payeeCity: string
+  payeeState: string
+  payeeZip: string
   purpose: string
   category: ExpenseCategory
   method: PaymentMethod
@@ -36,6 +40,10 @@ const EMPTY: FormData = {
   amount: '',
   date: new Date().toISOString().split('T')[0],
   payee: '',
+  payeeAddress1: '',
+  payeeCity: '',
+  payeeState: '',
+  payeeZip: '',
   purpose: '',
   category: 'MISC',
   method: 'CHECK',
@@ -52,6 +60,10 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
           amount: expenditure.amount.toFixed(2),
           date: expenditure.date,
           payee: expenditure.payee,
+          payeeAddress1: expenditure.payeeAddress1 ?? '',
+          payeeCity: expenditure.payeeCity ?? '',
+          payeeState: expenditure.payeeState ?? '',
+          payeeZip: expenditure.payeeZip ?? '',
           purpose: expenditure.purpose,
           category: expenditure.category,
           method: expenditure.method,
@@ -90,6 +102,10 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
         committeeId,
         {
           name: form.payee.trim(),
+          address1: form.payeeAddress1.trim() || undefined,
+          city: form.payeeCity.trim() || undefined,
+          state: form.payeeState.trim() || undefined,
+          zip: form.payeeZip.trim() || undefined,
           defaultCategory: form.category,
           defaultPurpose: form.purpose.trim() || undefined,
         },
@@ -125,6 +141,10 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
         amount: parseFloat(form.amount),
         date: form.date,
         payee: form.payee.trim(),
+        payeeAddress1: form.payeeAddress1.trim() || undefined,
+        payeeCity: form.payeeCity.trim() || undefined,
+        payeeState: form.payeeState.trim() || undefined,
+        payeeZip: form.payeeZip.trim() || undefined,
         purpose: form.purpose.trim(),
         category: form.category,
         method: form.method,
@@ -216,6 +236,10 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
                   setForm((prev) => ({
                     ...prev,
                     payee: p.name,
+                    payeeAddress1: p.address1 ?? prev.payeeAddress1,
+                    payeeCity: p.city ?? prev.payeeCity,
+                    payeeState: p.state ?? prev.payeeState,
+                    payeeZip: p.zip ?? prev.payeeZip,
                     category: p.defaultCategory,
                     purpose: p.defaultPurpose ?? prev.purpose,
                   }))
@@ -241,6 +265,47 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
               className={inputCls(!!errors.payee)}
             />
           </Field>
+
+          {/* Payee address (optional — SEEC Form 20 supports it but doesn't require it) */}
+          <Field label="Payee street address (optional)">
+            <input
+              type="text"
+              value={form.payeeAddress1}
+              onChange={(e) => set('payeeAddress1', e.target.value)}
+              placeholder="12 Elm Street"
+              className={inputCls(false)}
+            />
+          </Field>
+          <div className="grid grid-cols-3 gap-4">
+            <Field label="City">
+              <input
+                type="text"
+                value={form.payeeCity}
+                onChange={(e) => set('payeeCity', e.target.value)}
+                placeholder="Guilford"
+                className={inputCls(false)}
+              />
+            </Field>
+            <Field label="State">
+              <input
+                type="text"
+                value={form.payeeState}
+                onChange={(e) => set('payeeState', e.target.value)}
+                placeholder="CT"
+                maxLength={2}
+                className={inputCls(false)}
+              />
+            </Field>
+            <Field label="ZIP">
+              <input
+                type="text"
+                value={form.payeeZip}
+                onChange={(e) => set('payeeZip', e.target.value)}
+                placeholder="06437"
+                className={inputCls(false)}
+              />
+            </Field>
+          </div>
 
           {/* Category + Purpose */}
           <div className="grid grid-cols-2 gap-4">

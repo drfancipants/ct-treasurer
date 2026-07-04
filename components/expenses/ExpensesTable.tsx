@@ -99,6 +99,10 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
         committeeId,
         {
           name: expense.payee,
+          address1: expense.payeeAddress1,
+          city: expense.payeeCity,
+          state: expense.payeeState,
+          zip: expense.payeeZip,
           defaultCategory: expense.category,
           defaultPurpose: expense.purpose,
         },

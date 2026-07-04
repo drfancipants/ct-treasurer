@@ -12,6 +12,10 @@ type PrismaExpenditure = {
   amount: { toString(): string }
   date: Date
   payee: string
+  payeeAddress1: string | null
+  payeeCity: string | null
+  payeeState: string | null
+  payeeZip: string | null
   purpose: string
   category: string
   method: string
@@ -29,6 +33,10 @@ function mapExpenditure(e: PrismaExpenditure): Expenditure {
     amount: Number(e.amount.toString()),
     date: e.date.toISOString().split('T')[0],
     payee: e.payee,
+    payeeAddress1: e.payeeAddress1 ?? undefined,
+    payeeCity: e.payeeCity ?? undefined,
+    payeeState: e.payeeState ?? undefined,
+    payeeZip: e.payeeZip ?? undefined,
     purpose: e.purpose,
     category: e.category as ExpenseCategory,
     method: e.method as PaymentMethod,
@@ -55,6 +63,10 @@ export async function createExpenditure(
     amount: number
     date: string
     payee: string
+    payeeAddress1?: string
+    payeeCity?: string
+    payeeState?: string
+    payeeZip?: string
     purpose: string
     category: ExpenseCategory
     method: PaymentMethod
@@ -74,6 +86,10 @@ export async function createExpenditure(
       amount: data.amount,
       date: new Date(data.date),
       payee: data.payee,
+      payeeAddress1: data.payeeAddress1 || null,
+      payeeCity: data.payeeCity || null,
+      payeeState: data.payeeState || null,
+      payeeZip: data.payeeZip || null,
       purpose: data.purpose,
       category: data.category,
       method: data.method,
@@ -102,6 +118,10 @@ export async function updateExpenditure(
     amount: number
     date: string
     payee: string
+    payeeAddress1?: string
+    payeeCity?: string
+    payeeState?: string
+    payeeZip?: string
     purpose: string
     category: ExpenseCategory
     method: PaymentMethod
@@ -122,6 +142,10 @@ export async function updateExpenditure(
       amount: data.amount,
       date: new Date(data.date),
       payee: data.payee,
+      payeeAddress1: data.payeeAddress1 || null,
+      payeeCity: data.payeeCity || null,
+      payeeState: data.payeeState || null,
+      payeeZip: data.payeeZip || null,
       purpose: data.purpose,
       category: data.category,
       method: data.method,

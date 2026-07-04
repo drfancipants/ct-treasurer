@@ -106,6 +106,28 @@ describe('populateForm20 (against the real eCRIS template)', () => {
     expect(signage[15]).toBe('A-SIGN')
   })
 
+  it('writes an optional payee address to Section P when present, blank when not', () => {
+    const buf = readFileSync(TEMPLATE_PATH)
+    const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+    const withAddress = makeExpenditure({
+      id: 'exp_addr', date: '2026-05-01', payee: 'Shoreline Printing',
+      payeeAddress1: '45 Main St', payeeCity: 'Guilford', payeeState: 'CT', payeeZip: '06437',
+    })
+    const withoutAddress = makeExpenditure({ id: 'exp_noaddr', date: '2026-05-02', payee: 'SignCo' })
+    const out = populateForm20(template, [], [withAddress, withoutAddress], Q2_START, Q2_END)
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section P'], { header: 1 })
+
+    expect(rows[1][2]).toBe('45 Main St')  // street
+    expect(rows[1][3]).toBe('Guilford')    // city
+    expect(rows[1][4]).toBe('CT')          // state
+    expect(rows[1][5]).toBe('06437')       // zip
+
+    expect(rows[2][2]).toBe('')
+    expect(rows[2][3]).toBe('')
+    expect(rows[2][4]).toBe('')
+    expect(rows[2][5]).toBe('')
+  })
+
   it('writes middle initial, state-contractor, and lobbyist answers to Section B', () => {
     const buf = readFileSync(TEMPLATE_PATH)
     const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)

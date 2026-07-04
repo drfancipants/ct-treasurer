@@ -318,6 +318,11 @@ model Expenditure {
   amount      Decimal       @db.Decimal(10, 2)
   date        DateTime      @db.Date
   payee       String
+  // Optional — SEEC Form 20 Section P has payee address columns marked "(optional)"
+  payeeAddress1 String?
+  payeeCity     String?
+  payeeState    String?
+  payeeZip      String?
   purpose     String
   // SEEC Section P purpose code (e.g. "A-RAD", "PRNT") — see lib/types.ts
   category    String        @default("MISC")

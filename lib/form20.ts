@@ -162,10 +162,10 @@ export function populateForm20(
       const rows = expends.map((e, i) => [
         i + 1,                                            //  0 Transaction ID
         e.payee,                                          //  1 Payee Name
-        '',                                               //  2 Street Address (optional)
-        '',                                               //  3 City
-        '',                                               //  4 State
-        '',                                               //  5 Zip
+        e.payeeAddress1 ?? '',                            //  2 Street Address (optional)
+        e.payeeCity ?? '',                                //  3 City
+        e.payeeState ?? '',                                //  4 State
+        e.payeeZip ?? '',                                 //  5 Zip
         seecDate(e.date),                                 //  6 Date of Payment
         e.amount,                                         //  7 Amount
         EXPENDITURE_METHOD[e.method] ?? 'CH',             //  8 Method code

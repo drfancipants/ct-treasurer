@@ -328,6 +328,11 @@ export interface Expenditure {
   amount: number
   date: string
   payee: string
+  /** Optional — SEEC Form 20 Section P has payee address columns marked "(optional)" */
+  payeeAddress1?: string
+  payeeCity?: string
+  payeeState?: string
+  payeeZip?: string
   purpose: string
   category: ExpenseCategory
   method: PaymentMethod
