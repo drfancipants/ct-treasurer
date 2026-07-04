@@ -3,6 +3,7 @@ import { getCommitteeBySlug } from '@/actions/committees'
 import { requireCommitteeMember, canEditFinances } from '@/lib/auth'
 import { getExpenditures, getUnrecordedAnedotFees } from '@/actions/expenses'
 import { getContributions } from '@/actions/donations'
+import { getCommitteeContributions } from '@/actions/committee-contributions'
 import { getReimbursements } from '@/actions/reimbursements'
 import { getPayees } from '@/actions/payees'
 import ExpensesTabs from '@/components/expenses/ExpensesTabs'
@@ -20,9 +21,10 @@ export default async function ExpensesPage({ params }: Props) {
   const { role } = await requireCommitteeMember(committeeSlug)
   const canEdit = canEditFinances(role)
 
-  const [expenditures, contributions, events, reimbursements, unrecordedFees, payees] = await Promise.all([
+  const [expenditures, contributions, committeeContributions, events, reimbursements, unrecordedFees, payees] = await Promise.all([
     getExpenditures(committee.id),
     getContributions(committee.id),
+    getCommitteeContributions(committee.id),
     getEvents(committee.id),
     getReimbursements(committee.id),
     getUnrecordedAnedotFees(committee.id),
@@ -35,6 +37,7 @@ export default async function ExpensesPage({ params }: Props) {
         <ExpensesTabs
           expenditures={expenditures}
           contributions={contributions}
+          committeeContributions={committeeContributions}
           reimbursements={reimbursements}
           events={events}
           payees={payees}

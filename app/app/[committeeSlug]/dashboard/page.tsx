@@ -4,6 +4,7 @@ import { getContributions } from '@/actions/donations'
 import { getExpenditures } from '@/actions/expenses'
 import { getBankAccounts, getTransactions } from '@/actions/bank'
 import { getRosterMembers } from '@/actions/roster'
+import { getCommitteeContributions } from '@/actions/committee-contributions'
 import { requireCommitteeMember, canEditFinances } from '@/lib/auth'
 import {
   getMonthlyData, getTrailingMonths, getCumulativeData, getDuesStatusBreakdown, withBankBalances,
@@ -28,14 +29,17 @@ export default async function DashboardPage({ params }: Props) {
 
   const { role } = await requireCommitteeMember(committeeSlug)
 
-  const [contributions, expenditures, bankAccounts, rosterMembers] = await Promise.all([
+  const [contributions, expenditures, bankAccounts, rosterMembers, committeeContributions] = await Promise.all([
     getContributions(committee.id),
     getExpenditures(committee.id),
     getBankAccounts(committee.id),
     getRosterMembers(committee.id),
+    getCommitteeContributions(committee.id),
   ])
 
-  const totalRaised = contributions.reduce((s, c) => s + c.amount, 0)
+  const totalRaised =
+    contributions.reduce((s, c) => s + c.amount, 0) +
+    committeeContributions.reduce((s, cc) => s + cc.amount, 0)
   const totalSpent = expenditures.reduce((s, e) => s + e.amount, 0)
 
   // Same fallback the bank balance summary card uses — the account whose
@@ -46,7 +50,7 @@ export default async function DashboardPage({ params }: Props) {
 
   // Cumulative needs full life-to-date totals, so it runs on the unwindowed
   // data; the monthly activity chart itself is windowed to the trailing year.
-  const monthlyAll = getMonthlyData(contributions, expenditures)
+  const monthlyAll = getMonthlyData(contributions, expenditures, committeeContributions)
   const cumulative = getCumulativeData(monthlyAll)
   const monthly = withBankBalances(
     getTrailingMonths(monthlyAll),
@@ -56,7 +60,7 @@ export default async function DashboardPage({ params }: Props) {
   const duesStatus = getDuesStatusBreakdown(rosterMembers)
   const categories = getExpenseCategoryBreakdown(expenditures)
   const seec = getSeecSummary(contributions)
-  const activity = getRecentActivity(contributions, expenditures, 8)
+  const activity = getRecentActivity(contributions, expenditures, committeeContributions, 8)
 
   return (
     <div className="p-4 md:p-8">
@@ -71,7 +75,7 @@ export default async function DashboardPage({ params }: Props) {
           totalRaised={totalRaised}
           totalSpent={totalSpent}
           seec={seec}
-          contributionCount={contributions.length}
+          contributionCount={contributions.length + committeeContributions.length}
           expenditureCount={expenditures.length}
           bankAccounts={bankAccounts}
           selectedBankAccountId={committee.dashboardBankAccountId}

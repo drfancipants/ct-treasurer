@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Contribution, Expenditure, Reimbursement, CommitteeEvent, Payee } from '@/lib/types'
+import type { Contribution, Expenditure, Reimbursement, CommitteeEvent, Payee, CommitteeContribution } from '@/lib/types'
 import type { UnrecordedFees } from '@/actions/expenses'
 import { cn } from '@/lib/utils'
 import ExpenseSummaryCards from './ExpenseSummaryCards'
@@ -14,6 +14,7 @@ type Tab = 'expenses' | 'reimbursements' | 'payees'
 interface Props {
   expenditures: Expenditure[]
   contributions: Contribution[]
+  committeeContributions?: CommitteeContribution[]
   reimbursements: Reimbursement[]
   events: CommitteeEvent[]
   payees: Payee[]
@@ -24,7 +25,7 @@ interface Props {
 }
 
 export default function ExpensesTabs({
-  expenditures, contributions, reimbursements, events, payees: initialPayees, committeeId, committeeSlug, canEdit, unrecordedFees,
+  expenditures, contributions, committeeContributions, reimbursements, events, payees: initialPayees, committeeId, committeeSlug, canEdit, unrecordedFees,
 }: Props) {
   const [tab, setTab] = useState<Tab>('expenses')
   const [payees, setPayees] = useState(initialPayees)
@@ -55,7 +56,7 @@ export default function ExpensesTabs({
 
       {tab === 'expenses' && (
         <>
-          <ExpenseSummaryCards expenditures={expenditures} contributions={contributions} />
+          <ExpenseSummaryCards expenditures={expenditures} contributions={contributions} committeeContributions={committeeContributions} />
           <ExpensesTable
             expenditures={expenditures}
             events={events}

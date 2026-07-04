@@ -1,20 +1,25 @@
 'use client'
 
 import { TrendingDown, Receipt, Scale, AlertCircle } from 'lucide-react'
-import type { Expenditure, Contribution } from '@/lib/types'
+import type { Expenditure, Contribution, CommitteeContribution } from '@/lib/types'
 import { formatCurrency } from '@/lib/utils'
 
 interface Props {
   expenditures: Expenditure[]
   contributions?: Contribution[] // optional — enables net balance card
+  committeeContributions?: CommitteeContribution[]
 }
 
-export default function ExpenseSummaryCards({ expenditures, contributions }: Props) {
+export default function ExpenseSummaryCards({ expenditures, contributions, committeeContributions }: Props) {
   const totalSpent = expenditures.reduce((s, e) => s + e.amount, 0)
   const largest = expenditures.length
     ? Math.max(...expenditures.map((e) => e.amount))
     : 0
-  const totalRaised = contributions?.reduce((s, c) => s + c.amount, 0) ?? null
+  const totalRaised =
+    contributions !== undefined
+      ? contributions.reduce((s, c) => s + c.amount, 0) +
+        (committeeContributions?.reduce((s, c) => s + c.amount, 0) ?? 0)
+      : null
   const netBalance = totalRaised !== null ? totalRaised - totalSpent : null
 
   return (

@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns'
-import type { Contribution, Expenditure, RosterMember, BankTransaction } from './types'
+import type { Contribution, Expenditure, RosterMember, BankTransaction, CommitteeContribution } from './types'
 import { getSeecStatus, EXPENSE_CATEGORY_LABELS } from './types'
 
 // ─── Monthly raised vs spent ──────────────────────────────────────────────────
@@ -16,7 +16,8 @@ export interface MonthlyData {
 
 export function getMonthlyData(
   contributions: Contribution[],
-  expenditures: Expenditure[]
+  expenditures: Expenditure[],
+  committeeContributions: CommitteeContribution[] = []
 ): MonthlyData[] {
   const months = new Set<string>()
   const raisedMap = new Map<string, number>()
@@ -26,6 +27,11 @@ export function getMonthlyData(
     const key = c.date.slice(0, 7)
     months.add(key)
     raisedMap.set(key, (raisedMap.get(key) ?? 0) + c.amount)
+  }
+  for (const cc of committeeContributions) {
+    const key = cc.date.slice(0, 7)
+    months.add(key)
+    raisedMap.set(key, (raisedMap.get(key) ?? 0) + cc.amount)
   }
   for (const e of expenditures) {
     const key = e.date.slice(0, 7)
@@ -191,6 +197,7 @@ export type ActivityItem =
 export function getRecentActivity(
   contributions: Contribution[],
   expenditures: Expenditure[],
+  committeeContributions: CommitteeContribution[] = [],
   limit = 8
 ): ActivityItem[] {
   const items: ActivityItem[] = [
@@ -200,6 +207,13 @@ export function getRecentActivity(
       date: c.date,
       label: `${c.contributor.firstName} ${c.contributor.lastName}`,
       amount: c.amount,
+    })),
+    ...committeeContributions.map((cc) => ({
+      kind: 'contribution' as const,
+      id: cc.id,
+      date: cc.date,
+      label: cc.fromName,
+      amount: cc.amount,
     })),
     ...expenditures.map((e) => ({
       kind: 'expenditure' as const,

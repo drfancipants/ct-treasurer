@@ -153,10 +153,15 @@ export default function FilingsList({ contributions, expenditures, events, commi
             const periodContribs = contributions.filter(
               (c) => c.date >= period.start && c.date <= period.end
             )
+            const periodCommitteeContribs = committeeContributions.filter(
+              (c) => c.date >= period.start && c.date <= period.end
+            )
             const periodExpends = expenditures.filter(
               (e) => e.date >= period.start && e.date <= period.end
             )
-            const totalRaised = periodContribs.reduce((s, c) => s + c.amount, 0)
+            const totalRaised =
+              periodContribs.reduce((s, c) => s + c.amount, 0) +
+              periodCommitteeContribs.reduce((s, c) => s + c.amount, 0)
             const totalSpent = periodExpends.reduce((s, e) => s + e.amount, 0)
 
             return (
