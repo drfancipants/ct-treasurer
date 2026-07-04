@@ -325,6 +325,15 @@ export default function FilingsList({ contributions, expenditures, events, commi
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
+                  {canEdit && period.isCustom && period.customId && (
+                    <button
+                      onClick={() => handleDeleteCustomPeriod(period.customId!)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      aria-label="Delete custom filing period"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <span
                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ring-1 ${cfg.color}`}
                   >
@@ -338,15 +347,6 @@ export default function FilingsList({ contributions, expenditures, events, commi
                     <Download className="w-3.5 h-3.5" />
                     Generate Form 20
                   </button>
-                  {canEdit && period.isCustom && period.customId && (
-                    <button
-                      onClick={() => handleDeleteCustomPeriod(period.customId!)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                      aria-label="Delete custom filing period"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
                 </div>
               </div>
             )
