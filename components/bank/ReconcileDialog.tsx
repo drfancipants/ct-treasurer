@@ -78,6 +78,7 @@ export default function ReconcileDialog({
         committeeSlug={committeeSlug}
         payees={payees}
         onPayeeCreated={onPayeeCreated}
+        events={events}
         initialValues={{
           amount: Math.abs(transaction.amount),
           date: transaction.date,
