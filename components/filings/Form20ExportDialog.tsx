@@ -142,9 +142,9 @@ export default function Form20ExportDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
               <FileText className="w-5 h-5 text-blue-600" />
@@ -164,7 +164,7 @@ export default function Form20ExportDialog({
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-5">
+        <div className="px-6 py-5 space-y-5 overflow-y-auto">
           {/* Period selection */}
           <div className="space-y-3">
             <label className="block text-xs font-medium text-slate-700">Filing period</label>
@@ -326,7 +326,7 @@ export default function Form20ExportDialog({
 
         {/* Footer */}
         {downloaded ? (
-          <div className="px-6 py-4 border-t border-slate-200 bg-emerald-50 rounded-b-2xl space-y-3">
+          <div className="px-6 py-4 border-t border-slate-200 bg-emerald-50 rounded-b-2xl space-y-3 shrink-0">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <p className="text-sm font-medium text-emerald-800">File downloaded successfully</p>
@@ -357,7 +357,7 @@ export default function Form20ExportDialog({
             </div>
           </div>
         ) : (
-          <div className="flex gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
+          <div className="flex gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl shrink-0">
             <button
               onClick={onClose}
               className="flex-1 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-700 hover:bg-white transition-colors"
