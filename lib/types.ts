@@ -410,6 +410,7 @@ export interface CommitteeContribution {
   zip?: string
   date: string
   amount: number
+  method?: PaymentMethod
   eventId?: string
   memo?: string
   filedAt?: string

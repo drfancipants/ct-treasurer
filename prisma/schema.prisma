@@ -232,6 +232,7 @@ model CommitteeContribution {
   zip           String?
   date          DateTime @db.Date
   amount        Decimal  @db.Decimal(10, 2)
+  method        PaymentMethod?
   eventId       String?  // optional link to an L1 event
   memo          String?
   filedAt       DateTime? // Stamped when the covering period is marked filed

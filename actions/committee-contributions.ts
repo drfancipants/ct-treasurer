@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { requireCommitteeMemberById, requireFinanceRole } from '@/lib/auth'
-import type { CommitteeContribution } from '@/lib/types'
+import type { CommitteeContribution, PaymentMethod } from '@/lib/types'
 
 type PrismaRow = {
   id: string
@@ -16,6 +16,7 @@ type PrismaRow = {
   zip: string | null
   date: Date
   amount: { toString(): string }
+  method: string | null
   eventId: string | null
   memo: string | null
   filedAt: Date | null
@@ -34,6 +35,7 @@ function mapRow(r: PrismaRow): CommitteeContribution {
     zip: r.zip ?? undefined,
     date: r.date.toISOString().split('T')[0],
     amount: Number(r.amount.toString()),
+    method: (r.method as PaymentMethod) ?? undefined,
     eventId: r.eventId ?? undefined,
     memo: r.memo ?? undefined,
     filedAt: r.filedAt?.toISOString() ?? undefined,
@@ -50,6 +52,7 @@ export interface CommitteeContributionInput {
   zip?: string
   date: string
   amount: number
+  method?: PaymentMethod
   eventId?: string
   memo?: string
 }
@@ -88,6 +91,7 @@ export async function createCommitteeContribution(
       zip: data.zip || null,
       date: new Date(data.date),
       amount: data.amount,
+      method: data.method || null,
       eventId,
       memo: data.memo || null,
     },
@@ -118,6 +122,7 @@ export async function updateCommitteeContribution(
       zip: data.zip || null,
       date: new Date(data.date),
       amount: data.amount,
+      method: data.method || null,
       eventId,
       memo: data.memo || null,
     },

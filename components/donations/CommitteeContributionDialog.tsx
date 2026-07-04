@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import type { CommitteeContribution, CommitteeEvent } from '@/lib/types'
+import type { CommitteeContribution, CommitteeEvent, PaymentMethod } from '@/lib/types'
+import { PAYMENT_METHOD_LABELS } from '@/lib/types'
 import {
   createCommitteeContribution,
   updateCommitteeContribution,
@@ -29,6 +30,7 @@ type FormState = {
   zip: string
   date: string
   amount: string
+  method: PaymentMethod | ''
   eventId: string
   memo: string
 }
@@ -43,6 +45,7 @@ function initial(c?: CommitteeContribution): FormState {
     zip: c?.zip ?? '',
     date: c?.date ?? new Date().toISOString().split('T')[0],
     amount: c ? c.amount.toFixed(2) : '',
+    method: c?.method ?? '',
     eventId: c?.eventId ?? '',
     memo: c?.memo ?? '',
   }
@@ -80,6 +83,7 @@ export default function CommitteeContributionDialog({
       zip: form.zip.trim() || undefined,
       date: form.date,
       amount,
+      method: form.method || undefined,
       eventId: form.eventId || undefined,
       memo: form.memo.trim() || undefined,
     }
@@ -138,6 +142,15 @@ export default function CommitteeContributionDialog({
               <input type="text" inputMode="decimal" value={form.amount} onChange={(e) => set('amount', e.target.value)} placeholder="0.00" className={inputCls} />
             </Field>
           </div>
+
+          <Field label="Donation method">
+            <select value={form.method} onChange={(e) => set('method', e.target.value as PaymentMethod | '')} className={inputCls}>
+              <option value="">— Unspecified —</option>
+              {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map((m) => (
+                <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
+              ))}
+            </select>
+          </Field>
 
           {events.length > 0 && (
             <Field label="Linked event (optional)">

@@ -2,12 +2,22 @@
 
 import { useState } from 'react'
 import { Plus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
-import type { CommitteeContribution, CommitteeEvent } from '@/lib/types'
+import type { CommitteeContribution, CommitteeEvent, PaymentMethod } from '@/lib/types'
+import { PAYMENT_METHOD_LABELS } from '@/lib/types'
 import { deleteCommitteeContribution } from '@/actions/committee-contributions'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import ErrorBanner from '@/components/ui/ErrorBanner'
 import FiledBadge from '@/components/ui/FiledBadge'
 import CommitteeContributionDialog from './CommitteeContributionDialog'
+
+const METHOD_COLORS: Record<PaymentMethod, string> = {
+  CHECK: 'bg-slate-100 text-slate-700',
+  CASH: 'bg-green-50 text-green-700',
+  CREDIT_CARD: 'bg-blue-50 text-blue-700',
+  DEBIT_CARD: 'bg-indigo-50 text-indigo-700',
+  ONLINE: 'bg-purple-50 text-purple-700',
+  OTHER: 'bg-slate-100 text-slate-600',
+}
 
 interface Props {
   contributions: CommitteeContribution[]
@@ -82,6 +92,7 @@ export default function CommitteeContributionsTable({ contributions: initial, ev
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Date</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Committee</th>
               <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wide">Amount</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide hidden sm:table-cell">Method</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide hidden lg:table-cell">Filed</th>
               <th className="px-4 py-3 w-10" />
             </tr>
@@ -99,6 +110,15 @@ export default function CommitteeContributionsTable({ contributions: initial, ev
                   )}
                 </td>
                 <td className="px-4 py-3.5 text-right text-sm font-medium text-emerald-700 tabular">{formatCurrency(r.amount)}</td>
+                <td className="px-4 py-3.5 hidden sm:table-cell">
+                  {r.method ? (
+                    <span className={cn('inline-flex px-2 py-0.5 rounded-md text-xs font-medium', METHOD_COLORS[r.method])}>
+                      {PAYMENT_METHOD_LABELS[r.method]}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-3.5 hidden lg:table-cell"><FiledBadge filedAt={r.filedAt} /></td>
                 <td className="px-4 py-3.5 relative">
                   {canEdit && (
@@ -132,7 +152,7 @@ export default function CommitteeContributionsTable({ contributions: initial, ev
               <tr className="border-t border-slate-200 bg-slate-50">
                 <td colSpan={2} className="px-4 py-3 text-sm font-semibold text-slate-700">Total</td>
                 <td className="px-4 py-3 text-sm font-semibold text-emerald-700 text-right tabular">{formatCurrency(total)}</td>
-                <td colSpan={2} />
+                <td colSpan={3} />
               </tr>
             </tfoot>
           )}
