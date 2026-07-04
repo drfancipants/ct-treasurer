@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Plus, MoreHorizontal, Pencil, Trash2, Search, ChevronDown, ChevronUp } from 'lucide-react'
 import type { CommitteeContribution, CommitteeEvent, PaymentMethod } from '@/lib/types'
 import { PAYMENT_METHOD_LABELS } from '@/lib/types'
 import { deleteCommitteeContribution } from '@/actions/committee-contributions'
@@ -19,6 +19,9 @@ const METHOD_COLORS: Record<PaymentMethod, string> = {
   OTHER: 'bg-slate-100 text-slate-600',
 }
 
+type SortKey = 'date' | 'committee' | 'amount'
+type SortDir = 'asc' | 'desc'
+
 interface Props {
   contributions: CommitteeContribution[]
   events: CommitteeEvent[]
@@ -33,6 +36,45 @@ export default function CommitteeContributionsTable({ contributions: initial, ev
   const [editing, setEditing] = useState<CommitteeContribution | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
+  const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'ALL'>('ALL')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('date')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir(key === 'committee' ? 'asc' : 'desc')
+    }
+  }
+
+  const filtered = useMemo(() => {
+    return rows
+      .filter((r) => {
+        if (search && !r.fromName.toLowerCase().includes(search.toLowerCase())) return false
+        if (methodFilter !== 'ALL' && r.method !== methodFilter) return false
+        if (dateFrom && r.date.slice(0, 10) < dateFrom) return false
+        if (dateTo && r.date.slice(0, 10) > dateTo) return false
+        return true
+      })
+      .sort((a, b) => {
+        let cmp = 0
+        if (sortKey === 'date') {
+          cmp = new Date(a.date).getTime() - new Date(b.date).getTime()
+        } else if (sortKey === 'amount') {
+          cmp = a.amount - b.amount
+        } else {
+          cmp = a.fromName.toLowerCase().localeCompare(b.fromName.toLowerCase())
+        }
+        return sortDir === 'asc' ? cmp : -cmp
+      })
+  }, [rows, search, methodFilter, dateFrom, dateTo, sortKey, sortDir])
+
+  const filteredTotal = filtered.reduce((s, r) => s + r.amount, 0)
 
   function handleSave(row: CommitteeContribution) {
     setRows((prev) => {
@@ -85,20 +127,73 @@ export default function CommitteeContributionsTable({ contributions: initial, ev
 
       {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
 
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2 mt-4">
+        <div className="relative flex-1 min-w-48">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by committee name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+          />
+        </div>
+
+        <FilterSelect
+          value={methodFilter}
+          onChange={(v) => setMethodFilter(v as PaymentMethod | 'ALL')}
+          label="Method"
+        >
+          <option value="ALL">All methods</option>
+          {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map((m) => (
+            <option key={m} value={m}>
+              {PAYMENT_METHOD_LABELS[m]}
+            </option>
+          ))}
+        </FilterSelect>
+
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            aria-label="From date"
+            className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <span className="text-xs text-slate-400">to</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            aria-label="To date"
+            className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => { setDateFrom(''); setDateTo('') }}
+              className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mt-4">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Date</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Committee</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wide">Amount</th>
+              <SortableHeader label="Date" sortKey="date" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortableHeader label="Committee" sortKey="committee" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortableHeader label="Amount" sortKey="amount" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="right" />
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide hidden sm:table-cell">Method</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide hidden lg:table-cell">Filed</th>
               <th className="px-4 py-3 w-10" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map((r) => (
+            {filtered.map((r) => (
               <tr key={r.id} className="table-row-hover group">
                 <td className="px-4 py-3.5 text-sm text-slate-900 tabular whitespace-nowrap">{formatDate(r.date)}</td>
                 <td className="px-4 py-3.5">
@@ -148,21 +243,25 @@ export default function CommitteeContributionsTable({ contributions: initial, ev
               </tr>
             ))}
           </tbody>
-          {rows.length > 0 && (
+          {filtered.length > 0 && (
             <tfoot>
               <tr className="border-t border-slate-200 bg-slate-50">
-                <td colSpan={2} className="px-4 py-3 text-sm font-semibold text-slate-700">Total</td>
-                <td className="px-4 py-3 text-sm font-semibold text-emerald-700 text-right tabular">{formatCurrency(total)}</td>
+                <td colSpan={2} className="px-4 py-3 text-sm font-semibold text-slate-700">
+                  Showing {filtered.length} of {rows.length}
+                </td>
+                <td className="px-4 py-3 text-sm font-semibold text-emerald-700 text-right tabular">{formatCurrency(filteredTotal)}</td>
                 <td colSpan={3} />
               </tr>
             </tfoot>
           )}
         </table>
 
-        {rows.length === 0 && (
+        {filtered.length === 0 && (
           <div className="px-4 py-16 text-center">
-            <p className="text-sm text-slate-500">No committee contributions yet</p>
-            {canEdit && (
+            <p className="text-sm text-slate-500">
+              {rows.length === 0 ? 'No committee contributions yet' : 'No committee contributions match your filters'}
+            </p>
+            {canEdit && rows.length === 0 && (
               <button onClick={() => setShowAdd(true)} className="mt-3 text-sm text-blue-600 hover:underline">
                 Add the first one →
               </button>
@@ -178,5 +277,68 @@ export default function CommitteeContributionsTable({ contributions: initial, ev
         <CommitteeContributionDialog key={editing.id} open onClose={() => setEditing(null)} onSave={handleSave} committeeId={committeeId} committeeSlug={committeeSlug} contribution={editing} events={events} />
       )}
     </>
+  )
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  activeKey,
+  dir,
+  onSort,
+  align = 'left',
+}: {
+  label: string
+  sortKey: SortKey
+  activeKey: SortKey
+  dir: SortDir
+  onSort: (key: SortKey) => void
+  align?: 'left' | 'right'
+}) {
+  const active = activeKey === sortKey
+  return (
+    <th className={cn('px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide', align === 'right' ? 'text-right' : 'text-left')}>
+      <button
+        onClick={() => onSort(sortKey)}
+        className={cn(
+          'inline-flex items-center gap-1 hover:text-slate-700 transition-colors',
+          align === 'right' && 'flex-row-reverse',
+          active && 'text-slate-700'
+        )}
+      >
+        {label}
+        {active ? (
+          dir === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+        ) : (
+          <ChevronDown className="w-3 h-3 opacity-0" />
+        )}
+      </button>
+    </th>
+  )
+}
+
+function FilterSelect({
+  value,
+  onChange,
+  label,
+  children,
+}: {
+  value: string
+  onChange: (v: string) => void
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="appearance-none pl-3 pr-8 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+        aria-label={label}
+      >
+        {children}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+    </div>
   )
 }
