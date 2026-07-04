@@ -283,7 +283,7 @@ export default function TransactionsTable({ transactions: initial, contributions
                         Reconcile
                       </button>
                     )}
-                    {canEdit && (tx.matchType === 'CONTRIBUTION' || tx.matchType === 'EXPENDITURE' || tx.matchType === 'COMMITTEE_CONTRIBUTION') && (
+                    {canEdit && (tx.matchType === 'CONTRIBUTION' || tx.matchType === 'EXPENDITURE' || tx.matchType === 'COMMITTEE_CONTRIBUTION' || tx.matchType === 'IGNORED') && (
                       <button
                         onClick={() => setReconciling(tx)}
                         className="px-3 py-1.5 rounded-lg text-slate-400 text-xs hover:bg-slate-100 transition-colors"
