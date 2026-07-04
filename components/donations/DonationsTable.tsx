@@ -120,12 +120,17 @@ export default function DonationsTable({ contributions: initial, events, rosterM
 
   const filteredTotal = filtered.reduce((s, c) => s + c.amount, 0)
 
-  // Reset to page 1 whenever the filtered set changes (React's recommended
-  // "adjust state during render" pattern — not a useEffect, so it doesn't
-  // trigger the extra render a setState-in-effect would).
-  const [prevFiltered, setPrevFiltered] = useState(filtered)
-  if (filtered !== prevFiltered) {
-    setPrevFiltered(filtered)
+  // Reset to page 1 whenever the filter/search/sort criteria change — keyed
+  // on those values specifically, not on `filtered` itself, since editing or
+  // adding a contribution also produces a new `filtered` array reference
+  // (same filters, different underlying data) and shouldn't bump the user
+  // back to page 1. React's recommended "adjust state during render"
+  // pattern — not a useEffect, so it doesn't trigger the extra render a
+  // setState-in-effect would.
+  const filterSignature = JSON.stringify([search, methodFilter, sourceFilter, seecFilter, dateFrom, dateTo, sortKey, sortDir])
+  const [prevFilterSignature, setPrevFilterSignature] = useState(filterSignature)
+  if (filterSignature !== prevFilterSignature) {
+    setPrevFilterSignature(filterSignature)
     setPage(1)
   }
 
