@@ -339,13 +339,16 @@ export async function importContributions(
   // (SEEC-required), which only the ledger export carries. Fill-when-empty
   // only; existing values are never overwritten. This must run even when
   // every row is a duplicate — that's exactly the re-import-to-heal case.
-  let backfilled = 0
+  // Batched as one transaction (not N sequential awaits) — with thousands
+  // of rows, awaiting each round trip individually is slow enough to risk
+  // a serverless timeout.
   const rowByEmail = new Map<string, ParsedRow>()
   for (const r of allRows) {
     if (!r.email) continue
     const key = r.email.toLowerCase()
     if (!rowByEmail.has(key) || (r.employer && r.occupation)) rowByEmail.set(key, r)
   }
+  const backfillUpdates: Prisma.PrismaPromise<unknown>[] = []
   for (const c of existingContributors) {
     const r = rowByEmail.get(c.email!.toLowerCase())
     if (!r) continue
@@ -358,10 +361,17 @@ export async function importContributions(
     if (!c.city && r.city) patch.city = r.city
     if (!c.zip && r.zip) patch.zip = r.zip
     if (Object.keys(patch).length > 0) {
-      await prisma.contributor.update({ where: { id: c.id }, data: patch })
-      backfilled++
+      backfillUpdates.push(prisma.contributor.update({ where: { id: c.id }, data: patch }))
     }
   }
+  if (backfillUpdates.length > 0) {
+    try {
+      await prisma.$transaction(backfillUpdates)
+    } catch (err) {
+      throw friendlyImportError(err, 'Failed to update existing donor details')
+    }
+  }
+  const backfilled = backfillUpdates.length
 
   // Duplicate rows still carry value: webhook-created donations have no fee
   // detail (Anedot doesn't send it), so a ledger re-import backfills those
@@ -369,21 +379,23 @@ export async function importContributions(
   const enrichable = rows.filter(
     r => r.isDuplicate && r.anedotId && (r.netAmount != null || r.processingFee != null)
   )
-  for (const r of enrichable) {
+  if (enrichable.length > 0) {
     try {
-      await prisma.contribution.updateMany({
-        where: { anedotId: r.anedotId!, committeeId, processingFee: null },
-        data: {
-          processedDate: r.processedDate ? new Date(r.processedDate) : null,
-          netAmount: r.netAmount ?? null,
-          processingFee: r.processingFee ?? null,
-          donorCoveredFees: r.donorCoveredFees ?? false,
-          cardType: r.cardType ?? null,
-          cardLast4: r.cardLast4 ?? null,
-        },
-      })
+      await prisma.$transaction(
+        enrichable.map(r => prisma.contribution.updateMany({
+          where: { anedotId: r.anedotId!, committeeId, processingFee: null },
+          data: {
+            processedDate: r.processedDate ? new Date(r.processedDate) : null,
+            netAmount: r.netAmount ?? null,
+            processingFee: r.processingFee ?? null,
+            donorCoveredFees: r.donorCoveredFees ?? false,
+            cardType: r.cardType ?? null,
+            cardLast4: r.cardLast4 ?? null,
+          },
+        }))
+      )
     } catch (err) {
-      throw friendlyImportError(err, `Failed to update processing-fee detail for row ${r.rowIndex}`)
+      throw friendlyImportError(err, 'Failed to update processing-fee detail')
     }
   }
 
@@ -400,43 +412,59 @@ export async function importContributions(
   // 2. Create missing contributors (only new donors, not the full list).
   // Sourced from validRows only — `emails`/`emailToId` also cover duplicate
   // rows (for the backfill above), which don't need a contributor created.
+  // Batched via createManyAndReturn instead of one create() per row — with
+  // thousands of rows, N sequential round trips is slow enough to risk a
+  // serverless timeout. No unique constraint on Contributor.email, so a
+  // multi-row insert here can't hit a conflict; matching results back to
+  // rows by email (unique within this batch) rather than trusting result
+  // order, since that's a stronger guarantee.
   const emailToRow = new Map(validRows.filter(r => r.email).map(r => [r.email!.toLowerCase(), r]))
   const missingEmails = [...emailToRow.keys()].filter(e => !emailToId.has(e))
-  for (const email of missingEmails) {
-    const r = emailToRow.get(email)!
+  if (missingEmails.length > 0) {
     try {
-      const c = await prisma.contributor.create({
-        data: {
-          firstName: r.firstName, middleInitial: r.middleInitial, lastName: r.lastName,
-          email: r.email, phone: r.phone,
-          address1: r.address1, address2: r.address2,
-          city: r.city, state: r.state || 'CT', zip: r.zip,
-          employer: r.employer, occupation: r.occupation,
-        },
-        select: { id: true },
+      const createdContributors = await prisma.contributor.createManyAndReturn({
+        data: missingEmails.map(email => {
+          const r = emailToRow.get(email)!
+          return {
+            firstName: r.firstName, middleInitial: r.middleInitial, lastName: r.lastName,
+            email: r.email, phone: r.phone,
+            address1: r.address1, address2: r.address2,
+            city: r.city, state: r.state || 'CT', zip: r.zip,
+            employer: r.employer, occupation: r.occupation,
+          }
+        }),
+        select: { id: true, email: true },
       })
-      emailToId.set(email, c.id)
-      newContributorIds.push(c.id)
-    } catch { extraSkipped++ }
+      for (const c of createdContributors) {
+        emailToId.set(c.email!.toLowerCase(), c.id)
+        newContributorIds.push(c.id)
+      }
+    } catch (err) {
+      throw friendlyImportError(err, `Failed to create ${missingEmails.length} new donor${missingEmails.length !== 1 ? 's' : ''}`)
+    }
   }
 
-  // 3. Rows without email — create contributors individually (no dedup key)
+  // 3. Rows without email — no dedup key, so match results back to rows by
+  // position. Safe here: createManyAndReturn (no skipDuplicates) always
+  // returns exactly one row per input in input order.
   const noEmailRows = validRows.filter(r => !r.email)
-  const noEmailIds: string[] = []
-  for (const r of noEmailRows) {
+  let noEmailIds: string[] = []
+  if (noEmailRows.length > 0) {
     try {
-      const c = await prisma.contributor.create({
-        data: {
+      const createdContributors = await prisma.contributor.createManyAndReturn({
+        data: noEmailRows.map(r => ({
           firstName: r.firstName, middleInitial: r.middleInitial, lastName: r.lastName, phone: r.phone,
           address1: r.address1, address2: r.address2,
           city: r.city, state: r.state || 'CT', zip: r.zip,
           employer: r.employer, occupation: r.occupation,
-        },
+        })),
         select: { id: true },
       })
-      noEmailIds.push(c.id)
-      newContributorIds.push(c.id)
-    } catch { noEmailIds.push(''); extraSkipped++ }
+      noEmailIds = createdContributors.map(c => c.id)
+      newContributorIds.push(...noEmailIds)
+    } catch (err) {
+      throw friendlyImportError(err, `Failed to create ${noEmailRows.length} new donor${noEmailRows.length !== 1 ? 's' : ''}`)
+    }
   }
 
   // 4. Build contribution records and batch-insert (skipDuplicates handles anedotId conflicts)
