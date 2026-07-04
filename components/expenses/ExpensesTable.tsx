@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Plus, Search, ChevronDown, MoreHorizontal, Pencil, Trash2, BookmarkPlus } from 'lucide-react'
+import { Plus, Search, ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Pencil, Trash2, BookmarkPlus } from 'lucide-react'
 import type { Expenditure, ExpenseCategory, PaymentMethod, CommitteeEvent, Payee } from '@/lib/types'
 import {
   EXPENSE_CATEGORY_LABELS,
@@ -15,6 +15,8 @@ import { deleteExpenditure, type UnrecordedFees } from '@/actions/expenses'
 import { createPayee } from '@/actions/payees'
 import ErrorBanner from '@/components/ui/ErrorBanner'
 import FiledBadge from '@/components/ui/FiledBadge'
+
+const PAGE_SIZE = 25
 
 const METHOD_COLORS: Record<PaymentMethod, string> = {
   CHECK: 'bg-slate-100 text-slate-700',
@@ -46,6 +48,7 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [page, setPage] = useState(1)
 
   const filtered = useMemo(() => {
     return expenditures
@@ -64,6 +67,22 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
   }, [expenditures, search, categoryFilter, methodFilter])
 
   const filteredTotal = filtered.reduce((s, e) => s + e.amount, 0)
+
+  // Reset to page 1 whenever the filtered set changes (React's recommended
+  // "adjust state during render" pattern — not a useEffect, so it doesn't
+  // trigger the extra render a setState-in-effect would).
+  const [prevFiltered, setPrevFiltered] = useState(filtered)
+  if (filtered !== prevFiltered) {
+    setPrevFiltered(filtered)
+    setPage(1)
+  }
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage]
+  )
 
   function handleAdd(expenditure: Expenditure) {
     setExpenditures((prev) => {
@@ -225,7 +244,7 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filtered.map((expense) => (
+            {paginated.map((expense) => (
               <tr key={expense.id} className="table-row-hover group">
                 {/* Date */}
                 <td className="px-4 py-3.5">
@@ -350,13 +369,43 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
 
         {/* Footer total */}
         {filtered.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50 rounded-b-xl">
+          <div className={cn(
+            'flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50',
+            totalPages <= 1 && 'rounded-b-xl'
+          )}>
             <p className="text-xs text-slate-500">
-              Showing {filtered.length} of {expenditures.length} expenditures
+              Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of{' '}
+              {filtered.length} expenditure{filtered.length !== 1 ? 's' : ''}
             </p>
             <p className="text-sm font-semibold text-rose-700 tabular">
               ({formatCurrency(filteredTotal)})
             </p>
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 px-4 py-3 border-t border-slate-200 rounded-b-xl">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              Prev
+            </button>
+            <span className="text-xs text-slate-500 tabular">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+              aria-label="Next page"
+            >
+              Next
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
       </div>
