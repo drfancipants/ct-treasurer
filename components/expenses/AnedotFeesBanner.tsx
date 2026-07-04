@@ -52,7 +52,8 @@ export default function AnedotFeesBanner({ fees: initial, committeeId, committee
           <p className="text-xs text-blue-700 mt-0.5">
             Withheld from {fees.count} donation{fees.count !== 1 ? 's' : ''} before deposit — SEEC
             expects these reported as an expenditure (payee Anedot, purpose BNK). One expense is
-            created per quarter so each lands in the right filing period.
+            created per filing period so each lands in the right Form 20 — including any
+            pre-election periods that split a quarter.
           </p>
           {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
         </div>

@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { requireCommitteeMemberById, requireFinanceRole } from '@/lib/auth'
-import { groupFeesByQuarter } from '@/lib/anedot-fees'
+import { groupFeesByPeriod } from '@/lib/anedot-fees'
+import { generateQuarterlyPeriods, mergeFilingPeriods } from '@/lib/filing-periods'
 import type { Expenditure, PaymentMethod, ExpenseCategory } from '@/lib/types'
 
 type PrismaExpenditure = {
@@ -181,11 +182,14 @@ export async function getUnrecordedAnedotFees(committeeId: string): Promise<Unre
 }
 
 /**
- * Report accumulated Anedot fees as expenditures — one per calendar quarter
+ * Report accumulated Anedot fees as expenditures — one per filing period
  * (payee "Anedot", SEEC purpose BNK) so each lands in the same Form 20 filing
- * period as its donations. Each donation's fee links to the expenditure that
- * recorded it, so re-running never double-counts; deleting a fee expenditure
- * returns its fees to "unrecorded".
+ * as its donations. Periods are the same standard quarters (split around any
+ * treasurer-defined custom periods, e.g. a pre-election filing) shown on the
+ * Filings page — not a fixed calendar-quarter formula, so a fee batch never
+ * spans a boundary a custom period already split. Each donation's fee links
+ * to the expenditure that recorded it, so re-running never double-counts;
+ * deleting a fee expenditure returns its fees to "unrecorded".
  */
 export async function recordAnedotFees(
   committeeId: string,
@@ -194,16 +198,31 @@ export async function recordAnedotFees(
   const { committeeId: verifiedId } = await requireFinanceRole(committeeSlug)
   if (verifiedId !== committeeId) throw new Error('Forbidden')
 
-  const rows = await prisma.contribution.findMany({
-    where: { committeeId, processingFee: { gt: 0 }, feeExpenditureId: null },
-    select: { id: true, date: true, processingFee: true },
-  })
-  const batches = groupFeesByQuarter(
+  const [rows, committee, customPeriods] = await Promise.all([
+    prisma.contribution.findMany({
+      where: { committeeId, processingFee: { gt: 0 }, feeExpenditureId: null },
+      select: { id: true, date: true, processingFee: true },
+    }),
+    prisma.committee.findUnique({ where: { id: committeeId }, select: { electionYear: true } }),
+    prisma.customFilingPeriod.findMany({ where: { committeeId } }),
+  ])
+  const periods = mergeFilingPeriods(
+    generateQuarterlyPeriods(committee?.electionYear ?? undefined),
+    customPeriods.map((p) => ({
+      id: p.id,
+      label: p.label,
+      periodStart: p.periodStart.toISOString().split('T')[0],
+      periodEnd: p.periodEnd.toISOString().split('T')[0],
+      dueDate: p.dueDate ?? undefined,
+    }))
+  )
+  const batches = groupFeesByPeriod(
     rows.map((r) => ({
       id: r.id,
       date: r.date.toISOString().split('T')[0],
       processingFee: Number(r.processingFee!.toString()),
-    }))
+    })),
+    periods
   )
   if (batches.length === 0) return []
 
