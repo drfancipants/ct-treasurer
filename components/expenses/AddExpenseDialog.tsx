@@ -175,9 +175,9 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 shrink-0">
           <div>
             <h2 className="text-base font-semibold text-slate-900">
               {isEdit ? 'Edit expense' : 'Record an expense'}
@@ -194,7 +194,7 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4 overflow-y-auto">
           {/* Amount + Date */}
           <div className="grid grid-cols-2 gap-4">
             <Field label="Amount" required error={errors.amount}>
@@ -255,27 +255,60 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
             </Field>
           )}
 
-          {/* Payee */}
-          <Field label="Payee" required error={errors.payee}>
-            <input
-              type="text"
-              value={form.payee}
-              onChange={(e) => set('payee', e.target.value)}
-              placeholder="e.g. Guilford Printing Co."
-              className={inputCls(!!errors.payee)}
-            />
-          </Field>
+          {/* Payee + Category */}
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Payee" required error={errors.payee}>
+              <input
+                type="text"
+                value={form.payee}
+                onChange={(e) => set('payee', e.target.value)}
+                placeholder="e.g. Guilford Printing Co."
+                className={inputCls(!!errors.payee)}
+              />
+            </Field>
 
-          {/* Payee address (optional — SEEC Form 20 supports it but doesn't require it) */}
-          <Field label="Payee street address (optional)">
-            <input
-              type="text"
-              value={form.payeeAddress1}
-              onChange={(e) => set('payeeAddress1', e.target.value)}
-              placeholder="12 Elm Street"
-              className={inputCls(false)}
-            />
-          </Field>
+            <Field label="Category">
+              <select
+                value={form.category}
+                onChange={(e) => set('category', e.target.value as ExpenseCategory)}
+                className={inputCls(false)}
+              >
+                {(Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategory[]).map((c) => (
+                  <option key={c} value={c}>
+                    {c}: {EXPENSE_CATEGORY_LABELS[c]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          {/* Payee address + Payment method */}
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Payee street address (optional)">
+              <input
+                type="text"
+                value={form.payeeAddress1}
+                onChange={(e) => set('payeeAddress1', e.target.value)}
+                placeholder="12 Elm Street"
+                className={inputCls(false)}
+              />
+            </Field>
+
+            <Field label="Payment method">
+              <select
+                value={form.method}
+                onChange={(e) => set('method', e.target.value as PaymentMethod)}
+                className={inputCls(false)}
+              >
+                {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map((m) => (
+                  <option key={m} value={m}>
+                    {PAYMENT_METHOD_LABELS[m]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
           <div className="grid grid-cols-3 gap-4">
             <Field label="City">
               <input
@@ -304,37 +337,6 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
                 placeholder="06437"
                 className={inputCls(false)}
               />
-            </Field>
-          </div>
-
-          {/* Category + Purpose */}
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Category">
-              <select
-                value={form.category}
-                onChange={(e) => set('category', e.target.value as ExpenseCategory)}
-                className={inputCls(false)}
-              >
-                {(Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategory[]).map((c) => (
-                  <option key={c} value={c}>
-                    {c}: {EXPENSE_CATEGORY_LABELS[c]}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Payment method">
-              <select
-                value={form.method}
-                onChange={(e) => set('method', e.target.value as PaymentMethod)}
-                className={inputCls(false)}
-              >
-                {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map((m) => (
-                  <option key={m} value={m}>
-                    {PAYMENT_METHOD_LABELS[m]}
-                  </option>
-                ))}
-              </select>
             </Field>
           </div>
 
@@ -372,29 +374,30 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
             {payeeSaveError && <span className="text-xs text-red-600">{payeeSaveError}</span>}
           </div>
 
-          {/* Check number (conditional) */}
-          {form.method === 'CHECK' && (
-            <Field label="Check number">
+          {/* Check number + Internal note */}
+          <div className="grid grid-cols-2 gap-4">
+            {form.method === 'CHECK' && (
+              <Field label="Check number">
+                <input
+                  type="text"
+                  value={form.checkNumber}
+                  onChange={(e) => set('checkNumber', e.target.value)}
+                  placeholder="e.g. 5001"
+                  className={inputCls(false)}
+                />
+              </Field>
+            )}
+
+            <Field label="Internal note (optional)">
               <input
                 type="text"
-                value={form.checkNumber}
-                onChange={(e) => set('checkNumber', e.target.value)}
-                placeholder="e.g. 5001"
+                value={form.memo}
+                onChange={(e) => set('memo', e.target.value)}
+                placeholder="Any additional details"
                 className={inputCls(false)}
               />
             </Field>
-          )}
-
-          {/* Memo */}
-          <Field label="Internal note (optional)">
-            <input
-              type="text"
-              value={form.memo}
-              onChange={(e) => set('memo', e.target.value)}
-              placeholder="Any additional details"
-              className={inputCls(false)}
-            />
-          </Field>
+          </div>
 
           {events.length > 0 && (
             <Field label="Linked event (optional)">
