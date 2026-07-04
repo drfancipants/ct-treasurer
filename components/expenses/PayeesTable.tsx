@@ -127,7 +127,7 @@ export default function PayeesTable({ payees: initial, committeeId, committeeSlu
                   {canEdit && (
                     <button
                       onClick={() => setOpenMenu(openMenu === p.id ? null : p.id)}
-                      className="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100"
+                      className="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
                       aria-label="Actions"
                     >
                       <MoreHorizontal className="w-4 h-4" />
