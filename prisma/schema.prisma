@@ -454,6 +454,8 @@ model SeecFiling {
   pdfUrl      String?
   notes       String?
   filedAt     DateTime?
+  beginningBalance Decimal? @db.Decimal(10, 2) // Balance on hand at the start of this period
+  endingBalance    Decimal? @db.Decimal(10, 2) // Balance on hand at the close of this period
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 

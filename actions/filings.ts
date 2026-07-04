@@ -9,6 +9,28 @@ export interface SeecFilingRecord {
   periodStart: string
   periodEnd: string
   status: 'DRAFT' | 'READY' | 'FILED' | 'AMENDED'
+  beginningBalance?: number
+  endingBalance?: number
+}
+
+type PrismaFiling = {
+  id: string
+  periodStart: Date
+  periodEnd: Date
+  status: string
+  beginningBalance: { toString(): string } | null
+  endingBalance: { toString(): string } | null
+}
+
+function mapFiling(f: PrismaFiling): SeecFilingRecord {
+  return {
+    id: f.id,
+    periodStart: f.periodStart.toISOString().split('T')[0],
+    periodEnd: f.periodEnd.toISOString().split('T')[0],
+    status: f.status as SeecFilingRecord['status'],
+    beginningBalance: f.beginningBalance != null ? Number(f.beginningBalance.toString()) : undefined,
+    endingBalance: f.endingBalance != null ? Number(f.endingBalance.toString()) : undefined,
+  }
 }
 
 export async function markFiled(
@@ -59,12 +81,7 @@ export async function markFiled(
   revalidatePath(`/app/${committeeSlug}/filings`)
   revalidatePath(`/app/${committeeSlug}/donations`)
   revalidatePath(`/app/${committeeSlug}/expenses`)
-  return {
-    id: filing.id,
-    periodStart: filing.periodStart.toISOString().split('T')[0],
-    periodEnd: filing.periodEnd.toISOString().split('T')[0],
-    status: filing.status,
-  }
+  return mapFiling(filing)
 }
 
 export async function getFilings(committeeId: string): Promise<SeecFilingRecord[]> {
@@ -73,10 +90,50 @@ export async function getFilings(committeeId: string): Promise<SeecFilingRecord[
     where: { committeeId, formType: 'FORM_20' },
     orderBy: { periodStart: 'desc' },
   })
-  return filings.map((f) => ({
-    id: f.id,
-    periodStart: f.periodStart.toISOString().split('T')[0],
-    periodEnd: f.periodEnd.toISOString().split('T')[0],
-    status: f.status,
-  }))
+  return filings.map(mapFiling)
+}
+
+/**
+ * Sets the balance on hand at the start/close of a filing period. Upserts a
+ * DRAFT filing row if one doesn't exist yet — balance tracking shouldn't
+ * require the period to already be marked filed. Only the fields passed are
+ * touched (undefined is skipped by Prisma, so setting just the ending
+ * balance doesn't clobber an existing beginning balance).
+ */
+export async function updateFilingBalance(
+  committeeId: string,
+  periodStart: string,
+  periodEnd: string,
+  data: { beginningBalance?: number; endingBalance?: number },
+  committeeSlug: string
+): Promise<SeecFilingRecord> {
+  const { committeeId: verifiedId } = await requireFinanceRole(committeeSlug)
+  if (verifiedId !== committeeId) throw new Error('Forbidden')
+
+  const filing = await prisma.seecFiling.upsert({
+    where: {
+      committeeId_formType_periodStart_periodEnd: {
+        committeeId,
+        formType: 'FORM_20',
+        periodStart: new Date(periodStart),
+        periodEnd: new Date(periodEnd),
+      },
+    },
+    create: {
+      committeeId,
+      formType: 'FORM_20',
+      periodStart: new Date(periodStart),
+      periodEnd: new Date(periodEnd),
+      status: 'DRAFT',
+      beginningBalance: data.beginningBalance,
+      endingBalance: data.endingBalance,
+    },
+    update: {
+      beginningBalance: data.beginningBalance,
+      endingBalance: data.endingBalance,
+    },
+  })
+
+  revalidatePath(`/app/${committeeSlug}/filings`)
+  return mapFiling(filing)
 }

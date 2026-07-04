@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { FileText, Download, CheckCircle2, Clock } from 'lucide-react'
+import { FileText, Download, CheckCircle2, Clock, Wallet, Pencil } from 'lucide-react'
 import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution, InKindContribution, Reimbursement } from '@/lib/types'
 import type { Committee } from '@/lib/types'
 import type { SeecFilingRecord } from '@/actions/filings'
 import Form20ExportDialog from '@/components/filings/Form20ExportDialog'
+import FilingBalanceDialog from '@/components/filings/FilingBalanceDialog'
 import { formatCurrency } from '@/lib/utils'
 import { markFiled } from '@/actions/filings'
 
@@ -79,14 +80,16 @@ interface Props {
 
 export default function FilingsList({ contributions, expenditures, events, committeeContributions, inKindContributions, reimbursements, committee, filings: initialFilings, canEdit }: Props) {
   const [exportPeriod, setExportPeriod] = useState<{ start: string; end: string } | null>(null)
+  const [balancePeriod, setBalancePeriod] = useState<Period | null>(null)
   const [filings, setFilings] = useState(initialFilings)
 
+  // Newest-first, matching generatePeriods' order — so the "previous" period
+  // (chronologically earlier) for periods[i] is periods[i + 1]
   const periods = generatePeriods(committee.electionYear)
 
-  async function handleFiled(start: string, end: string) {
-    const record = await markFiled(committee.id, start, end, committee.slug)
+  function updateFilingRecord(record: SeecFilingRecord) {
     setFilings((prev) => {
-      const idx = prev.findIndex((f) => f.periodStart === start && f.periodEnd === end)
+      const idx = prev.findIndex((f) => f.periodStart === record.periodStart && f.periodEnd === record.periodEnd)
       if (idx !== -1) {
         const updated = [...prev]
         updated[idx] = record
@@ -94,6 +97,11 @@ export default function FilingsList({ contributions, expenditures, events, commi
       }
       return [...prev, record]
     })
+  }
+
+  async function handleFiled(start: string, end: string) {
+    const record = await markFiled(committee.id, start, end, committee.slug)
+    updateFilingRecord(record)
   }
 
   return (
@@ -145,7 +153,7 @@ export default function FilingsList({ contributions, expenditures, events, commi
           </p>
         </div>
         <div className="divide-y divide-slate-100">
-          {periods.map((period) => {
+          {periods.map((period, index) => {
             const status = getPeriodStatus(period.start, period.end, filings)
             const cfg = STATUS_CONFIG[status]
             const Icon = cfg.icon
@@ -163,6 +171,18 @@ export default function FilingsList({ contributions, expenditures, events, commi
               periodContribs.reduce((s, c) => s + c.amount, 0) +
               periodCommitteeContribs.reduce((s, c) => s + c.amount, 0)
             const totalSpent = periodExpends.reduce((s, e) => s + e.amount, 0)
+
+            // periods is newest-first, so the chronologically-preceding
+            // period (whose ending balance seeds this one's beginning
+            // balance) is the next array entry
+            const filing = filings.find((f) => f.periodStart === period.start && f.periodEnd === period.end)
+            const previousPeriod = periods[index + 1]
+            const previousFiling = previousPeriod
+              ? filings.find((f) => f.periodStart === previousPeriod.start && f.periodEnd === previousPeriod.end)
+              : undefined
+            const suggestedBeginningBalance = previousFiling?.endingBalance
+            const displayBeginningBalance = filing?.beginningBalance ?? suggestedBeginningBalance
+            const displayEndingBalance = filing?.endingBalance
 
             return (
               <div
@@ -194,6 +214,20 @@ export default function FilingsList({ contributions, expenditures, events, commi
                         </>
                       )}
                     </div>
+                    <button
+                      onClick={() => canEdit && setBalancePeriod(period)}
+                      disabled={!canEdit}
+                      className="flex items-center gap-1.5 mt-1 text-xs text-slate-500 hover:text-slate-700 disabled:hover:text-slate-500 transition-colors group/balance"
+                    >
+                      <Wallet className="w-3 h-3 text-slate-400" />
+                      Balance:{' '}
+                      {displayBeginningBalance !== undefined ? formatCurrency(displayBeginningBalance) : '—'}
+                      {' → '}
+                      {displayEndingBalance !== undefined ? formatCurrency(displayEndingBalance) : '—'}
+                      {canEdit && (
+                        <Pencil className="w-3 h-3 text-slate-300 group-hover/balance:text-slate-500 transition-colors" />
+                      )}
+                    </button>
                   </div>
                 </div>
 
@@ -263,6 +297,33 @@ export default function FilingsList({ contributions, expenditures, events, commi
           onFiled={canEdit ? handleFiled : undefined}
         />
       )}
+
+      {balancePeriod && (() => {
+        const idx = periods.findIndex((p) => p.start === balancePeriod.start)
+        const previousPeriod = periods[idx + 1]
+        const previousFiling = previousPeriod
+          ? filings.find((f) => f.periodStart === previousPeriod.start && f.periodEnd === previousPeriod.end)
+          : undefined
+        const filing = filings.find((f) => f.periodStart === balancePeriod.start && f.periodEnd === balancePeriod.end)
+        return (
+          <FilingBalanceDialog
+            key={balancePeriod.start}
+            open
+            onClose={() => setBalancePeriod(null)}
+            onSave={(record) => {
+              updateFilingRecord(record)
+              setBalancePeriod(null)
+            }}
+            committeeId={committee.id}
+            committeeSlug={committee.slug}
+            periodLabel={balancePeriod.label}
+            periodStart={balancePeriod.start}
+            periodEnd={balancePeriod.end}
+            filing={filing}
+            suggestedBeginningBalance={previousFiling?.endingBalance}
+          />
+        )
+      })()}
     </>
   )
 }
