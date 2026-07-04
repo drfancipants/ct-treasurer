@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import type { Expenditure, ExpenseCategory, PaymentMethod, CommitteeEvent } from '@/lib/types'
+import type { Expenditure, ExpenseCategory, PaymentMethod, CommitteeEvent, Payee } from '@/lib/types'
 import { createExpenditure, updateExpenditure } from '@/actions/expenses'
 import { EXPENSE_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
@@ -15,6 +15,7 @@ interface Props {
   committeeSlug: string
   expenditure?: Expenditure // pre-fills the form for edit mode
   events?: CommitteeEvent[]
+  payees?: Payee[]
 }
 
 interface FormData {
@@ -41,7 +42,7 @@ const EMPTY: FormData = {
   eventId: '',
 }
 
-export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, committeeSlug, expenditure, events = [] }: Props) {
+export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, committeeSlug, expenditure, events = [], payees = [] }: Props) {
   const isEdit = !!expenditure
   const [form, setForm] = useState<FormData>(
     expenditure
@@ -166,6 +167,32 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
               />
             </Field>
           </div>
+
+          {/* Saved payee */}
+          {payees.length > 0 && (
+            <Field label="Use a saved payee (optional)">
+              <select
+                value=""
+                onChange={(e) => {
+                  const p = payees.find((x) => x.id === e.target.value)
+                  if (!p) return
+                  setForm((prev) => ({
+                    ...prev,
+                    payee: p.name,
+                    category: p.defaultCategory,
+                    purpose: p.defaultPurpose ?? prev.purpose,
+                  }))
+                  setErrors((prev) => ({ ...prev, payee: undefined, purpose: undefined }))
+                }}
+                className={inputCls(false)}
+              >
+                <option value="">— Select a saved payee —</option>
+                {payees.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </Field>
+          )}
 
           {/* Payee */}
           <Field label="Payee" required error={errors.payee}>

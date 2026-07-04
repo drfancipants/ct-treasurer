@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Plus, Search, ChevronDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
-import type { Expenditure, ExpenseCategory, PaymentMethod, CommitteeEvent } from '@/lib/types'
+import type { Expenditure, ExpenseCategory, PaymentMethod, CommitteeEvent, Payee } from '@/lib/types'
 import {
   EXPENSE_CATEGORY_LABELS,
   expenseCategoryColor,
@@ -27,13 +27,14 @@ const METHOD_COLORS: Record<PaymentMethod, string> = {
 interface Props {
   expenditures: Expenditure[]
   events: CommitteeEvent[]
+  payees?: Payee[]
   committeeId: string
   committeeSlug: string
   canEdit: boolean
   unrecordedFees?: UnrecordedFees
 }
 
-export default function ExpensesTable({ expenditures: initial, events, committeeId, committeeSlug, canEdit, unrecordedFees }: Props) {
+export default function ExpensesTable({ expenditures: initial, events, payees = [], committeeId, committeeSlug, canEdit, unrecordedFees }: Props) {
   const [expenditures, setExpenditures] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Expenditure | null>(null)
@@ -328,6 +329,7 @@ export default function ExpensesTable({ expenditures: initial, events, committee
           committeeId={committeeId}
           committeeSlug={committeeSlug}
           events={events}
+          payees={payees}
         />
       )}
       {editing && (
@@ -340,6 +342,7 @@ export default function ExpensesTable({ expenditures: initial, events, committee
           committeeSlug={committeeSlug}
           expenditure={editing}
           events={events}
+          payees={payees}
         />
       )}
     </>

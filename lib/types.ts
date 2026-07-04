@@ -340,6 +340,21 @@ export interface Expenditure {
   createdAt: string
 }
 
+/** Saved vendor defaults for the Expenditure "payee" field — a prefill convenience, not a hard relation. */
+export interface Payee {
+  id: string
+  committeeId: string
+  name: string
+  address1?: string
+  city?: string
+  state: string
+  zip?: string
+  defaultCategory: ExpenseCategory
+  defaultPurpose?: string
+  createdAt: string
+  updatedAt: string
+}
+
 // ─── Worker reimbursements (SEEC Form 20 Section T) ───────────────────────────
 
 /**

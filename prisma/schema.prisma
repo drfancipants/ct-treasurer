@@ -55,6 +55,7 @@ model Committee {
   reimbursements         Reimbursement[]
   rosterMembers          RosterMember[]
   newsletters            Newsletter[]
+  payees                 Payee[]
 }
 
 // ─── Users & membership ──────────────────────────────────────────────────────
@@ -335,6 +336,27 @@ model Expenditure {
   feeContributions Contribution[] @relation("AnedotFees")
 
   @@index([committeeId, date])
+}
+
+// Saved vendor defaults for the "Payee" field on Expenditure — a prefill
+// convenience, not a data-integrity relation, so Expenditure.payee stays a
+// free-text string and deleting a Payee never touches existing expenditures.
+model Payee {
+  id              String   @id @default(cuid())
+  committeeId     String
+  name            String
+  address1        String?
+  city            String?
+  state           String   @default("CT")
+  zip             String?
+  defaultCategory String   @default("MISC") // ExpenseCategory code — see lib/types.ts
+  defaultPurpose  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+
+  @@index([committeeId, name])
 }
 
 // ─── Worker reimbursements (SEEC Form 20 Section T) ──────────────────────────

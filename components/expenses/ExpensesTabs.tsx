@@ -1,20 +1,22 @@
 'use client'
 
 import { useState } from 'react'
-import type { Contribution, Expenditure, Reimbursement, CommitteeEvent } from '@/lib/types'
+import type { Contribution, Expenditure, Reimbursement, CommitteeEvent, Payee } from '@/lib/types'
 import type { UnrecordedFees } from '@/actions/expenses'
 import { cn } from '@/lib/utils'
 import ExpenseSummaryCards from './ExpenseSummaryCards'
 import ExpensesTable from './ExpensesTable'
 import ReimbursementsTable from './ReimbursementsTable'
+import PayeesTable from './PayeesTable'
 
-type Tab = 'expenses' | 'reimbursements'
+type Tab = 'expenses' | 'reimbursements' | 'payees'
 
 interface Props {
   expenditures: Expenditure[]
   contributions: Contribution[]
   reimbursements: Reimbursement[]
   events: CommitteeEvent[]
+  payees: Payee[]
   committeeId: string
   committeeSlug: string
   canEdit: boolean
@@ -22,14 +24,14 @@ interface Props {
 }
 
 export default function ExpensesTabs({
-  expenditures, contributions, reimbursements, events, committeeId, committeeSlug, canEdit, unrecordedFees,
+  expenditures, contributions, reimbursements, events, payees, committeeId, committeeSlug, canEdit, unrecordedFees,
 }: Props) {
   const [tab, setTab] = useState<Tab>('expenses')
 
   return (
     <div className="space-y-6">
       <div className="flex gap-1 border-b border-slate-200">
-        {([['expenses', 'Committee expenses'], ['reimbursements', 'Worker reimbursements']] as [Tab, string][]).map(([key, label]) => (
+        {([['expenses', 'Committee expenses'], ['reimbursements', 'Worker reimbursements'], ['payees', 'Payees']] as [Tab, string][]).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -52,6 +54,7 @@ export default function ExpensesTabs({
           <ExpensesTable
             expenditures={expenditures}
             events={events}
+            payees={payees}
             committeeId={committeeId}
             committeeSlug={committeeSlug}
             canEdit={canEdit}
@@ -64,6 +67,14 @@ export default function ExpensesTabs({
           reimbursements={reimbursements}
           expenditures={expenditures}
           events={events}
+          committeeId={committeeId}
+          committeeSlug={committeeSlug}
+          canEdit={canEdit}
+        />
+      )}
+      {tab === 'payees' && (
+        <PayeesTable
+          payees={payees}
           committeeId={committeeId}
           committeeSlug={committeeSlug}
           canEdit={canEdit}
