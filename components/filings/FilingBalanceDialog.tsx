@@ -19,10 +19,12 @@ interface Props {
   filing?: SeecFilingRecord
   /** Previous period's ending balance — used as the default beginning balance when this period has none of its own yet */
   suggestedBeginningBalance?: number
+  /** Donations minus expenses for the period (in-kind excluded — not cash) — beginning balance plus this is the calculated ending balance */
+  netChange: number
 }
 
 export default function FilingBalanceDialog({
-  open, onClose, onSave, committeeId, committeeSlug, periodLabel, periodStart, periodEnd, filing, suggestedBeginningBalance,
+  open, onClose, onSave, committeeId, committeeSlug, periodLabel, periodStart, periodEnd, filing, suggestedBeginningBalance, netChange,
 }: Props) {
   const [beginningBalance, setBeginningBalance] = useState(
     filing?.beginningBalance !== undefined
@@ -31,18 +33,29 @@ export default function FilingBalanceDialog({
         ? suggestedBeginningBalance.toFixed(2)
         : ''
   )
-  const [endingBalance, setEndingBalance] = useState(filing?.endingBalance?.toFixed(2) ?? '')
+  // null = follow the calculated value (beginning balance + net change);
+  // once the treasurer types their own number, it stops auto-following —
+  // real bank balances can differ slightly (uncleared checks, fees) and
+  // they need to be able to correct it
+  const [endingBalanceOverride, setEndingBalanceOverride] = useState<string | null>(
+    filing?.endingBalance !== undefined ? filing.endingBalance.toFixed(2) : null
+  )
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
   if (!open) return null
 
+  const parsedBeginning = parseFloat(beginningBalance)
+  const calculatedEnding = (isNaN(parsedBeginning) ? 0 : parsedBeginning) + netChange
+  const endingBalanceValue = endingBalanceOverride ?? calculatedEnding.toFixed(2)
+  const isCalculated = endingBalanceOverride === null
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const beginning = beginningBalance.trim() === '' ? undefined : parseFloat(beginningBalance)
-    const ending = endingBalance.trim() === '' ? undefined : parseFloat(endingBalance)
+    const ending = parseFloat(endingBalanceValue)
     if (beginning !== undefined && isNaN(beginning)) return setError('Enter a valid beginning balance')
-    if (ending !== undefined && isNaN(ending)) return setError('Enter a valid ending balance')
+    if (isNaN(ending)) return setError('Enter a valid ending balance')
 
     setSaving(true)
     setError('')
@@ -99,11 +112,23 @@ export default function FilingBalanceDialog({
             <input
               type="text"
               inputMode="decimal"
-              value={endingBalance}
-              onChange={(e) => setEndingBalance(e.target.value)}
+              value={endingBalanceValue}
+              onChange={(e) => setEndingBalanceOverride(e.target.value)}
               placeholder="0.00"
               className={inputCls}
             />
+            {isCalculated ? (
+              <p className="text-xs text-slate-400 mt-1">
+                Calculated: beginning balance plus net raised minus spent this period ({formatCurrency(netChange)}, in-kind not included) — edit if it doesn&apos;t match your bank balance
+              </p>
+            ) : (
+              <p className="text-xs text-slate-400 mt-1">
+                Overriding the calculated value ({formatCurrency(calculatedEnding)}).{' '}
+                <button type="button" onClick={() => setEndingBalanceOverride(null)} className="text-blue-600 hover:underline">
+                  Use calculated value
+                </button>
+              </p>
+            )}
             <p className="text-xs text-slate-400 mt-1">
               Carries forward as the beginning balance suggestion for the next period
             </p>

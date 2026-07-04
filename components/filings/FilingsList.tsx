@@ -182,7 +182,9 @@ export default function FilingsList({ contributions, expenditures, events, commi
               : undefined
             const suggestedBeginningBalance = previousFiling?.endingBalance
             const displayBeginningBalance = filing?.beginningBalance ?? suggestedBeginningBalance
-            const displayEndingBalance = filing?.endingBalance
+            const displayEndingBalance =
+              filing?.endingBalance ??
+              (displayBeginningBalance !== undefined ? displayBeginningBalance + totalRaised - totalSpent : undefined)
 
             return (
               <div
@@ -305,6 +307,25 @@ export default function FilingsList({ contributions, expenditures, events, commi
           ? filings.find((f) => f.periodStart === previousPeriod.start && f.periodEnd === previousPeriod.end)
           : undefined
         const filing = filings.find((f) => f.periodStart === balancePeriod.start && f.periodEnd === balancePeriod.end)
+
+        // Same totals as the row display — individual + committee
+        // contributions minus expenses. In-kind contributions are
+        // deliberately excluded: they're not cash, so they don't move cash
+        // balance on hand.
+        const periodContribs = contributions.filter(
+          (c) => c.date >= balancePeriod.start && c.date <= balancePeriod.end
+        )
+        const periodCommitteeContribs = committeeContributions.filter(
+          (c) => c.date >= balancePeriod.start && c.date <= balancePeriod.end
+        )
+        const periodExpends = expenditures.filter(
+          (e) => e.date >= balancePeriod.start && e.date <= balancePeriod.end
+        )
+        const totalRaised =
+          periodContribs.reduce((s, c) => s + c.amount, 0) +
+          periodCommitteeContribs.reduce((s, c) => s + c.amount, 0)
+        const totalSpent = periodExpends.reduce((s, e) => s + e.amount, 0)
+
         return (
           <FilingBalanceDialog
             key={balancePeriod.start}
@@ -321,6 +342,7 @@ export default function FilingsList({ contributions, expenditures, events, commi
             periodEnd={balancePeriod.end}
             filing={filing}
             suggestedBeginningBalance={previousFiling?.endingBalance}
+            netChange={totalRaised - totalSpent}
           />
         )
       })()}
