@@ -1,11 +1,56 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { requireCommitteeMemberById, requireFinanceRole } from '@/lib/auth'
 import { syncRosterContributorLinks } from '@/lib/roster-links'
 import type { Contribution, PaymentMethod, ContributionSource } from '@/lib/types'
 import type { ParsedRow } from '@/lib/anedot-csv'
+
+/**
+ * Next.js redacts thrown-error messages from Server Actions in production
+ * unless the action itself catches and rethrows — an unhandled Prisma error
+ * would otherwise reach the client as an opaque digest with no detail. Maps
+ * common Prisma error conditions to a message that's actually useful without
+ * leaking raw DB/query internals (file paths, query text) to the client —
+ * those still go to the server log via console.error.
+ */
+function friendlyImportError(err: unknown, context: string): Error {
+  console.error(`[importContributions] ${context}:`, err)
+
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    if (err.code === 'P2000') {
+      return new Error(`${context}: a field value is too long — check for an unusually long name, address, or note.`)
+    }
+    if (err.code === 'P2002') {
+      return new Error(`${context}: a duplicate entry conflict occurred.`)
+    }
+    return new Error(`${context}: database error (${err.code}).`)
+  }
+
+  // Raw DB errors the query engine couldn't map to a known Prisma code
+  // (e.g. a Postgres constraint violation) surface as PrismaClientUnknownRequestError,
+  // whose .message is a full multi-line dump including file paths and query
+  // text — never show that raw text to the client. Pattern-match the
+  // Postgres error text for the cases worth calling out specifically.
+  if (err instanceof Prisma.PrismaClientUnknownRequestError) {
+    const raw = err.message
+    if (raw.includes('numeric field overflow')) {
+      return new Error(`${context}: an amount has too many digits (check for a typo, e.g. an extra zero).`)
+    }
+    return new Error(`${context}: unexpected database error. Check the CSV for unusual values.`)
+  }
+
+  const message = err instanceof Error ? err.message : String(err)
+  // Only pass through short, single-line messages (e.g. our own thrown
+  // "Forbidden" or "Event not found") — anything longer is likely an
+  // unrelated internal error we shouldn't echo verbatim to the client.
+  if (message.length < 200 && !message.includes('\n')) {
+    return new Error(`${context}: ${message}`)
+  }
+  return new Error(`${context}: unexpected error.`)
+}
 
 type ContributionWithContributor = {
   id: string
@@ -325,23 +370,32 @@ export async function importContributions(
     r => r.isDuplicate && r.anedotId && (r.netAmount != null || r.processingFee != null)
   )
   for (const r of enrichable) {
-    await prisma.contribution.updateMany({
-      where: { anedotId: r.anedotId!, committeeId, processingFee: null },
-      data: {
-        processedDate: r.processedDate ? new Date(r.processedDate) : null,
-        netAmount: r.netAmount ?? null,
-        processingFee: r.processingFee ?? null,
-        donorCoveredFees: r.donorCoveredFees ?? false,
-        cardType: r.cardType ?? null,
-        cardLast4: r.cardLast4 ?? null,
-      },
-    })
+    try {
+      await prisma.contribution.updateMany({
+        where: { anedotId: r.anedotId!, committeeId, processingFee: null },
+        data: {
+          processedDate: r.processedDate ? new Date(r.processedDate) : null,
+          netAmount: r.netAmount ?? null,
+          processingFee: r.processingFee ?? null,
+          donorCoveredFees: r.donorCoveredFees ?? false,
+          cardType: r.cardType ?? null,
+          cardLast4: r.cardLast4 ?? null,
+        },
+      })
+    } catch (err) {
+      throw friendlyImportError(err, `Failed to update processing-fee detail for row ${r.rowIndex}`)
+    }
   }
 
   if (validRows.length === 0) {
     if (enrichable.length > 0 || backfilled > 0) revalidatePath(`/app/${committeeSlug}/donations`)
     return { imported: 0, skipped: extraSkipped, contributions: [] }
   }
+
+  // Contributors created during this call — tracked so a failure in the
+  // final batch insert (step 4) can be compensated by deleting them, instead
+  // of leaving orphaned Contributor rows with no Contribution behind them.
+  const newContributorIds: string[] = []
 
   // 2. Create missing contributors (only new donors, not the full list).
   // Sourced from validRows only — `emails`/`emailToId` also cover duplicate
@@ -362,6 +416,7 @@ export async function importContributions(
         select: { id: true },
       })
       emailToId.set(email, c.id)
+      newContributorIds.push(c.id)
     } catch { extraSkipped++ }
   }
 
@@ -380,6 +435,7 @@ export async function importContributions(
         select: { id: true },
       })
       noEmailIds.push(c.id)
+      newContributorIds.push(c.id)
     } catch { noEmailIds.push(''); extraSkipped++ }
   }
 
@@ -417,11 +473,24 @@ export async function importContributions(
 
   // Insert and return the created rows (with real DB IDs) in one statement,
   // so the client state stays consistent without relying on timestamps
-  const created = await prisma.contribution.createManyAndReturn({
-    data: contributionData,
-    skipDuplicates: true,
-    include: { contributor: true },
-  })
+  let created
+  try {
+    created = await prisma.contribution.createManyAndReturn({
+      data: contributionData,
+      skipDuplicates: true,
+      include: { contributor: true },
+    })
+  } catch (err) {
+    // Roll back the contributors created above — without this, a failed
+    // batch insert would leave orphaned Contributor rows with no
+    // Contribution behind them, even though the error says nothing was saved
+    if (newContributorIds.length > 0) {
+      await prisma.contributor.deleteMany({ where: { id: { in: newContributorIds } } }).catch((cleanupErr) => {
+        console.error('[importContributions] Failed to roll back orphaned contributors:', cleanupErr)
+      })
+    }
+    throw friendlyImportError(err, `Failed to save ${contributionData.length} donation${contributionData.length !== 1 ? 's' : ''}`)
+  }
 
   // Imported donations may belong to roster members — link them up
   await syncRosterContributorLinks(committeeId)

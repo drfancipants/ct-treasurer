@@ -100,8 +100,12 @@ export default function AnedotImportDialog({
       const { contributions } = await importContributions(committeeId, parseResult.rows, committeeSlug)
       setImportedCount(contributions.length)
       onImport(contributions)
-    } catch {
-      setImportError('Import failed — nothing was saved. Please try again.')
+    } catch (err) {
+      setImportError(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Import failed — nothing was saved. Please try again.'
+      )
       setImporting(false)
       return
     }
@@ -169,28 +173,28 @@ export default function AnedotImportDialog({
 
         {/* Footer */}
         {step !== 'done' && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl shrink-0">
-            <button onClick={handleClose} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 transition-colors">
-              Cancel
-            </button>
-            {step === 'preview' && parseResult && (
-              <button
-                onClick={() => setStep('confirm')}
-                disabled={parseResult.importableCount === 0 && parseResult.duplicateCount === 0}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors"
-              >
-                Review import
-                <ChevronRight className="w-4 h-4" />
-              </button>
+          <div className="border-t border-slate-200 bg-slate-50 rounded-b-2xl shrink-0">
+            {importError && (
+              <div className="flex items-start gap-1.5 px-6 pt-3 text-xs text-red-600">
+                <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>{importError}</span>
+              </div>
             )}
-            {step === 'confirm' && parseResult && (
-              <div className="flex items-center gap-3">
-                {importError && (
-                  <span className="flex items-center gap-1.5 text-xs text-red-600">
-                    <XCircle className="w-3.5 h-3.5 shrink-0" />
-                    {importError}
-                  </span>
-                )}
+            <div className="flex items-center justify-between px-6 py-4">
+              <button onClick={handleClose} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 transition-colors">
+                Cancel
+              </button>
+              {step === 'preview' && parseResult && (
+                <button
+                  onClick={() => setStep('confirm')}
+                  disabled={parseResult.importableCount === 0 && parseResult.duplicateCount === 0}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                >
+                  Review import
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+              {step === 'confirm' && parseResult && (
                 <button
                   onClick={handleImport}
                   disabled={importing || (parseResult.importableCount === 0 && parseResult.duplicateCount === 0)}
@@ -202,8 +206,8 @@ export default function AnedotImportDialog({
                       ? `Import ${parseResult.importableCount} donations`
                       : `Update ${parseResult.duplicateCount} existing donations`}
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 
