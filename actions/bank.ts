@@ -35,6 +35,7 @@ type PrismaTransaction = {
   amount: { toString(): string }; date: Date; description: string
   merchantName: string | null; category: string | null; matchType: string
   matchedContributionId: string | null; matchedExpenditureId: string | null
+  matchedCommitteeContributionId: string | null
   isReconciled: boolean; createdAt: Date
 }
 
@@ -51,6 +52,7 @@ function mapTransaction(t: PrismaTransaction): BankTransaction {
     matchType: t.matchType as TransactionMatchType,
     matchedContributionId: t.matchedContributionId ?? undefined,
     matchedExpenditureId: t.matchedExpenditureId ?? undefined,
+    matchedCommitteeContributionId: t.matchedCommitteeContributionId ?? undefined,
     isReconciled: t.isReconciled,
     createdAt: t.createdAt.toISOString(),
   }
@@ -112,7 +114,7 @@ export async function setDashboardBankAccount(accountId: string, committeeSlug: 
 
 export async function reconcileTransaction(
   transactionId: string,
-  matchType: 'CONTRIBUTION' | 'EXPENDITURE' | 'IGNORED',
+  matchType: 'CONTRIBUTION' | 'EXPENDITURE' | 'COMMITTEE_CONTRIBUTION' | 'IGNORED',
   matchedId: string | undefined,
   committeeSlug: string
 ) {
@@ -129,6 +131,7 @@ export async function reconcileTransaction(
       isReconciled: matchType !== 'IGNORED',
       matchedContributionId: matchType === 'CONTRIBUTION' ? (matchedId ?? null) : null,
       matchedExpenditureId: matchType === 'EXPENDITURE' ? (matchedId ?? null) : null,
+      matchedCommitteeContributionId: matchType === 'COMMITTEE_CONTRIBUTION' ? (matchedId ?? null) : null,
     },
   })
   revalidatePath(`/app/${committeeSlug}/bank`)

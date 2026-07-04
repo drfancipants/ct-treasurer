@@ -490,7 +490,7 @@ export interface BankAccount {
   createdAt: string
 }
 
-export type TransactionMatchType = 'CONTRIBUTION' | 'EXPENDITURE' | 'UNMATCHED' | 'IGNORED'
+export type TransactionMatchType = 'CONTRIBUTION' | 'EXPENDITURE' | 'COMMITTEE_CONTRIBUTION' | 'UNMATCHED' | 'IGNORED'
 
 export interface BankTransaction {
   id: string
@@ -505,6 +505,7 @@ export interface BankTransaction {
   matchType: TransactionMatchType
   matchedContributionId?: string
   matchedExpenditureId?: string
+  matchedCommitteeContributionId?: string
   isReconciled: boolean
   createdAt: string
 }

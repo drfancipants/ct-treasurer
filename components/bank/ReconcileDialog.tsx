@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import { X, CheckCircle2, ArrowRight, Ban, PlusCircle } from 'lucide-react'
-import type { BankTransaction, Contribution, Expenditure, Payee } from '@/lib/types'
+import type { BankTransaction, Contribution, Expenditure, CommitteeContribution, Payee } from '@/lib/types'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import AddExpenseDialog from '@/components/expenses/AddExpenseDialog'
 
 interface Match {
-  type: 'CONTRIBUTION' | 'EXPENDITURE'
+  type: 'CONTRIBUTION' | 'EXPENDITURE' | 'COMMITTEE_CONTRIBUTION'
   id: string
   label: string
   amount: number
@@ -19,6 +19,7 @@ interface Props {
   transaction: BankTransaction | null
   contributions: Contribution[]
   expenditures: Expenditure[]
+  committeeContributions?: CommitteeContribution[]
   payees?: Payee[]
   onPayeeCreated?: (payee: Payee) => void
   committeeId: string
@@ -26,7 +27,7 @@ interface Props {
   onClose: () => void
   onReconcile: (
     transactionId: string,
-    matchType: 'CONTRIBUTION' | 'EXPENDITURE' | 'IGNORED',
+    matchType: 'CONTRIBUTION' | 'EXPENDITURE' | 'COMMITTEE_CONTRIBUTION' | 'IGNORED',
     matchedId?: string
   ) => void
 }
@@ -47,6 +48,7 @@ export default function ReconcileDialog({
   transaction,
   contributions,
   expenditures,
+  committeeContributions = [],
   payees = [],
   onPayeeCreated,
   committeeId,
@@ -98,6 +100,20 @@ export default function ReconcileDialog({
           label: `${c.contributor.firstName} ${c.contributor.lastName}`,
           amount: c.amount,
           date: c.date,
+          score,
+        })
+      }
+    }
+    for (const cc of committeeContributions) {
+      if (cc.id === transaction.matchedCommitteeContributionId) continue
+      const score = scoreMatch(transaction.amount, transaction.date, cc.amount, cc.date)
+      if (score) {
+        suggestions.push({
+          type: 'COMMITTEE_CONTRIBUTION',
+          id: cc.id,
+          label: cc.fromName,
+          amount: cc.amount,
+          date: cc.date,
           score,
         })
       }

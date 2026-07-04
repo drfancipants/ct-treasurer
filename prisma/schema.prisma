@@ -431,6 +431,7 @@ model Transaction {
   matchType             String   @default("UNMATCHED")
   matchedContributionId String?
   matchedExpenditureId  String?
+  matchedCommitteeContributionId String?
   isReconciled          Boolean  @default(false)
   createdAt             DateTime @default(now())
 

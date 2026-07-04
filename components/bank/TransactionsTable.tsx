@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { CheckCircle2, AlertCircle, MinusCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react'
-import type { BankTransaction, Contribution, Expenditure, Payee, TransactionMatchType } from '@/lib/types'
+import type { BankTransaction, Contribution, Expenditure, CommitteeContribution, Payee, TransactionMatchType } from '@/lib/types'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import ReconcileDialog from './ReconcileDialog'
 import { reconcileTransaction } from '@/actions/bank'
@@ -25,6 +25,11 @@ const STATUS_CONFIG: Record<
     label: 'Expense',
     className: 'bg-rose-50 text-rose-700 ring-rose-200',
   },
+  COMMITTEE_CONTRIBUTION: {
+    icon: CheckCircle2,
+    label: 'Committee gift',
+    className: 'bg-teal-50 text-teal-700 ring-teal-200',
+  },
   UNMATCHED: {
     icon: AlertCircle,
     label: 'Unmatched',
@@ -41,6 +46,7 @@ interface Props {
   transactions: BankTransaction[]
   contributions: Contribution[]
   expenditures: Expenditure[]
+  committeeContributions?: CommitteeContribution[]
   payees?: Payee[]
   onPayeeCreated?: (payee: Payee) => void
   committeeId: string
@@ -48,7 +54,7 @@ interface Props {
   canEdit: boolean
 }
 
-export default function TransactionsTable({ transactions: initial, contributions, expenditures, payees = [], onPayeeCreated, committeeId, committeeSlug, canEdit }: Props) {
+export default function TransactionsTable({ transactions: initial, contributions, expenditures, committeeContributions = [], payees = [], onPayeeCreated, committeeId, committeeSlug, canEdit }: Props) {
   const [transactions, setTransactions] = useState(initial)
   const [tab, setTab] = useState<Tab>('ALL')
   const [search, setSearch] = useState('')
@@ -66,7 +72,7 @@ export default function TransactionsTable({ transactions: initial, contributions
       key: 'MATCHED',
       label: 'Matched',
       count: transactions.filter(
-        (t) => t.matchType === 'CONTRIBUTION' || t.matchType === 'EXPENDITURE'
+        (t) => t.matchType === 'CONTRIBUTION' || t.matchType === 'EXPENDITURE' || t.matchType === 'COMMITTEE_CONTRIBUTION'
       ).length,
     },
     {
@@ -89,7 +95,7 @@ export default function TransactionsTable({ transactions: initial, contributions
         }
         if (tab === 'UNMATCHED') return t.matchType === 'UNMATCHED'
         if (tab === 'MATCHED')
-          return t.matchType === 'CONTRIBUTION' || t.matchType === 'EXPENDITURE'
+          return t.matchType === 'CONTRIBUTION' || t.matchType === 'EXPENDITURE' || t.matchType === 'COMMITTEE_CONTRIBUTION'
         if (tab === 'IGNORED') return t.matchType === 'IGNORED'
         return true
       })
@@ -115,7 +121,7 @@ export default function TransactionsTable({ transactions: initial, contributions
 
   async function handleReconcile(
     transactionId: string,
-    matchType: 'CONTRIBUTION' | 'EXPENDITURE' | 'IGNORED',
+    matchType: 'CONTRIBUTION' | 'EXPENDITURE' | 'COMMITTEE_CONTRIBUTION' | 'IGNORED',
     matchedId?: string
   ) {
     // Optimistic update
@@ -130,6 +136,8 @@ export default function TransactionsTable({ transactions: initial, contributions
                 matchType === 'CONTRIBUTION' ? matchedId : undefined,
               matchedExpenditureId:
                 matchType === 'EXPENDITURE' ? matchedId : undefined,
+              matchedCommitteeContributionId:
+                matchType === 'COMMITTEE_CONTRIBUTION' ? matchedId : undefined,
             }
           : t
       )
@@ -274,7 +282,7 @@ export default function TransactionsTable({ transactions: initial, contributions
                         Reconcile
                       </button>
                     )}
-                    {canEdit && (tx.matchType === 'CONTRIBUTION' || tx.matchType === 'EXPENDITURE') && (
+                    {canEdit && (tx.matchType === 'CONTRIBUTION' || tx.matchType === 'EXPENDITURE' || tx.matchType === 'COMMITTEE_CONTRIBUTION') && (
                       <button
                         onClick={() => setReconciling(tx)}
                         className="px-3 py-1.5 rounded-lg text-slate-400 text-xs hover:bg-slate-100 transition-colors"
@@ -354,6 +362,7 @@ export default function TransactionsTable({ transactions: initial, contributions
         transaction={reconciling}
         contributions={contributions}
         expenditures={expenditures}
+        committeeContributions={committeeContributions}
         payees={payees}
         onPayeeCreated={onPayeeCreated}
         committeeId={committeeId}
