@@ -5,6 +5,7 @@ import { getBankAccounts, getTransactions } from '@/actions/bank'
 import { getContributions } from '@/actions/donations'
 import { getExpenditures } from '@/actions/expenses'
 import { getCommitteeContributions } from '@/actions/committee-contributions'
+import { getEvents } from '@/actions/events'
 import { getPayees } from '@/actions/payees'
 import BankPageClient from '@/components/bank/BankPageClient'
 
@@ -17,11 +18,12 @@ export default async function BankPage({ params }: { params: Promise<{ committee
   const canEdit = canEditFinances(role)
 
   const accounts = await getBankAccounts(committee.id)
-  const [transactions, contributions, expenditures, committeeContributions, payees] = await Promise.all([
+  const [transactions, contributions, expenditures, committeeContributions, events, payees] = await Promise.all([
     getTransactions(accounts.map((a) => a.id)),
     getContributions(committee.id),
     getExpenditures(committee.id),
     getCommitteeContributions(committee.id),
+    getEvents(committee.id),
     getPayees(committee.id),
   ])
 
@@ -34,6 +36,7 @@ export default async function BankPage({ params }: { params: Promise<{ committee
       contributions={contributions}
       expenditures={expenditures}
       committeeContributions={committeeContributions}
+      events={events}
       payees={payees}
       canEdit={canEdit}
     />

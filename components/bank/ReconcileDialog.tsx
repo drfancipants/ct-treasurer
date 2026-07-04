@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { X, CheckCircle2, ArrowRight, Ban, PlusCircle } from 'lucide-react'
-import type { BankTransaction, Contribution, Expenditure, CommitteeContribution, Payee } from '@/lib/types'
+import type { BankTransaction, Contribution, Expenditure, CommitteeContribution, Payee, CommitteeEvent } from '@/lib/types'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import AddExpenseDialog from '@/components/expenses/AddExpenseDialog'
+import AddDonationDialog from '@/components/donations/AddDonationDialog'
+import CommitteeContributionDialog from '@/components/donations/CommitteeContributionDialog'
 
 interface Match {
   type: 'CONTRIBUTION' | 'EXPENDITURE' | 'COMMITTEE_CONTRIBUTION'
@@ -20,6 +22,7 @@ interface Props {
   contributions: Contribution[]
   expenditures: Expenditure[]
   committeeContributions?: CommitteeContribution[]
+  events?: CommitteeEvent[]
   payees?: Payee[]
   onPayeeCreated?: (payee: Payee) => void
   committeeId: string
@@ -49,6 +52,7 @@ export default function ReconcileDialog({
   contributions,
   expenditures,
   committeeContributions = [],
+  events = [],
   payees = [],
   onPayeeCreated,
   committeeId,
@@ -57,11 +61,11 @@ export default function ReconcileDialog({
   onReconcile,
 }: Props) {
   const [selected, setSelected] = useState<Match | null>(null)
-  const [view, setView] = useState<'match' | 'create'>('match')
+  const [view, setView] = useState<'match' | 'create-expense' | 'create-individual' | 'create-committee'>('match')
 
   if (!transaction) return null
 
-  if (view === 'create') {
+  if (view === 'create-expense') {
     return (
       <AddExpenseDialog
         open
@@ -79,6 +83,48 @@ export default function ReconcileDialog({
           date: transaction.date,
           payee: transaction.merchantName || transaction.description,
           method: 'DEBIT_CARD',
+        }}
+      />
+    )
+  }
+
+  if (view === 'create-individual') {
+    return (
+      <AddDonationDialog
+        open
+        onClose={() => setView('match')}
+        onAdd={(contribution) => {
+          onReconcile(transaction.id, 'CONTRIBUTION', contribution.id)
+          onClose()
+        }}
+        committeeId={committeeId}
+        committeeSlug={committeeSlug}
+        existingContributions={contributions}
+        events={events}
+        initialValues={{
+          amount: transaction.amount,
+          date: transaction.date,
+        }}
+      />
+    )
+  }
+
+  if (view === 'create-committee') {
+    return (
+      <CommitteeContributionDialog
+        open
+        onClose={() => setView('match')}
+        onSave={(row) => {
+          onReconcile(transaction.id, 'COMMITTEE_CONTRIBUTION', row.id)
+          onClose()
+        }}
+        committeeId={committeeId}
+        committeeSlug={committeeSlug}
+        events={events}
+        initialValues={{
+          amount: transaction.amount,
+          date: transaction.date,
+          fromName: transaction.merchantName || transaction.description,
         }}
       />
     )
@@ -235,14 +281,14 @@ export default function ReconcileDialog({
               <p className="text-sm text-slate-500">No close matches found.</p>
               <p className="text-xs text-slate-400 mt-1">
                 {isDeposit
-                  ? 'The amount or date may differ significantly from your contribution records.'
+                  ? 'Record a new donation below or mark as no match.'
                   : 'Create a new expense below or mark as no match.'}
               </p>
             </div>
           )}
         </div>
 
-        <div className="flex gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
+        <div className="flex flex-wrap gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
           <button
             onClick={handleIgnore}
             className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-white transition-colors"
@@ -250,9 +296,26 @@ export default function ReconcileDialog({
             <Ban className="w-3.5 h-3.5" />
             No match
           </button>
-          {!isDeposit && (
+          {isDeposit ? (
+            <>
+              <button
+                onClick={() => setView('create-individual')}
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-white transition-colors"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                New donation
+              </button>
+              <button
+                onClick={() => setView('create-committee')}
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-white transition-colors"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                New committee gift
+              </button>
+            </>
+          ) : (
             <button
-              onClick={() => setView('create')}
+              onClick={() => setView('create-expense')}
               className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-white transition-colors"
             >
               <PlusCircle className="w-3.5 h-3.5" />

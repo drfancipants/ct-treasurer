@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { CheckCircle2, AlertCircle, MinusCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react'
-import type { BankTransaction, Contribution, Expenditure, CommitteeContribution, Payee, TransactionMatchType } from '@/lib/types'
+import type { BankTransaction, Contribution, Expenditure, CommitteeContribution, CommitteeEvent, Payee, TransactionMatchType } from '@/lib/types'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import ReconcileDialog from './ReconcileDialog'
 import { reconcileTransaction } from '@/actions/bank'
@@ -47,6 +47,7 @@ interface Props {
   contributions: Contribution[]
   expenditures: Expenditure[]
   committeeContributions?: CommitteeContribution[]
+  events?: CommitteeEvent[]
   payees?: Payee[]
   onPayeeCreated?: (payee: Payee) => void
   committeeId: string
@@ -54,7 +55,7 @@ interface Props {
   canEdit: boolean
 }
 
-export default function TransactionsTable({ transactions: initial, contributions, expenditures, committeeContributions = [], payees = [], onPayeeCreated, committeeId, committeeSlug, canEdit }: Props) {
+export default function TransactionsTable({ transactions: initial, contributions, expenditures, committeeContributions = [], events = [], payees = [], onPayeeCreated, committeeId, committeeSlug, canEdit }: Props) {
   const [transactions, setTransactions] = useState(initial)
   const [tab, setTab] = useState<Tab>('ALL')
   const [search, setSearch] = useState('')
@@ -363,6 +364,7 @@ export default function TransactionsTable({ transactions: initial, contributions
         contributions={contributions}
         expenditures={expenditures}
         committeeContributions={committeeContributions}
+        events={events}
         payees={payees}
         onPayeeCreated={onPayeeCreated}
         committeeId={committeeId}

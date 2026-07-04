@@ -17,6 +17,8 @@ interface Props {
   contribution?: Contribution // pre-fills the form for edit mode
   existingContributions?: Contribution[] // for the annual-limit check
   events?: CommitteeEvent[] // for the optional event link
+  /** Seeds the form for a new (non-edit) donation — e.g. reconciling a bank transaction. Ignored when `contribution` is set. */
+  initialValues?: Partial<{ amount: number; date: string }>
 }
 
 interface FormData {
@@ -69,7 +71,7 @@ const EMPTY: FormData = {
   occupation: '',
 }
 
-export default function AddDonationDialog({ open, onClose, onAdd, committeeId, committeeSlug, contribution, existingContributions, events = [] }: Props) {
+export default function AddDonationDialog({ open, onClose, onAdd, committeeId, committeeSlug, contribution, existingContributions, events = [], initialValues }: Props) {
   const isEdit = !!contribution
   const [form, setForm] = useState<FormData>(
     contribution
@@ -96,7 +98,11 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
           employer: contribution.contributor.employer ?? '',
           occupation: contribution.contributor.occupation ?? '',
         }
-      : EMPTY
+      : {
+          ...EMPTY,
+          amount: initialValues?.amount !== undefined ? initialValues.amount.toFixed(2) : EMPTY.amount,
+          date: initialValues?.date ?? EMPTY.date,
+        }
   )
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
   const [saving, setSaving] = useState(false)

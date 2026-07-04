@@ -19,6 +19,8 @@ interface Props {
   committeeSlug: string
   contribution?: CommitteeContribution
   events: CommitteeEvent[]
+  /** Seeds the form for a new (non-edit) contribution — e.g. reconciling a bank transaction. Ignored when `contribution` is set. */
+  initialValues?: Partial<{ amount: number; date: string; fromName: string }>
 }
 
 type FormState = {
@@ -36,16 +38,16 @@ type FormState = {
   memo: string
 }
 
-function initial(c?: CommitteeContribution): FormState {
+function initial(c?: CommitteeContribution, initialValues?: Partial<{ amount: number; date: string; fromName: string }>): FormState {
   return {
-    fromName: c?.fromName ?? '',
+    fromName: c?.fromName ?? initialValues?.fromName ?? '',
     treasurerName: c?.treasurerName ?? '',
     street: c?.street ?? '',
     city: c?.city ?? '',
     state: c?.state ?? 'CT',
     zip: c?.zip ?? '',
-    date: c?.date ?? new Date().toISOString().split('T')[0],
-    amount: c ? c.amount.toFixed(2) : '',
+    date: c?.date ?? initialValues?.date ?? new Date().toISOString().split('T')[0],
+    amount: c ? c.amount.toFixed(2) : initialValues?.amount !== undefined ? initialValues.amount.toFixed(2) : '',
     method: c?.method ?? '',
     checkNumber: c?.checkNumber ?? '',
     eventId: c?.eventId ?? '',
@@ -54,10 +56,10 @@ function initial(c?: CommitteeContribution): FormState {
 }
 
 export default function CommitteeContributionDialog({
-  open, onClose, onSave, committeeId, committeeSlug, contribution, events,
+  open, onClose, onSave, committeeId, committeeSlug, contribution, events, initialValues,
 }: Props) {
   const isEdit = !!contribution
-  const [form, setForm] = useState<FormState>(() => initial(contribution))
+  const [form, setForm] = useState<FormState>(() => initial(contribution, initialValues))
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
