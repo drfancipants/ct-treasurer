@@ -125,7 +125,6 @@ export interface ParsedRow {
   errorMessage?: string
   /** Name of the committee roster member this donor matches, if any */
   rosterMatch?: string
-  rawRow: Record<string, string>
 }
 
 export interface ParseResult {
@@ -237,7 +236,6 @@ export function parseAnedotCsv(
         isDuplicate: false,
         isError: true,
         errorMessage: `Skipped — type: ${m.recordType}`,
-        rawRow: raw,
       }
     }
 
@@ -260,7 +258,6 @@ export function parseAnedotCsv(
         isDuplicate: false,
         isError: true,
         errorMessage: `Skipped — status: ${m.status}`,
-        rawRow: raw,
       }
     }
 
@@ -349,7 +346,6 @@ export function parseAnedotCsv(
       isError,
       errorMessage,
       rosterMatch,
-      rawRow: raw,
     }
   })
 
