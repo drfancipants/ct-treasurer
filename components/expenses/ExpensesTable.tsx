@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Plus, Search, ChevronDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Search, ChevronDown, MoreHorizontal, Pencil, Trash2, BookmarkPlus } from 'lucide-react'
 import type { Expenditure, ExpenseCategory, PaymentMethod, CommitteeEvent, Payee } from '@/lib/types'
 import {
   EXPENSE_CATEGORY_LABELS,
@@ -12,6 +12,7 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import AddExpenseDialog from './AddExpenseDialog'
 import AnedotFeesBanner from './AnedotFeesBanner'
 import { deleteExpenditure, type UnrecordedFees } from '@/actions/expenses'
+import { createPayee } from '@/actions/payees'
 import ErrorBanner from '@/components/ui/ErrorBanner'
 import FiledBadge from '@/components/ui/FiledBadge'
 
@@ -44,6 +45,7 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
   const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'ALL'>('ALL')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
   const filtered = useMemo(() => {
     return expenditures
@@ -89,6 +91,26 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
     }
   }
 
+  /** Save an already-recorded expense's payee/category/purpose as a reusable Payee. */
+  async function handleSaveAsPayee(expense: Expenditure) {
+    setOpenMenu(null)
+    try {
+      const payee = await createPayee(
+        committeeId,
+        {
+          name: expense.payee,
+          defaultCategory: expense.category,
+          defaultPurpose: expense.purpose,
+        },
+        committeeSlug
+      )
+      onPayeeCreated?.(payee)
+      setSuccessMessage(`Saved "${expense.payee}" as a payee`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save payee')
+    }
+  }
+
   return (
     <>
       {/* Header */}
@@ -123,6 +145,14 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
       )}
 
       {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
+      {successMessage && (
+        <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800">
+          <span>{successMessage}</span>
+          <button onClick={() => setSuccessMessage('')} className="text-emerald-600 hover:text-emerald-800 text-xs font-medium">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 mt-4">
@@ -165,10 +195,10 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-xl overflow-visible">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
+            <tr className="border-b border-slate-200 bg-slate-50 [&>th:first-child]:rounded-tl-xl [&>th:last-child]:rounded-tr-xl">
               <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">
                 Date
               </th>
@@ -270,6 +300,13 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
                           <Pencil className="w-3.5 h-3.5" />
                           Edit
                         </button>
+                        <button
+                          className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                          onClick={() => handleSaveAsPayee(expense)}
+                        >
+                          <BookmarkPlus className="w-3.5 h-3.5" />
+                          Save as payee
+                        </button>
                         <div className="border-t border-slate-100">
                           <button
                             onClick={() => handleDelete(expense.id)}
@@ -290,7 +327,7 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
 
         {/* Empty state */}
         {filtered.length === 0 && (
-          <div className="py-16 text-center">
+          <div className="py-16 text-center rounded-b-xl">
             <p className="text-sm text-slate-500">
               {expenditures.length === 0
                 ? 'No expenses recorded yet'
@@ -309,7 +346,7 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
 
         {/* Footer total */}
         {filtered.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50 rounded-b-xl">
             <p className="text-xs text-slate-500">
               Showing {filtered.length} of {expenditures.length} expenditures
             </p>
