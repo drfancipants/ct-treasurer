@@ -1,14 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { FileText, Download, CheckCircle2, Clock, Wallet, Pencil } from 'lucide-react'
+import { FileText, Download, CheckCircle2, Clock, Wallet, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution, InKindContribution, Reimbursement } from '@/lib/types'
 import type { Committee } from '@/lib/types'
-import type { SeecFilingRecord } from '@/actions/filings'
+import type { SeecFilingRecord, CustomFilingPeriodRecord } from '@/actions/filings'
 import Form20ExportDialog from '@/components/filings/Form20ExportDialog'
 import FilingBalanceDialog from '@/components/filings/FilingBalanceDialog'
+import CustomPeriodDialog from '@/components/filings/CustomPeriodDialog'
 import { formatCurrency } from '@/lib/utils'
-import { markFiled } from '@/actions/filings'
+import { markFiled, deleteCustomFilingPeriod } from '@/actions/filings'
 
 // ─── Period generation ────────────────────────────────────────────────────────
 
@@ -24,6 +25,8 @@ interface Period {
   start: string
   end: string
   due: string
+  isCustom?: boolean
+  customId?: string
 }
 
 function generatePeriods(electionYear?: number): Period[] {
@@ -46,6 +49,65 @@ function generatePeriods(electionYear?: number): Period[] {
     }
   }
   return periods
+}
+
+function addDays(dateStr: string, delta: number): string {
+  const d = new Date(`${dateStr}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + delta)
+  return d.toISOString().slice(0, 10)
+}
+
+function formatShortDate(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+}
+
+/**
+ * Inserts treasurer-defined custom periods (e.g. a pre-election filing) into
+ * the standard quarterly schedule, splitting any quarter a custom period
+ * overlaps so the two never double-count the same dates. The split pieces
+ * keep the original quarter's due date (SEEC's quarterly deadline doesn't
+ * move just because part of it was reported early).
+ */
+function mergePeriods(basePeriods: Period[], customPeriods: CustomFilingPeriodRecord[]): Period[] {
+  let result = basePeriods
+  for (const custom of customPeriods) {
+    const next: Period[] = []
+    for (const p of result) {
+      if (custom.periodEnd < p.start || custom.periodStart > p.end) {
+        next.push(p)
+        continue
+      }
+      const quarterPrefix = p.label.split('—')[0].trim()
+      if (p.start < custom.periodStart) {
+        const newEnd = addDays(custom.periodStart, -1)
+        next.push({
+          ...p,
+          start: p.start,
+          end: newEnd,
+          label: `${quarterPrefix} (part) — ${formatShortDate(p.start)} – ${formatShortDate(newEnd)}`,
+        })
+      }
+      if (p.end > custom.periodEnd) {
+        const newStart = addDays(custom.periodEnd, 1)
+        next.push({
+          ...p,
+          start: newStart,
+          end: p.end,
+          label: `${quarterPrefix} (part) — ${formatShortDate(newStart)} – ${formatShortDate(p.end)}`,
+        })
+      }
+    }
+    next.push({
+      label: custom.label,
+      start: custom.periodStart,
+      end: custom.periodEnd,
+      due: custom.dueDate ?? '—',
+      isCustom: true,
+      customId: custom.id,
+    })
+    result = next
+  }
+  return [...result].sort((a, b) => (a.start < b.start ? 1 : a.start > b.start ? -1 : 0))
 }
 
 function getPeriodStatus(
@@ -75,17 +137,30 @@ interface Props {
   reimbursements: Reimbursement[]
   committee: Committee
   filings: SeecFilingRecord[]
+  customPeriods: CustomFilingPeriodRecord[]
   canEdit: boolean
 }
 
-export default function FilingsList({ contributions, expenditures, events, committeeContributions, inKindContributions, reimbursements, committee, filings: initialFilings, canEdit }: Props) {
+export default function FilingsList({ contributions, expenditures, events, committeeContributions, inKindContributions, reimbursements, committee, filings: initialFilings, customPeriods: initialCustomPeriods, canEdit }: Props) {
   const [exportPeriod, setExportPeriod] = useState<{ start: string; end: string } | null>(null)
   const [balancePeriod, setBalancePeriod] = useState<Period | null>(null)
+  const [showAddPeriod, setShowAddPeriod] = useState(false)
   const [filings, setFilings] = useState(initialFilings)
+  const [customPeriods, setCustomPeriods] = useState(initialCustomPeriods)
 
   // Newest-first, matching generatePeriods' order — so the "previous" period
   // (chronologically earlier) for periods[i] is periods[i + 1]
-  const periods = generatePeriods(committee.electionYear)
+  const periods = mergePeriods(generatePeriods(committee.electionYear), customPeriods)
+
+  async function handleDeleteCustomPeriod(id: string) {
+    const snapshot = customPeriods
+    setCustomPeriods((prev) => prev.filter((p) => p.id !== id))
+    try {
+      await deleteCustomFilingPeriod(id, committee.slug)
+    } catch {
+      setCustomPeriods(snapshot)
+    }
+  }
 
   function updateFilingRecord(record: SeecFilingRecord) {
     setFilings((prev) => {
@@ -147,10 +222,19 @@ export default function FilingsList({ contributions, expenditures, events, commi
 
       {/* Filing periods */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
+        <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
           <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
             Filing periods
           </p>
+          {canEdit && (
+            <button
+              onClick={() => setShowAddPeriod(true)}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add filing period
+            </button>
+          )}
         </div>
         <div className="divide-y divide-slate-100">
           {periods.map((period, index) => {
@@ -196,7 +280,14 @@ export default function FilingsList({ contributions, expenditures, events, commi
                     <FileText className="w-4 h-4 text-slate-500" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-900">{period.label}</p>
+                    <p className="text-sm font-medium text-slate-900">
+                      {period.label}
+                      {period.isCustom && (
+                        <span className="ml-1.5 inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 ring-1 ring-purple-200 align-middle">
+                          Custom
+                        </span>
+                      )}
+                    </p>
                     <div className="flex items-center gap-3 mt-1">
                       <span className="text-xs text-slate-500">Due {period.due}</span>
                       {totalRaised > 0 && (
@@ -247,6 +338,15 @@ export default function FilingsList({ contributions, expenditures, events, commi
                     <Download className="w-3.5 h-3.5" />
                     Generate Form 20
                   </button>
+                  {canEdit && period.isCustom && period.customId && (
+                    <button
+                      onClick={() => handleDeleteCustomPeriod(period.customId!)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      aria-label="Delete custom filing period"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             )
@@ -346,6 +446,19 @@ export default function FilingsList({ contributions, expenditures, events, commi
           />
         )
       })()}
+
+      {showAddPeriod && (
+        <CustomPeriodDialog
+          open
+          onClose={() => setShowAddPeriod(false)}
+          onSave={(period) => {
+            setCustomPeriods((prev) => [period, ...prev])
+            setShowAddPeriod(false)
+          }}
+          committeeId={committee.id}
+          committeeSlug={committee.slug}
+        />
+      )}
     </>
   )
 }

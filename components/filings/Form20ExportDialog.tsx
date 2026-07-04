@@ -28,12 +28,18 @@ interface Props {
   onFiled?: (start: string, end: string) => void
 }
 
-function periodIdxFromStart(start: string): number {
-  const month = start.slice(5, 7)
-  if (month === '01') return 0
-  if (month === '04') return 1
-  if (month === '07') return 2
-  return 3
+/**
+ * Only a period that starts and ends exactly on a standard quarter's
+ * boundary (regardless of year) can be represented by the year/quarter
+ * dropdowns — anything else (a custom pre-election filing, or a quarter
+ * split around one) must be treated as a custom date range, or the dialog
+ * would silently substitute the wrong quarter's data (e.g. a period
+ * starting in May falling through to "assume Q4").
+ */
+function matchStandardQuarter(start: string, end: string): { year: string; periodIdx: number } | null {
+  const year = start.slice(0, 4)
+  const idx = FILING_PERIODS.findIndex((q) => start === `${year}${q.start}` && end === `${year}${q.end}`)
+  return idx === -1 ? null : { year, periodIdx: idx }
 }
 
 export default function Form20ExportDialog({
@@ -50,15 +56,16 @@ export default function Form20ExportDialog({
   onFiled,
 }: Props) {
   const currentYear = new Date().getFullYear()
-  const [year, setYear] = useState(
-    initialPeriod ? initialPeriod.start.slice(0, 4) : String(currentYear)
+  const initialQuarterMatch = initialPeriod ? matchStandardQuarter(initialPeriod.start, initialPeriod.end) : null
+  const [year, setYear] = useState(initialQuarterMatch?.year ?? String(currentYear))
+  const [periodIdx, setPeriodIdx] = useState(initialQuarterMatch?.periodIdx ?? 3)
+  const [customStart, setCustomStart] = useState(
+    !initialQuarterMatch && initialPeriod ? initialPeriod.start : ''
   )
-  const [periodIdx, setPeriodIdx] = useState(
-    initialPeriod ? periodIdxFromStart(initialPeriod.start) : 3
+  const [customEnd, setCustomEnd] = useState(
+    !initialQuarterMatch && initialPeriod ? initialPeriod.end : ''
   )
-  const [customStart, setCustomStart] = useState('')
-  const [customEnd, setCustomEnd] = useState('')
-  const [useCustom, setUseCustom] = useState(false)
+  const [useCustom, setUseCustom] = useState(!initialQuarterMatch && !!initialPeriod)
   const [generating, setGenerating] = useState(false)
   const [markingFiled, setMarkingFiled] = useState(false)
   const [downloaded, setDownloaded] = useState(false)

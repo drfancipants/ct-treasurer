@@ -56,6 +56,7 @@ model Committee {
   rosterMembers          RosterMember[]
   newsletters            Newsletter[]
   payees                 Payee[]
+  customFilingPeriods    CustomFilingPeriod[]
 }
 
 // ─── Users & membership ──────────────────────────────────────────────────────
@@ -462,6 +463,26 @@ model SeecFiling {
   committee Committee @relation(fields: [committeeId], references: [id])
 
   @@unique([committeeId, formType, periodStart, periodEnd])
+  @@index([committeeId])
+}
+
+// A treasurer-defined filing period outside the standard quarterly schedule —
+// e.g. a pre-election filing SEEC requires as of some cutoff before Election
+// Day. The exact day-count/cutoff rules vary by election type, so rather than
+// hardcoding a formula, the treasurer supplies the period's date range and
+// due-date label directly. Any standard quarterly period it overlaps gets
+// split around it in the filings list so nothing is double-counted.
+model CustomFilingPeriod {
+  id          String   @id @default(cuid())
+  committeeId String
+  label       String
+  periodStart DateTime @db.Date
+  periodEnd   DateTime @db.Date
+  dueDate     String?  // free text (e.g. "Oct 30, 2026") since SEEC's cutoff rules vary
+  createdAt   DateTime @default(now())
+
+  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+
   @@index([committeeId])
 }
 

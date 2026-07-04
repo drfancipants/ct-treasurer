@@ -137,3 +137,72 @@ export async function updateFilingBalance(
   revalidatePath(`/app/${committeeSlug}/filings`)
   return mapFiling(filing)
 }
+
+// ─── Custom filing periods ─────────────────────────────────────────────────
+// Treasurer-defined periods outside the standard quarterly schedule — e.g. a
+// pre-election filing SEEC requires as of some cutoff before Election Day.
+// The exact rule varies by election type, so the treasurer supplies the
+// period directly rather than the app guessing at a formula.
+
+export interface CustomFilingPeriodRecord {
+  id: string
+  label: string
+  periodStart: string
+  periodEnd: string
+  dueDate?: string
+}
+
+function mapCustomPeriod(p: {
+  id: string; label: string; periodStart: Date; periodEnd: Date; dueDate: string | null
+}): CustomFilingPeriodRecord {
+  return {
+    id: p.id,
+    label: p.label,
+    periodStart: p.periodStart.toISOString().split('T')[0],
+    periodEnd: p.periodEnd.toISOString().split('T')[0],
+    dueDate: p.dueDate ?? undefined,
+  }
+}
+
+export async function getCustomFilingPeriods(committeeId: string): Promise<CustomFilingPeriodRecord[]> {
+  await requireCommitteeMemberById(committeeId)
+  const periods = await prisma.customFilingPeriod.findMany({
+    where: { committeeId },
+    orderBy: { periodStart: 'desc' },
+  })
+  return periods.map(mapCustomPeriod)
+}
+
+export async function createCustomFilingPeriod(
+  committeeId: string,
+  data: { label: string; periodStart: string; periodEnd: string; dueDate?: string },
+  committeeSlug: string
+): Promise<CustomFilingPeriodRecord> {
+  const { committeeId: verifiedId } = await requireFinanceRole(committeeSlug)
+  if (verifiedId !== committeeId) throw new Error('Forbidden')
+  if (new Date(data.periodEnd) < new Date(data.periodStart)) {
+    throw new Error('End date must be on or after the start date')
+  }
+
+  const period = await prisma.customFilingPeriod.create({
+    data: {
+      committeeId,
+      label: data.label,
+      periodStart: new Date(data.periodStart),
+      periodEnd: new Date(data.periodEnd),
+      dueDate: data.dueDate || null,
+    },
+  })
+
+  revalidatePath(`/app/${committeeSlug}/filings`)
+  return mapCustomPeriod(period)
+}
+
+export async function deleteCustomFilingPeriod(id: string, committeeSlug: string) {
+  const { committeeId } = await requireFinanceRole(committeeSlug)
+  const existing = await prisma.customFilingPeriod.findFirst({ where: { id, committeeId } })
+  if (!existing) throw new Error('Forbidden')
+
+  await prisma.customFilingPeriod.delete({ where: { id } })
+  revalidatePath(`/app/${committeeSlug}/filings`)
+}
