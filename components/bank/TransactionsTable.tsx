@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { CheckCircle2, AlertCircle, MinusCircle, Search } from 'lucide-react'
+import { CheckCircle2, AlertCircle, MinusCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { BankTransaction, Contribution, Expenditure, TransactionMatchType } from '@/lib/types'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import ReconcileDialog from './ReconcileDialog'
 import { reconcileTransaction } from '@/actions/bank'
 
 type Tab = 'ALL' | 'UNMATCHED' | 'MATCHED' | 'IGNORED'
+
+const PAGE_SIZE = 25
 
 const STATUS_CONFIG: Record<
   TransactionMatchType,
@@ -48,6 +50,7 @@ export default function TransactionsTable({ transactions: initial, contributions
   const [transactions, setTransactions] = useState(initial)
   const [tab, setTab] = useState<Tab>('ALL')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const [reconciling, setReconciling] = useState<BankTransaction | null>(null)
 
   const tabs: { key: Tab; label: string; count: number }[] = [
@@ -90,6 +93,23 @@ export default function TransactionsTable({ transactions: initial, contributions
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   }, [transactions, tab, search])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage]
+  )
+
+  function changeTab(next: Tab) {
+    setTab(next)
+    setPage(1)
+  }
+
+  function changeSearch(next: string) {
+    setSearch(next)
+    setPage(1)
+  }
 
   async function handleReconcile(
     transactionId: string,
@@ -135,7 +155,7 @@ export default function TransactionsTable({ transactions: initial, contributions
             type="text"
             placeholder="Search transactions…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => changeSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
           />
         </div>
@@ -146,7 +166,7 @@ export default function TransactionsTable({ transactions: initial, contributions
         {tabs.map((t) => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => changeTab(t.key)}
             className={cn(
               'flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
               tab === t.key
@@ -194,7 +214,7 @@ export default function TransactionsTable({ transactions: initial, contributions
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filtered.map((tx) => {
+            {paginated.map((tx) => {
               const status = STATUS_CONFIG[tx.matchType]
               const StatusIcon = status.icon
               const isDeposit = tx.amount > 0
@@ -280,6 +300,7 @@ export default function TransactionsTable({ transactions: initial, contributions
         {filtered.length > 0 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50">
             <p className="text-xs text-slate-500">
+              Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of{' '}
               {filtered.length} transaction{filtered.length !== 1 ? 's' : ''}
             </p>
             <div className="flex items-center gap-4">
@@ -296,6 +317,32 @@ export default function TransactionsTable({ transactions: initial, contributions
                 </span>
               </span>
             </div>
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 px-4 py-3 border-t border-slate-200">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              Prev
+            </button>
+            <span className="text-xs text-slate-500 tabular">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+              aria-label="Next page"
+            >
+              Next
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
       </div>
