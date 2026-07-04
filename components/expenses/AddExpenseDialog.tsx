@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, BookmarkPlus, Check } from 'lucide-react'
 import type { Expenditure, ExpenseCategory, PaymentMethod, CommitteeEvent, Payee } from '@/lib/types'
 import { createExpenditure, updateExpenditure } from '@/actions/expenses'
+import { createPayee } from '@/actions/payees'
 import { EXPENSE_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 
@@ -16,6 +17,7 @@ interface Props {
   expenditure?: Expenditure // pre-fills the form for edit mode
   events?: CommitteeEvent[]
   payees?: Payee[]
+  onPayeeCreated?: (payee: Payee) => void
 }
 
 interface FormData {
@@ -42,7 +44,7 @@ const EMPTY: FormData = {
   eventId: '',
 }
 
-export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, committeeSlug, expenditure, events = [], payees = [] }: Props) {
+export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, committeeSlug, expenditure, events = [], payees = [], onPayeeCreated }: Props) {
   const isEdit = !!expenditure
   const [form, setForm] = useState<FormData>(
     expenditure
@@ -61,12 +63,45 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
   )
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
   const [saving, setSaving] = useState(false)
+  const [savingPayee, setSavingPayee] = useState(false)
+  const [payeeSaved, setPayeeSaved] = useState(false)
+  const [payeeSaveError, setPayeeSaveError] = useState('')
 
   if (!open) return null
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
     setErrors((prev) => ({ ...prev, [key]: undefined }))
+    if (key === 'payee' || key === 'category' || key === 'purpose') {
+      setPayeeSaved(false)
+      setPayeeSaveError('')
+    }
+  }
+
+  async function handleSaveAsPayee() {
+    if (!form.payee.trim()) {
+      setPayeeSaveError('Enter a payee name first')
+      return
+    }
+    setSavingPayee(true)
+    setPayeeSaveError('')
+    try {
+      const payee = await createPayee(
+        committeeId,
+        {
+          name: form.payee.trim(),
+          defaultCategory: form.category,
+          defaultPurpose: form.purpose.trim() || undefined,
+        },
+        committeeSlug
+      )
+      onPayeeCreated?.(payee)
+      setPayeeSaved(true)
+    } catch (err) {
+      setPayeeSaveError(err instanceof Error ? err.message : 'Failed to save payee')
+    } finally {
+      setSavingPayee(false)
+    }
   }
 
   function validate(): boolean {
@@ -103,6 +138,8 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
       onAdd(saved)
       setForm(EMPTY)
       setErrors({})
+      setPayeeSaved(false)
+      setPayeeSaveError('')
     } catch {
       setErrors({ amount: 'Something went wrong. Please try again.' })
     } finally {
@@ -246,6 +283,29 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
               className={inputCls(!!errors.purpose)}
             />
           </Field>
+
+          {/* Save current payee/category/purpose as a reusable payee */}
+          <div className="flex items-center gap-2 -mt-1">
+            <button
+              type="button"
+              onClick={handleSaveAsPayee}
+              disabled={savingPayee || payeeSaved}
+              className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-60 disabled:cursor-default transition-colors"
+            >
+              {payeeSaved ? (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  Saved as payee
+                </>
+              ) : (
+                <>
+                  <BookmarkPlus className="w-3.5 h-3.5" />
+                  {savingPayee ? 'Saving…' : 'Save as payee'}
+                </>
+              )}
+            </button>
+            {payeeSaveError && <span className="text-xs text-red-600">{payeeSaveError}</span>}
+          </div>
 
           {/* Check number (conditional) */}
           {form.method === 'CHECK' && (

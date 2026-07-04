@@ -24,9 +24,14 @@ interface Props {
 }
 
 export default function ExpensesTabs({
-  expenditures, contributions, reimbursements, events, payees, committeeId, committeeSlug, canEdit, unrecordedFees,
+  expenditures, contributions, reimbursements, events, payees: initialPayees, committeeId, committeeSlug, canEdit, unrecordedFees,
 }: Props) {
   const [tab, setTab] = useState<Tab>('expenses')
+  const [payees, setPayees] = useState(initialPayees)
+
+  function handlePayeeCreated(payee: Payee) {
+    setPayees((prev) => [...prev, payee].sort((a, b) => a.name.localeCompare(b.name)))
+  }
 
   return (
     <div className="space-y-6">
@@ -55,6 +60,7 @@ export default function ExpensesTabs({
             expenditures={expenditures}
             events={events}
             payees={payees}
+            onPayeeCreated={handlePayeeCreated}
             committeeId={committeeId}
             committeeSlug={committeeSlug}
             canEdit={canEdit}

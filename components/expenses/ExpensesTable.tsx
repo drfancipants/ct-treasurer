@@ -28,13 +28,14 @@ interface Props {
   expenditures: Expenditure[]
   events: CommitteeEvent[]
   payees?: Payee[]
+  onPayeeCreated?: (payee: Payee) => void
   committeeId: string
   committeeSlug: string
   canEdit: boolean
   unrecordedFees?: UnrecordedFees
 }
 
-export default function ExpensesTable({ expenditures: initial, events, payees = [], committeeId, committeeSlug, canEdit, unrecordedFees }: Props) {
+export default function ExpensesTable({ expenditures: initial, events, payees = [], onPayeeCreated, committeeId, committeeSlug, canEdit, unrecordedFees }: Props) {
   const [expenditures, setExpenditures] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Expenditure | null>(null)
@@ -330,6 +331,7 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
           committeeSlug={committeeSlug}
           events={events}
           payees={payees}
+          onPayeeCreated={onPayeeCreated}
         />
       )}
       {editing && (
@@ -343,6 +345,7 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
           expenditure={editing}
           events={events}
           payees={payees}
+          onPayeeCreated={onPayeeCreated}
         />
       )}
     </>
