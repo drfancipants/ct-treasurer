@@ -45,6 +45,8 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<ExpenseCategory | 'ALL'>('ALL')
   const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'ALL'>('ALL')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
@@ -61,10 +63,12 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
           return false
         if (categoryFilter !== 'ALL' && e.category !== categoryFilter) return false
         if (methodFilter !== 'ALL' && e.method !== methodFilter) return false
+        if (dateFrom && e.date.slice(0, 10) < dateFrom) return false
+        if (dateTo && e.date.slice(0, 10) > dateTo) return false
         return true
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [expenditures, search, categoryFilter, methodFilter])
+  }, [expenditures, search, categoryFilter, methodFilter, dateFrom, dateTo])
 
   const filteredTotal = filtered.reduce((s, e) => s + e.amount, 0)
 
@@ -75,7 +79,7 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
   // page 1. React's recommended "adjust state during render" pattern — not
   // a useEffect, so it doesn't trigger the extra render a setState-in-effect
   // would.
-  const filterSignature = JSON.stringify([search, categoryFilter, methodFilter])
+  const filterSignature = JSON.stringify([search, categoryFilter, methodFilter, dateFrom, dateTo])
   const [prevFilterSignature, setPrevFilterSignature] = useState(filterSignature)
   if (filterSignature !== prevFilterSignature) {
     setPrevFilterSignature(filterSignature)
@@ -220,6 +224,32 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
             </option>
           ))}
         </FilterSelect>
+
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            aria-label="From date"
+            className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <span className="text-xs text-slate-400">to</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            aria-label="To date"
+            className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => { setDateFrom(''); setDateTo('') }}
+              className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table */}
