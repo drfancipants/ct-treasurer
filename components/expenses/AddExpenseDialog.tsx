@@ -18,6 +18,8 @@ interface Props {
   events?: CommitteeEvent[]
   payees?: Payee[]
   onPayeeCreated?: (payee: Payee) => void
+  /** Seeds the form for a new (non-edit) expense — e.g. reconciling a bank transaction. Ignored when `expenditure` is set. */
+  initialValues?: Partial<{ amount: number; date: string; payee: string; method: PaymentMethod }>
 }
 
 interface FormData {
@@ -52,7 +54,7 @@ const EMPTY: FormData = {
   eventId: '',
 }
 
-export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, committeeSlug, expenditure, events = [], payees = [], onPayeeCreated }: Props) {
+export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, committeeSlug, expenditure, events = [], payees = [], onPayeeCreated, initialValues }: Props) {
   const isEdit = !!expenditure
   const [form, setForm] = useState<FormData>(
     expenditure
@@ -71,7 +73,13 @@ export default function AddExpenseDialog({ open, onClose, onAdd, committeeId, co
           memo: expenditure.memo ?? '',
           eventId: expenditure.eventId ?? '',
         }
-      : EMPTY
+      : {
+          ...EMPTY,
+          amount: initialValues?.amount !== undefined ? initialValues.amount.toFixed(2) : EMPTY.amount,
+          date: initialValues?.date ?? EMPTY.date,
+          payee: initialValues?.payee ?? EMPTY.payee,
+          method: initialValues?.method ?? EMPTY.method,
+        }
   )
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
   const [saving, setSaving] = useState(false)

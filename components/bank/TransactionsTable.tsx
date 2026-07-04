@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { CheckCircle2, AlertCircle, MinusCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react'
-import type { BankTransaction, Contribution, Expenditure, TransactionMatchType } from '@/lib/types'
+import type { BankTransaction, Contribution, Expenditure, Payee, TransactionMatchType } from '@/lib/types'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import ReconcileDialog from './ReconcileDialog'
 import { reconcileTransaction } from '@/actions/bank'
@@ -41,12 +41,14 @@ interface Props {
   transactions: BankTransaction[]
   contributions: Contribution[]
   expenditures: Expenditure[]
+  payees?: Payee[]
+  onPayeeCreated?: (payee: Payee) => void
   committeeId: string
   committeeSlug: string
   canEdit: boolean
 }
 
-export default function TransactionsTable({ transactions: initial, contributions, expenditures, committeeId, committeeSlug, canEdit }: Props) {
+export default function TransactionsTable({ transactions: initial, contributions, expenditures, payees = [], onPayeeCreated, committeeId, committeeSlug, canEdit }: Props) {
   const [transactions, setTransactions] = useState(initial)
   const [tab, setTab] = useState<Tab>('ALL')
   const [search, setSearch] = useState('')
@@ -352,6 +354,8 @@ export default function TransactionsTable({ transactions: initial, contributions
         transaction={reconciling}
         contributions={contributions}
         expenditures={expenditures}
+        payees={payees}
+        onPayeeCreated={onPayeeCreated}
         committeeId={committeeId}
         committeeSlug={committeeSlug}
         onClose={() => setReconciling(null)}

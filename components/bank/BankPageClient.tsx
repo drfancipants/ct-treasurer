@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Building2 } from 'lucide-react'
-import type { BankAccount, BankTransaction, Contribution, Expenditure } from '@/lib/types'
+import type { BankAccount, BankTransaction, Contribution, Expenditure, Payee } from '@/lib/types'
 import BankAccountCard from './BankAccountCard'
 import PlaidLinkButton from './PlaidLinkButton'
 import TransactionsTable from './TransactionsTable'
@@ -17,6 +17,7 @@ interface Props {
   transactions: BankTransaction[]
   contributions: Contribution[]
   expenditures: Expenditure[]
+  payees: Payee[]
   canEdit: boolean
 }
 
@@ -27,10 +28,16 @@ export default function BankPageClient({
   transactions,
   contributions,
   expenditures,
+  payees: initialPayees,
   canEdit,
 }: Props) {
   const router = useRouter()
   const [error, setError] = useState('')
+  const [payees, setPayees] = useState(initialPayees)
+
+  function handlePayeeCreated(payee: Payee) {
+    setPayees((prev) => [...prev, payee].sort((a, b) => a.name.localeCompare(b.name)))
+  }
 
   async function handleSync(accountId: string) {
     setError('')
@@ -96,6 +103,8 @@ export default function BankPageClient({
             transactions={transactions}
             contributions={contributions}
             expenditures={expenditures}
+            payees={payees}
+            onPayeeCreated={handlePayeeCreated}
             committeeId={committeeId}
             committeeSlug={committeeSlug}
             canEdit={canEdit}
