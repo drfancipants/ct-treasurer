@@ -48,6 +48,9 @@ export interface Committee {
   stripeSubscriptionId?: string
   subscriptionStatus?: SubscriptionStatus
   trialEndsAt?: string
+  /** Anedot campaign whose gifts count toward dues, and the minimum total from it to auto-mark a member paid */
+  duesAnedotCampaign?: string
+  duesThreshold?: number
 }
 
 export interface CommitteeMember {
@@ -80,6 +83,7 @@ export interface RosterMember {
   state: string
   zip?: string
   isActive: boolean
+  /** Manually-set dues flag — a member is effectively paid if this OR duesPaidViaAnedot is true */
   duesPaid: boolean
   notes?: string
   /** Linked donor record (set automatically when donations match this member) */
@@ -88,6 +92,10 @@ export interface RosterMember {
   contributionTotal: number
   /** Number of contributions behind contributionTotal — derived, read-only */
   contributionCount: number
+  /** True if the member's total in the committee's configured dues campaign meets the dues threshold — derived, read-only */
+  duesPaidViaAnedot: boolean
+  /** This member's total within the committee's configured dues campaign (0 if no campaign is configured) — derived, read-only */
+  anedotDuesTotal: number
   createdAt: string
 }
 

@@ -105,7 +105,9 @@ describe('roster member matching', () => {
   const roster = (o: Partial<import('../types').RosterMember> = {}): import('../types').RosterMember => ({
     id: 'rm_1', committeeId: 'com_1', firstName: 'Jane', lastName: 'Donor',
     email: 'jane@x.com', state: 'CT', isActive: true, duesPaid: false,
-    contributionTotal: 0, contributionCount: 0, createdAt: '2026-01-01T00:00:00Z', ...o,
+    contributionTotal: 0, contributionCount: 0,
+    duesPaidViaAnedot: false, anedotDuesTotal: 0,
+    createdAt: '2026-01-01T00:00:00Z', ...o,
   })
 
   it('annotates rows matching a roster member by email, case-insensitively', () => {

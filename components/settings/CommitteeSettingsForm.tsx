@@ -22,6 +22,8 @@ interface FormData {
   phone: string
   email: string
   electionYear: string
+  duesAnedotCampaign: string
+  duesThreshold: string
 }
 
 export default function CommitteeSettingsForm({ committee }: Props) {
@@ -38,6 +40,8 @@ export default function CommitteeSettingsForm({ committee }: Props) {
     phone: committee.phone ?? '',
     email: committee.email ?? '',
     electionYear: committee.electionYear?.toString() ?? '',
+    duesAnedotCampaign: committee.duesAnedotCampaign ?? '',
+    duesThreshold: committee.duesThreshold?.toString() ?? '',
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -53,6 +57,10 @@ export default function CommitteeSettingsForm({ committee }: Props) {
     e.preventDefault()
     if (!form.name.trim()) {
       setError('Committee name is required')
+      return
+    }
+    if (form.duesThreshold.trim() && !(parseFloat(form.duesThreshold) >= 0)) {
+      setError('Dues threshold must be a positive number')
       return
     }
     setSaving(true)
@@ -72,6 +80,8 @@ export default function CommitteeSettingsForm({ committee }: Props) {
           phone: form.phone.trim() || undefined,
           email: form.email.trim() || undefined,
           electionYear: form.electionYear ? parseInt(form.electionYear) : undefined,
+          duesAnedotCampaign: form.duesAnedotCampaign.trim() || undefined,
+          duesThreshold: form.duesThreshold.trim() ? parseFloat(form.duesThreshold) : undefined,
         },
         committee.slug
       )
@@ -215,6 +225,36 @@ export default function CommitteeSettingsForm({ committee }: Props) {
             placeholder="e.g. acct_abc123"
           />
         </Field>
+      </Section>
+
+      {/* Membership dues */}
+      <Section title="Membership dues">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field
+            label="Dues Anedot campaign"
+            hint="A member is auto-marked as paid when their total gifts to this Anedot campaign meet the threshold. Leave both fields blank to only track dues manually."
+          >
+            <input
+              type="text"
+              value={form.duesAnedotCampaign}
+              onChange={(e) => set('duesAnedotCampaign', e.target.value)}
+              className={inputCls}
+              placeholder="e.g. 2026 Membership Dues"
+            />
+          </Field>
+
+          <Field label="Dues threshold ($)" hint="Minimum total from that campaign to count as paid.">
+            <input
+              type="number"
+              value={form.duesThreshold}
+              onChange={(e) => set('duesThreshold', e.target.value)}
+              className={inputCls}
+              placeholder="e.g. 25"
+              min={0}
+              step="0.01"
+            />
+          </Field>
+        </div>
       </Section>
 
       {/* Save bar */}

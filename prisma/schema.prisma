@@ -41,6 +41,8 @@ model Committee {
   newsletterGmailEmail       String?   // treasurer's own Gmail address used to send newsletters (not secret)
   newsletterGmailAppPassword String?   // AES-256-GCM ciphertext — never stored or returned as plaintext
   newsletterGmailConnectedAt DateTime?
+  duesAnedotCampaign   String?   // Anedot campaign name whose gifts count toward dues
+  duesThreshold        Decimal?  @db.Decimal(10, 2) // min. total from that campaign to auto-mark dues paid
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

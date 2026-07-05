@@ -31,7 +31,12 @@ interface GivingStats {
   count: number
 }
 
-function mapRow(r: PrismaRow, giving: GivingStats = { total: 0, count: 0 }): RosterMember {
+function mapRow(
+  r: PrismaRow,
+  giving: GivingStats = { total: 0, count: 0 },
+  duesConfig: { campaign: string | null; threshold: number | null } = { campaign: null, threshold: null },
+  anedotDuesTotal = 0
+): RosterMember {
   return {
     id: r.id,
     committeeId: r.committeeId,
@@ -50,15 +55,22 @@ function mapRow(r: PrismaRow, giving: GivingStats = { total: 0, count: 0 }): Ros
     contributorId: r.contributorId ?? undefined,
     contributionTotal: giving.total,
     contributionCount: giving.count,
+    duesPaidViaAnedot:
+      !!duesConfig.campaign && duesConfig.threshold != null && anedotDuesTotal >= duesConfig.threshold,
+    anedotDuesTotal,
     createdAt: r.createdAt.toISOString(),
   }
 }
 
-async function givingByContributorId(committeeId: string, contributorIds: string[]): Promise<Map<string, GivingStats>> {
+async function givingByContributorId(
+  committeeId: string,
+  contributorIds: string[],
+  campaign?: string
+): Promise<Map<string, GivingStats>> {
   if (contributorIds.length === 0) return new Map()
   const sums = await prisma.contribution.groupBy({
     by: ['contributorId'],
-    where: { committeeId, contributorId: { in: contributorIds } },
+    where: { committeeId, contributorId: { in: contributorIds }, ...(campaign ? { campaign } : {}) },
     _sum: { amount: true },
     _count: true,
   })
@@ -98,24 +110,39 @@ async function memberContributorIds(
 }
 
 async function fetchRoster(committeeId: string): Promise<RosterMember[]> {
-  const rows = await prisma.rosterMember.findMany({
-    where: { committeeId },
-    orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-  })
+  const [rows, committee] = await Promise.all([
+    prisma.rosterMember.findMany({
+      where: { committeeId },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    }),
+    prisma.committee.findUnique({
+      where: { id: committeeId },
+      select: { duesAnedotCampaign: true, duesThreshold: true },
+    }),
+  ])
+  const duesConfig = {
+    campaign: committee?.duesAnedotCampaign ?? null,
+    threshold: committee?.duesThreshold ? Number(committee.duesThreshold.toString()) : null,
+  }
 
   const { idsFor } = await memberContributorIds(rows)
   const allIds = [...new Set(rows.flatMap(idsFor))]
-  const stats = await givingByContributorId(committeeId, allIds)
+  const [stats, duesStats] = await Promise.all([
+    givingByContributorId(committeeId, allIds),
+    duesConfig.campaign ? givingByContributorId(committeeId, allIds, duesConfig.campaign) : new Map<string, GivingStats>(),
+  ])
 
   return rows.map((r) => {
-    const giving = idsFor(r).reduce<GivingStats>(
+    const ids = idsFor(r)
+    const giving = ids.reduce<GivingStats>(
       (acc, id) => {
         const s = stats.get(id)
         return s ? { total: acc.total + s.total, count: acc.count + s.count } : acc
       },
       { total: 0, count: 0 }
     )
-    return mapRow(r, giving)
+    const anedotDuesTotal = ids.reduce((sum, id) => sum + (duesStats.get(id)?.total ?? 0), 0)
+    return mapRow(r, giving, duesConfig, anedotDuesTotal)
   })
 }
 

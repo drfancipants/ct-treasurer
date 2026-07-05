@@ -40,12 +40,12 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
   const [error, setError] = useState('')
 
   const activeCount = rows.filter((r) => r.isActive).length
-  const duesPaidCount = rows.filter((r) => r.duesPaid).length
+  const duesPaidCount = rows.filter((r) => r.duesPaid || r.duesPaidViaAnedot).length
 
   const visible = rows.filter((r) => {
     if (filter === 'active' && !r.isActive) return false
     if (filter === 'inactive' && r.isActive) return false
-    if (filter === 'dues_unpaid' && r.duesPaid) return false
+    if (filter === 'dues_unpaid' && (r.duesPaid || r.duesPaidViaAnedot)) return false
     if (query) {
       const q = query.toLowerCase()
       const hay = `${r.firstName} ${r.lastName} ${r.email ?? ''} ${r.phone ?? ''} ${r.city ?? ''}`.toLowerCase()
@@ -220,13 +220,18 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
                 </td>
                 <td className="px-4 py-3.5 text-center">
                   <FlagBadge
-                    on={r.duesPaid}
-                    onLabel="Paid"
+                    on={r.duesPaid || r.duesPaidViaAnedot}
+                    onLabel={!r.duesPaid && r.duesPaidViaAnedot ? 'Paid · Anedot' : 'Paid'}
                     offLabel="Unpaid"
                     onColor="bg-emerald-50 text-emerald-700 ring-emerald-200"
                     offColor="bg-amber-50 text-amber-700 ring-amber-200"
-                    canEdit={canEdit}
+                    canEdit={canEdit && !(r.duesPaidViaAnedot && !r.duesPaid)}
                     onClick={() => handleToggle(r.id, 'duesPaid')}
+                    title={
+                      r.duesPaidViaAnedot && !r.duesPaid
+                        ? `Paid automatically — ${formatCurrency(r.anedotDuesTotal)} given to the dues campaign`
+                        : undefined
+                    }
                   />
                 </td>
                 <td className="px-4 py-3.5 text-center">
@@ -344,7 +349,7 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
 }
 
 function FlagBadge({
-  on, onLabel, offLabel, onColor, offColor, canEdit, onClick,
+  on, onLabel, offLabel, onColor, offColor, canEdit, onClick, title,
 }: {
   on: boolean
   onLabel: string
@@ -353,15 +358,16 @@ function FlagBadge({
   offColor: string
   canEdit: boolean
   onClick: () => void
+  title?: string
 }) {
   const cls = cn(
     'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ring-1',
     on ? onColor : offColor,
     canEdit && 'cursor-pointer hover:opacity-80 transition-opacity'
   )
-  if (!canEdit) return <span className={cls}>{on ? onLabel : offLabel}</span>
+  if (!canEdit) return <span className={cls} title={title}>{on ? onLabel : offLabel}</span>
   return (
-    <button onClick={onClick} className={cls} title={`Mark ${on ? offLabel.toLowerCase() : onLabel.toLowerCase()}`}>
+    <button onClick={onClick} className={cls} title={title ?? `Mark ${on ? offLabel.toLowerCase() : onLabel.toLowerCase()}`}>
       {on ? onLabel : offLabel}
     </button>
   )

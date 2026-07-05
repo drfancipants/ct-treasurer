@@ -86,6 +86,8 @@ export async function updateCommittee(
     phone?: string
     email?: string
     electionYear?: number
+    duesAnedotCampaign?: string
+    duesThreshold?: number
   },
   committeeSlug: string
 ): Promise<Committee> {
@@ -116,6 +118,8 @@ export async function updateCommittee(
       phone: data.phone ?? null,
       email: data.email ?? null,
       electionYear: data.electionYear ?? null,
+      duesAnedotCampaign: data.duesAnedotCampaign ?? null,
+      duesThreshold: data.duesThreshold ?? null,
     },
   })
 

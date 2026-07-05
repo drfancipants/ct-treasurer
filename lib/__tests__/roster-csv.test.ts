@@ -8,7 +8,9 @@ function makeRosterMember(o: Partial<RosterMember> = {}): RosterMember {
     firstName: 'Janet', lastName: 'Ainsworth',
     email: 'janet@example.com', state: 'CT',
     isActive: true, duesPaid: false,
-    contributionTotal: 0, contributionCount: 0, createdAt: '2026-01-01T00:00:00Z',
+    contributionTotal: 0, contributionCount: 0,
+    duesPaidViaAnedot: false, anedotDuesTotal: 0,
+    createdAt: '2026-01-01T00:00:00Z',
     ...o,
   }
 }
