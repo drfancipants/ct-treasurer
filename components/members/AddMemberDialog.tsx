@@ -63,16 +63,20 @@ export default function AddMemberDialog({ open, onClose, onAdd, committeeId, com
         throw new Error(data.error ?? 'Failed to send invitation')
       }
 
-      // Optimistically add to the local list
+      // Use the real membership id/joinedAt the server just created so this
+      // row can immediately be edited/removed without needing a page
+      // refresh first — a fake id only resolves to a real row after one.
+      // (Falls back to a fake id only on the 503 "Supabase not configured"
+      // mock path, where no real membership was ever created.)
       const newMember: CommitteeMember = {
-        id: `mem_${Date.now()}`,
+        id: data.membershipId ?? `mem_${Date.now()}`,
         committeeId,
         userId: data.userId ?? `usr_${Date.now()}`,
         name: form.name.trim(),
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim() || undefined,
         role: form.role,
-        joinedAt: new Date().toISOString().split('T')[0],
+        joinedAt: data.joinedAt ?? new Date().toISOString().split('T')[0],
         pendingInvite: Boolean(data.inviteLink),
       }
       onAdd(newMember)

@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       create: { id: userId, email, name },
       update: { name },
     })
-    await prisma.committeeMembership.upsert({
+    return prisma.committeeMembership.upsert({
       where: { userId_committeeId: { userId, committeeId } },
       create: { userId, committeeId, role },
       update: { role },
@@ -82,19 +82,27 @@ export async function POST(req: NextRequest) {
       console.error('[invite] generateLink (resend)', error)
       return NextResponse.json({ error: error?.message ?? 'Failed to create invite' }, { status: 500 })
     }
-    await addMembership(data.user.id)
+    const membership = await addMembership(data.user.id)
     return NextResponse.json({
       success: true,
       userId: data.user.id,
       inviteLink: data.properties.action_link,
+      membershipId: membership.id,
+      joinedAt: membership.joinedAt.toISOString().split('T')[0],
     })
   }
 
   if (authUser) {
     // Already has a login — just grant the committee membership. No email:
     // they sign in with their existing credentials.
-    await addMembership(authUser.id)
-    return NextResponse.json({ success: true, userId: authUser.id, existingUser: true })
+    const membership = await addMembership(authUser.id)
+    return NextResponse.json({
+      success: true,
+      userId: authUser.id,
+      existingUser: true,
+      membershipId: membership.id,
+      joinedAt: membership.joinedAt.toISOString().split('T')[0],
+    })
   }
 
   // New person — generate an invite link and return it so the treasurer can
@@ -110,11 +118,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error?.message ?? 'Failed to create invite' }, { status: 500 })
   }
 
-  await addMembership(data.user.id)
+  const membership = await addMembership(data.user.id)
 
   return NextResponse.json({
     success: true,
     userId: data.user.id,
     inviteLink: data.properties.action_link,
+    membershipId: membership.id,
+    joinedAt: membership.joinedAt.toISOString().split('T')[0],
   })
 }
