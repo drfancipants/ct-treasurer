@@ -5,6 +5,7 @@ import { getGmailConnection } from '@/actions/newsletter'
 import CommitteeSettingsForm from '@/components/settings/CommitteeSettingsForm'
 import BillingCard from '@/components/settings/BillingCard'
 import GmailConnectCard from '@/components/settings/GmailConnectCard'
+import ChangePasswordCard from '@/components/settings/ChangePasswordCard'
 
 interface Props {
   params: Promise<{ committeeSlug: string }>
@@ -42,6 +43,10 @@ export default async function SettingsPage({ params, searchParams }: Props) {
         )}
 
         <CommitteeSettingsForm committee={committee} />
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700 mb-4 pb-2 border-b border-slate-200">Account</h2>
+          <ChangePasswordCard />
+        </div>
         <div>
           <h2 className="text-sm font-semibold text-slate-700 mb-4 pb-2 border-b border-slate-200">Billing</h2>
           <BillingCard committee={committee} />
