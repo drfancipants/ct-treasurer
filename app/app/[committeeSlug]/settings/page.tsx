@@ -6,6 +6,7 @@ import CommitteeSettingsForm from '@/components/settings/CommitteeSettingsForm'
 import BillingCard from '@/components/settings/BillingCard'
 import GmailConnectCard from '@/components/settings/GmailConnectCard'
 import ChangePasswordCard from '@/components/settings/ChangePasswordCard'
+import ExportDataCard from '@/components/settings/ExportDataCard'
 
 interface Props {
   params: Promise<{ committeeSlug: string }>
@@ -54,6 +55,10 @@ export default async function SettingsPage({ params, searchParams }: Props) {
         <div>
           <h2 className="text-sm font-semibold text-slate-700 mb-4 pb-2 border-b border-slate-200">Newsletter email</h2>
           <GmailConnectCard committeeSlug={committeeSlug} initialConnection={gmailConnection} />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700 mb-4 pb-2 border-b border-slate-200">Data</h2>
+          <ExportDataCard committeeId={committee.id} committeeName={committee.name} />
         </div>
       </div>
     </div>
