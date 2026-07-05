@@ -4,6 +4,8 @@ import { useState } from 'react'
 import type { Contribution, CommitteeContribution, InKindContribution, CommitteeEvent, RosterMember } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import DonationSummaryCards from './DonationSummaryCards'
+import CommitteeContributionSummaryCards from './CommitteeContributionSummaryCards'
+import InKindSummaryCards from './InKindSummaryCards'
 import DonationsTable from './DonationsTable'
 import CommitteeContributionsTable from './CommitteeContributionsTable'
 import InKindContributionsTable from './InKindContributionsTable'
@@ -63,22 +65,28 @@ export default function DonationsTabs({
         </>
       )}
       {tab === 'committees' && (
-        <CommitteeContributionsTable
-          contributions={committeeContributions}
-          events={events}
-          committeeId={committeeId}
-          committeeSlug={committeeSlug}
-          canEdit={canEdit}
-        />
+        <>
+          <CommitteeContributionSummaryCards contributions={committeeContributions} />
+          <CommitteeContributionsTable
+            contributions={committeeContributions}
+            events={events}
+            committeeId={committeeId}
+            committeeSlug={committeeSlug}
+            canEdit={canEdit}
+          />
+        </>
       )}
       {tab === 'inkind' && (
-        <InKindContributionsTable
-          contributions={inKindContributions}
-          events={events}
-          committeeId={committeeId}
-          committeeSlug={committeeSlug}
-          canEdit={canEdit}
-        />
+        <>
+          <InKindSummaryCards contributions={inKindContributions} />
+          <InKindContributionsTable
+            contributions={inKindContributions}
+            events={events}
+            committeeId={committeeId}
+            committeeSlug={committeeSlug}
+            canEdit={canEdit}
+          />
+        </>
       )}
     </div>
   )
