@@ -203,7 +203,7 @@ export default function TransactionsTable({ transactions: initial, contributions
 
       {/* Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-visible">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">

@@ -23,6 +23,7 @@ export default function ReimbursementsTable({ reimbursements: initial, expenditu
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Reimbursement | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null)
   const [error, setError] = useState('')
 
   function handleSave(row: Reimbursement) {
@@ -37,6 +38,20 @@ export default function ReimbursementsTable({ reimbursements: initial, expenditu
     })
     setShowAdd(false)
     setEditing(null)
+  }
+
+  // The dropdown uses position: fixed (not absolute) so it isn't clipped by
+  // the table's horizontal-scroll wrapper — a container can't scroll on one
+  // axis while leaving the other axis unclipped for absolutely-positioned
+  // descendants, so this reads the trigger's on-screen position instead.
+  function toggleMenu(id: string, e: React.MouseEvent<HTMLButtonElement>) {
+    if (openMenu === id) {
+      setOpenMenu(null)
+      return
+    }
+    const rect = e.currentTarget.getBoundingClientRect()
+    setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+    setOpenMenu(id)
   }
 
   async function handleDelete(id: string) {
@@ -77,7 +92,7 @@ export default function ReimbursementsTable({ reimbursements: initial, expenditu
       {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mt-4">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-visible">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
@@ -109,17 +124,20 @@ export default function ReimbursementsTable({ reimbursements: initial, expenditu
                 <td className="px-4 py-3.5 relative">
                   {canEdit && (
                     <button
-                      onClick={() => setOpenMenu(openMenu === r.id ? null : r.id)}
+                      onClick={(e) => toggleMenu(r.id, e)}
                       className="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors opacity-0 group-hover:opacity-100"
                       aria-label="Actions"
                     >
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
                   )}
-                  {openMenu === r.id && (
+                  {openMenu === r.id && menuPos && (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
-                      <div className="absolute right-2 top-full mt-1 z-20 w-36 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+                      <div
+                        className="fixed z-20 w-36 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden"
+                        style={{ top: menuPos.top, right: menuPos.right }}
+                      >
                         <button onClick={() => { setEditing(r); setOpenMenu(null) }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                           <Pencil className="w-3.5 h-3.5" /> Edit
                         </button>

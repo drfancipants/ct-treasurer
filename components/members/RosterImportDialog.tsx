@@ -136,7 +136,7 @@ export default function RosterImportDialog({
               </div>
 
               <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-visible">
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200">

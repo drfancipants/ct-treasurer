@@ -68,6 +68,28 @@ export async function POST(req: NextRequest) {
     (u: { email?: string | null }) => u.email?.toLowerCase() === email.toLowerCase()
   )
 
+  // An invited-but-never-signed-in user still shows up here (generateLink
+  // creates the auth.users row immediately) — treat them the same as a
+  // brand-new invite so "resend invite" produces a fresh link, instead of
+  // silently no-op'ing because "an account already exists".
+  if (authUser && !authUser.last_sign_in_at) {
+    const { data, error } = await adminClient.auth.admin.generateLink({
+      type: 'invite',
+      email,
+      options: { redirectTo, data: { name, role, committeeId, committeeName } },
+    })
+    if (error || !data.user) {
+      console.error('[invite] generateLink (resend)', error)
+      return NextResponse.json({ error: error?.message ?? 'Failed to create invite' }, { status: 500 })
+    }
+    await addMembership(data.user.id)
+    return NextResponse.json({
+      success: true,
+      userId: data.user.id,
+      inviteLink: data.properties.action_link,
+    })
+  }
+
   if (authUser) {
     // Already has a login — just grant the committee membership. No email:
     // they sign in with their existing credentials.

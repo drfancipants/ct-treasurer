@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateMemberRole, removeMember } from '@/actions/members'
-import { UserPlus, Users, MoreHorizontal, Trash2, UserCog, Pencil, Phone, Mail, XCircle } from 'lucide-react'
+import { UserPlus, Users, MoreHorizontal, Trash2, UserCog, Pencil, Send, Phone, Mail, XCircle } from 'lucide-react'
 import type { CommitteeMember, MemberRole } from '@/lib/types'
 import { ROLE_LABELS, ROLE_ORDER } from '@/lib/types'
 import { formatDate, getInitials, cn } from '@/lib/utils'
 import AddMemberDialog from './AddMemberDialog'
 import EditMemberDialog from './EditMemberDialog'
+import ResendInviteDialog from './ResendInviteDialog'
 
 const ROLE_COLORS: Record<MemberRole, string> = {
   TREASURER: 'bg-blue-50 text-blue-700 ring-blue-200',
@@ -40,8 +41,24 @@ export default function MembersTable({ members: initial, committeeId, committeeS
   const [members, setMembers] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<CommitteeMember | null>(null)
+  const [resending, setResending] = useState<CommitteeMember | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null)
   const [error, setError] = useState('')
+
+  // The dropdown uses position: fixed (not absolute) so it isn't clipped by
+  // the table's horizontal-scroll wrapper — a container can't scroll on one
+  // axis while leaving the other axis unclipped for absolutely-positioned
+  // descendants, so this reads the trigger's on-screen position instead.
+  function toggleMenu(id: string, e: React.MouseEvent<HTMLButtonElement>) {
+    if (openMenu === id) {
+      setOpenMenu(null)
+      return
+    }
+    const rect = e.currentTarget.getBoundingClientRect()
+    setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+    setOpenMenu(id)
+  }
 
   const sorted = [...members].sort(
     (a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]
@@ -110,7 +127,7 @@ export default function MembersTable({ members: initial, committeeId, committeeS
 
       {/* Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-visible">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
@@ -144,7 +161,14 @@ export default function MembersTable({ members: initial, committeeId, committeeS
                       {getInitials(member.name)}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-slate-900">{member.name}</p>
+                      <p className="text-sm font-medium text-slate-900 flex items-center gap-1.5">
+                        {member.name}
+                        {member.pendingInvite && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 ring-1 ring-amber-200">
+                            Pending
+                          </span>
+                        )}
+                      </p>
                       <p className="text-xs text-slate-400 hidden sm:block">{member.email}</p>
                     </div>
                   </div>
@@ -194,17 +218,20 @@ export default function MembersTable({ members: initial, committeeId, committeeS
                 {/* Actions */}
                 <td className="px-4 py-3.5 relative">
                   <button
-                    onClick={() => setOpenMenu(openMenu === member.id ? null : member.id)}
+                    onClick={(e) => toggleMenu(member.id, e)}
                     className="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
                     aria-label="Member actions"
                   >
                     <MoreHorizontal className="w-4 h-4" />
                   </button>
 
-                  {openMenu === member.id && (
+                  {openMenu === member.id && menuPos && (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
-                      <div className="absolute right-2 top-full mt-1 z-20 w-52 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+                      <div
+                        className="fixed z-20 w-52 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden"
+                        style={{ top: menuPos.top, right: menuPos.right }}
+                      >
                         <div className="border-b border-slate-100">
                           <button
                             onClick={() => { setEditing(member); setOpenMenu(null) }}
@@ -213,6 +240,15 @@ export default function MembersTable({ members: initial, committeeId, committeeS
                             <Pencil className="w-3.5 h-3.5" />
                             Edit member
                           </button>
+                          {member.pendingInvite && (
+                            <button
+                              onClick={() => { setResending(member); setOpenMenu(null) }}
+                              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              Resend invite
+                            </button>
+                          )}
                         </div>
                         <div className="px-3 py-2 border-b border-slate-100">
                           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -281,6 +317,17 @@ export default function MembersTable({ members: initial, committeeId, committeeS
           onSave={handleEditSave}
           committeeSlug={committeeSlug}
           member={editing}
+        />
+      )}
+
+      {resending && (
+        <ResendInviteDialog
+          key={resending.id}
+          open
+          onClose={() => setResending(null)}
+          committeeId={committeeId}
+          committeeName={committeeName}
+          member={resending}
         />
       )}
     </>

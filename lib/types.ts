@@ -62,6 +62,8 @@ export interface CommitteeMember {
   role: MemberRole
   phone?: string
   joinedAt: string
+  /** True if they've never signed in — invited but haven't set a password yet. Derived, read-only. */
+  pendingInvite?: boolean
 }
 
 // ─── Committee roster ─────────────────────────────────────────────────────────

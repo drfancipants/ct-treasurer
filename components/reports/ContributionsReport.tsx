@@ -230,7 +230,7 @@ export default function ContributionsReport({ contributions, events }: { contrib
               <EmptyRange />
             ) : (
               <>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-visible">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50">
@@ -277,7 +277,7 @@ export default function ContributionsReport({ contributions, events }: { contrib
           {filteredEvents.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-slate-400">No events in this date range.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-visible">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
@@ -325,7 +325,7 @@ export default function ContributionsReport({ contributions, events }: { contrib
             <EmptyRange />
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto overflow-y-visible">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">

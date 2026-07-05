@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { requireCommitteeMember, requireCommitteeMemberById } from '@/lib/auth'
+import { createAdminClient } from '@/lib/supabase/server'
 import type { CommitteeMember, MemberRole } from '@/lib/types'
 
 type MembershipWithUser = {
@@ -19,7 +20,7 @@ type MembershipWithUser = {
   }
 }
 
-function mapMember(m: MembershipWithUser): CommitteeMember {
+function mapMember(m: MembershipWithUser, pendingInvite = false): CommitteeMember {
   return {
     id: m.id,
     committeeId: m.committeeId,
@@ -29,6 +30,7 @@ function mapMember(m: MembershipWithUser): CommitteeMember {
     role: m.role as MemberRole,
     phone: m.user.phone ?? undefined,
     joinedAt: m.joinedAt.toISOString().split('T')[0],
+    pendingInvite,
   }
 }
 
@@ -39,7 +41,25 @@ export async function getMembers(committeeId: string): Promise<CommitteeMember[]
     include: { user: true },
     orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }],
   })
-  return memberships.map(mapMember)
+
+  // Cross-reference Supabase Auth to flag members who were invited but have
+  // never signed in — lets the UI offer "resend invite" only where it's
+  // actually useful, instead of on everyone.
+  let neverSignedIn = new Set<string>()
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const { data } = await createAdminClient().auth.admin.listUsers()
+      neverSignedIn = new Set(
+        data.users
+          .filter((u: { id: string; last_sign_in_at?: string | null }) => !u.last_sign_in_at)
+          .map((u: { id: string }) => u.id)
+      )
+    } catch {
+      // Non-fatal — the tab still works, just without the pending-invite flag
+    }
+  }
+
+  return memberships.map((m) => mapMember(m, neverSignedIn.has(m.userId)))
 }
 
 export interface MemberUpdateInput {
