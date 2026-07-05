@@ -159,7 +159,7 @@ export function populateForm20(
   {
     const ws = wb.Sheets['Section P']
     if (ws && expends.length > 0) {
-      const rows = expends.map((e, i) => [
+      const rows = expends.map((e) => [
         '',                                                //  0 User Supplied Transaction ID (left blank — optional)
         e.payee,                                          //  1 Payee Name
         e.payeeAddress1 ?? '',                            //  2 Street Address (optional)
@@ -173,7 +173,7 @@ export function populateForm20(
         e.purpose,                                        // 10 Description
         e.eventId ? seecDate(eventById.get(e.eventId)?.date ?? '') : '', // 11 Event date
         e.eventId ? eventById.get(e.eventId)?.letter ?? '' : '',      // 12 Event letter
-        i + 1,                                            // 13 Expenditure number
+        '',                                                // 13 Expenditure Number (left blank — optional)
         'NONE',                                           // 14 Type (NONE = not coordinated)
         LEGACY_EXPENSE_PURPOSE[e.category] ?? e.category, // 15 Purpose code (stored directly)
       ])
@@ -242,9 +242,6 @@ export function populateForm20(
   {
     const ws = wb.Sheets['Section T']
     if (ws && reimbs.length > 0) {
-      // Section P rows are numbered i+1 above; a linked reimbursement points
-      // at its Section P payment through that same number
-      const expNumberById = new Map(expends.map((e, i) => [e.id, i + 1]))
       const rows = reimbs.map((r) => [
         '',                                                //  0 User Supplied Transaction ID (left blank — optional)
         r.workerLastName,                                 //  1 Last Name of Worker/Consultant
@@ -260,7 +257,7 @@ export function populateForm20(
         r.city ?? '',                                     // 11 City
         r.state,                                          // 12 State
         r.zip ?? '',                                      // 13 Zip
-        r.expenditureId ? expNumberById.get(r.expenditureId) ?? '' : '', // 14 Expenditure Number (Section P row)
+        '',                                                // 14 Expenditure Number (left blank — optional)
         'NONE',                                           // 15 Type (NONE = not coordinated)
         LEGACY_EXPENSE_PURPOSE[r.category] ?? r.category, // 16 Purpose code
         r.eventId ? seecDate(eventById.get(r.eventId)?.date ?? '') : '', // 17 Event date

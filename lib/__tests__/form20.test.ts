@@ -298,13 +298,13 @@ describe('Section T — worker reimbursements', () => {
     expect(r[16]).toBe('POST')                  // purpose code
   })
 
-  it('fills the Expenditure Number column from the linked Section P payment', () => {
+  it('leaves the Expenditure Number column blank even when linked to a Section P payment', () => {
     const buf = readFileSync(TEMPLATE_PATH)
     const template = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
     const linked = rb({ expenditureId: 'exp_b' })
     const out = populateForm20(template, [], expenditures, Q2_START, Q2_END, [], [], [], [linked])
     const r = XLSX.utils.sheet_to_json<unknown[]>(XLSX.read(out, { type: 'array' }).Sheets['Section T'], { header: 1 })[1]
-    expect(r[14]).toBe(2)  // exp_b is the second in-period Section P row
+    expect(r[14]).toBe('') // optional per SEEC — left blank like User Supplied Transaction ID
   })
 
   it('leaves the Expenditure Number blank when the linked payment is out of period', () => {
