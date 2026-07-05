@@ -69,9 +69,11 @@ export default function MembersTable({ members: initial, committeeId, committeeS
     setEditing(null)
   }
 
+  // AddMemberDialog stays open through its own confirmation step (the
+  // invite-link screen) — it calls onClose itself once the user is done, so
+  // closing it here too would skip straight past that screen.
   function handleAdd(member: CommitteeMember) {
     setMembers((prev) => [...prev, member])
-    setShowAdd(false)
   }
 
   async function handleRemove(id: string) {

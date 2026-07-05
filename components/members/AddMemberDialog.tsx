@@ -73,6 +73,7 @@ export default function AddMemberDialog({ open, onClose, onAdd, committeeId, com
         phone: form.phone.trim() || undefined,
         role: form.role,
         joinedAt: new Date().toISOString().split('T')[0],
+        pendingInvite: Boolean(data.inviteLink),
       }
       onAdd(newMember)
       if (data.existingUser) {
