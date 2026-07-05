@@ -53,7 +53,7 @@ export default function NewsletterComposer({
   const visible = rosterMembers.filter((r) => {
     if (filter === 'active' && !r.isActive) return false
     if (filter === 'inactive' && r.isActive) return false
-    if (filter === 'dues_unpaid' && r.duesPaid) return false
+    if (filter === 'dues_unpaid' && (r.duesPaid || r.duesPaidViaAnedot)) return false
     if (query) {
       const q = query.toLowerCase()
       const hay = `${r.firstName} ${r.lastName} ${r.email ?? ''}`.toLowerCase()

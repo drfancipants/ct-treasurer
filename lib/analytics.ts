@@ -140,7 +140,7 @@ export interface DuesStatusData {
 }
 
 export function getDuesStatusBreakdown(rosterMembers: RosterMember[]): DuesStatusData[] {
-  const paid = rosterMembers.filter((m) => m.duesPaid).length
+  const paid = rosterMembers.filter((m) => m.duesPaid || m.duesPaidViaAnedot).length
   const unpaid = rosterMembers.length - paid
   return [
     { name: 'Paid', value: paid },
