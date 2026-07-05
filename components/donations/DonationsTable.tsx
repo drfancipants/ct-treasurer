@@ -286,6 +286,7 @@ export default function DonationsTable({ contributions: initial, events, rosterM
 
       {/* Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
@@ -454,6 +455,7 @@ export default function DonationsTable({ contributions: initial, events, rosterM
             })}
           </tbody>
         </table>
+        </div>
 
         {/* Empty state */}
         {filtered.length === 0 && (

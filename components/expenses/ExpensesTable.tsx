@@ -253,7 +253,8 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-visible">
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 [&>th:first-child]:rounded-tl-xl [&>th:last-child]:rounded-tr-xl">
@@ -382,6 +383,7 @@ export default function ExpensesTable({ expenditures: initial, events, payees = 
             ))}
           </tbody>
         </table>
+        </div>
 
         {/* Empty state */}
         {filtered.length === 0 && (

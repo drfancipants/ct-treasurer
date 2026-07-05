@@ -103,6 +103,7 @@ export default function MembersTable({ members: initial, committeeId, committeeS
 
       {/* Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
@@ -232,6 +233,7 @@ export default function MembersTable({ members: initial, committeeId, committeeS
             ))}
           </tbody>
         </table>
+        </div>
 
         {members.length === 0 && (
           <div className="py-16 text-center">

@@ -203,6 +203,7 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mt-4">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
@@ -316,6 +317,7 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
             ))}
           </tbody>
         </table>
+        </div>
 
         {visible.length === 0 && (
           <div className="px-4 py-16 text-center">

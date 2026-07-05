@@ -230,6 +230,7 @@ export default function ContributionsReport({ contributions, events }: { contrib
               <EmptyRange />
             ) : (
               <>
+                <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50">
@@ -259,6 +260,7 @@ export default function ContributionsReport({ contributions, events }: { contrib
                     </tr>
                   </tfoot>
                 </table>
+                </div>
                 <Pager page={monthPage} total={sortedMonths.length} onPage={setMonthPage} />
               </>
             )}
@@ -275,6 +277,7 @@ export default function ContributionsReport({ contributions, events }: { contrib
           {filteredEvents.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-slate-400">No events in this date range.</p>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
@@ -305,6 +308,7 @@ export default function ContributionsReport({ contributions, events }: { contrib
                 </tr>
               </tfoot>
             </table>
+            </div>
           )}
         </div>
       )}
@@ -321,6 +325,7 @@ export default function ContributionsReport({ contributions, events }: { contrib
             <EmptyRange />
           ) : (
             <>
+              <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
@@ -353,6 +358,7 @@ export default function ContributionsReport({ contributions, events }: { contrib
                   </tr>
                 </tfoot>
               </table>
+              </div>
               <Pager page={donorPage} total={sortedDonors.length} onPage={setDonorPage} />
             </>
           )}

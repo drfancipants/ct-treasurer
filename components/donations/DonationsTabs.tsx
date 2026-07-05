@@ -30,13 +30,13 @@ export default function DonationsTabs({
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-1 border-b border-slate-200">
+      <div className="flex gap-1 border-b border-slate-200 overflow-x-auto">
         {([['individuals', 'Individuals'], ['committees', 'Other committees'], ['inkind', 'In-kind']] as [Tab, string][]).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
             className={cn(
-              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap shrink-0',
               tab === key ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'
             )}
           >

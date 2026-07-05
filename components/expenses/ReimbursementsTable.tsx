@@ -77,6 +77,7 @@ export default function ReimbursementsTable({ reimbursements: initial, expenditu
       {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mt-4">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
@@ -142,6 +143,7 @@ export default function ReimbursementsTable({ reimbursements: initial, expenditu
             </tfoot>
           )}
         </table>
+        </div>
 
         {rows.length === 0 && (
           <div className="px-4 py-16 text-center">
