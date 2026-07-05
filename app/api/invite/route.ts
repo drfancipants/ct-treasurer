@@ -44,6 +44,20 @@ export async function POST(req: NextRequest) {
   const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/auth/callback?type=invite`
 
   async function addMembership(userId: string) {
+    // A Supabase Auth account can be deleted and recreated for the same
+    // email (e.g. after an admin fully removes someone) — the new account
+    // gets a new id, but a stale User row from the old one can still be
+    // sitting on that email. Upserting by id alone would then try to
+    // create a second row and collide with User.email's unique constraint.
+    // Reconcile by email first: if a stale row under a different id exists,
+    // replace it (and its now-meaningless memberships, tied to an auth
+    // account that no longer exists) rather than colliding with it.
+    const staleUser = await prisma.user.findUnique({ where: { email } })
+    if (staleUser && staleUser.id !== userId) {
+      await prisma.committeeMembership.deleteMany({ where: { userId: staleUser.id } })
+      await prisma.user.delete({ where: { id: staleUser.id } })
+    }
+
     await prisma.user.upsert({
       where: { id: userId },
       create: { id: userId, email, name },
