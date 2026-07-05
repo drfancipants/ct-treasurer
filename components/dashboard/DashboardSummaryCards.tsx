@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { TrendingUp, TrendingDown, Scale, AlertCircle, Landmark } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { TrendingUp, TrendingDown, Scale, AlertCircle, Landmark, RefreshCw, CheckCircle2 } from 'lucide-react'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { formatCurrency, cn } from '@/lib/utils'
 import { setDashboardBankAccount } from '@/actions/bank'
@@ -149,10 +150,13 @@ function BankBalanceCard({
   canEdit: boolean
   committeeSlug: string
 }) {
+  const router = useRouter()
   // Fall back to the first linked account until one is explicitly chosen
   const initial = accounts.find((a) => a.id === selectedId) ?? accounts[0]
   const [account, setAccount] = useState(initial)
   const [saving, setSaving] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<'ok' | 'error' | null>(null)
 
   async function handleSelect(id: string) {
     const next = accounts.find((a) => a.id === id)
@@ -166,6 +170,25 @@ function BankBalanceCard({
       setAccount(prev)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleSync() {
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const res = await fetch('/api/plaid/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bankAccountId: account.id }),
+      })
+      setSyncResult(res.ok ? 'ok' : 'error')
+      if (res.ok) router.refresh()
+    } catch {
+      setSyncResult('error')
+    } finally {
+      setSyncing(false)
+      setTimeout(() => setSyncResult(null), 3000)
     }
   }
 
@@ -203,7 +226,28 @@ function BankBalanceCard({
           {account.name} ••{account.lastFour}
         </p>
       )}
-      <p className="text-[10px] text-slate-400 mt-0.5">{synced}</p>
+      <div className="flex items-center justify-between mt-0.5">
+        {syncResult === 'ok' ? (
+          <span className="flex items-center gap-1 text-[10px] text-emerald-600">
+            <CheckCircle2 className="w-2.5 h-2.5" /> Up to date
+          </span>
+        ) : syncResult === 'error' ? (
+          <span className="text-[10px] text-red-600">Sync failed</span>
+        ) : (
+          <p className="text-[10px] text-slate-400">{synced}</p>
+        )}
+        {canEdit && (
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-700 disabled:opacity-50 transition-colors"
+            title="Sync this account with Plaid"
+          >
+            <RefreshCw className={`w-2.5 h-2.5 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync'}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
