@@ -4,6 +4,7 @@ import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Scale, Mail, Lock, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { REMEMBER_ME_COOKIE, REMEMBERED_MAX_AGE, applyRememberMeCookiePolicy } from '@/lib/session'
 
 type Mode = 'password' | 'magic-link'
 
@@ -31,20 +32,30 @@ function LoginForm() {
       : ''
   )
   const [magicLinkSent, setMagicLinkSent] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
 
-  const supabase = createClient()
+  /** Marks whether this login should persist past a browser restart — read
+   * by the server client and proxy.ts on every later request so a
+   * session-only choice isn't silently upgraded back to persistent. */
+  function setRememberMeCookie(remember: boolean) {
+    document.cookie = remember
+      ? `${REMEMBER_ME_COOKIE}=1; path=/; max-age=${REMEMBERED_MAX_AGE}; samesite=lax`
+      : `${REMEMBER_ME_COOKIE}=0; path=/; samesite=lax`
+  }
 
   async function handlePasswordSignIn(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    setRememberMeCookie(rememberMe)
+    const { error } = await createClient().auth.signInWithPassword({ email, password })
 
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
+      applyRememberMeCookiePolicy(rememberMe)
       router.push(redirectTo)
       router.refresh()
     }
@@ -55,7 +66,8 @@ function LoginForm() {
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signInWithOtp({
+    setRememberMeCookie(rememberMe)
+    const { error } = await createClient().auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback?redirectTo=${redirectTo}`,
@@ -159,6 +171,16 @@ function LoginForm() {
             We&apos;ll send a one-click sign-in link to your email. No password required.
           </p>
         )}
+
+        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          />
+          Remember me on this device for 30 days
+        </label>
 
         <button
           type="submit"

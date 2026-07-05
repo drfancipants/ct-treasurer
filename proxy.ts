@@ -1,13 +1,21 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { REMEMBER_ME_COOKIE, REMEMBERED_MAX_AGE } from '@/lib/session'
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
+
+  // Absent marker defaults to remembered — matches pre-existing sessions
+  // and any flow that doesn't set the marker (signup, accept-invite). Must
+  // match lib/supabase/server.ts's policy so a session-only login doesn't
+  // get silently rewritten as persistent on the next refresh here.
+  const remembered = request.cookies.get(REMEMBER_ME_COOKIE)?.value !== '0'
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieOptions: { maxAge: remembered ? REMEMBERED_MAX_AGE : undefined },
       cookies: {
         getAll() {
           return request.cookies.getAll()
