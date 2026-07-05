@@ -42,6 +42,43 @@ export async function getMembers(committeeId: string): Promise<CommitteeMember[]
   return memberships.map(mapMember)
 }
 
+export interface MemberUpdateInput {
+  name: string
+  phone?: string
+}
+
+/**
+ * Updates a member's name/phone — these live on the shared User row (not
+ * per-committee), so the change is visible across every committee they
+ * belong to. Email is intentionally not editable here: it's tied to their
+ * Supabase Auth identity and login credential, not just a contact field.
+ */
+export async function updateMember(
+  membershipId: string,
+  data: MemberUpdateInput,
+  committeeSlug: string
+): Promise<CommitteeMember> {
+  const { committeeId, role: callerRole } = await requireCommitteeMember(committeeSlug)
+  if (callerRole !== 'TREASURER' && callerRole !== 'ASSISTANT_TREASURER') throw new Error('Forbidden')
+
+  const target = await prisma.committeeMembership.findFirst({ where: { id: membershipId, committeeId } })
+  if (!target) throw new Error('Forbidden')
+
+  if (!data.name.trim()) throw new Error('Name is required')
+
+  await prisma.user.update({
+    where: { id: target.userId },
+    data: { name: data.name.trim(), phone: data.phone?.trim() || null },
+  })
+
+  const updated = await prisma.committeeMembership.findFirstOrThrow({
+    where: { id: membershipId },
+    include: { user: true },
+  })
+  revalidatePath(`/app/${committeeSlug}/members`)
+  return mapMember(updated)
+}
+
 export async function updateMemberRole(
   membershipId: string,
   role: MemberRole,

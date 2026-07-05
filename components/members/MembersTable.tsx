@@ -3,11 +3,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { updateMemberRole, removeMember } from '@/actions/members'
-import { UserPlus, Users, MoreHorizontal, Trash2, UserCog, Phone, Mail, XCircle } from 'lucide-react'
+import { UserPlus, Users, MoreHorizontal, Trash2, UserCog, Pencil, Phone, Mail, XCircle } from 'lucide-react'
 import type { CommitteeMember, MemberRole } from '@/lib/types'
 import { ROLE_LABELS, ROLE_ORDER } from '@/lib/types'
 import { formatDate, getInitials, cn } from '@/lib/utils'
 import AddMemberDialog from './AddMemberDialog'
+import EditMemberDialog from './EditMemberDialog'
 
 const ROLE_COLORS: Record<MemberRole, string> = {
   TREASURER: 'bg-blue-50 text-blue-700 ring-blue-200',
@@ -38,12 +39,18 @@ export default function MembersTable({ members: initial, committeeId, committeeS
   const router = useRouter()
   const [members, setMembers] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
+  const [editing, setEditing] = useState<CommitteeMember | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   const sorted = [...members].sort(
     (a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]
   )
+
+  function handleEditSave(member: CommitteeMember) {
+    setMembers((prev) => prev.map((m) => (m.id === member.id ? member : m)))
+    setEditing(null)
+  }
 
   function handleAdd(member: CommitteeMember) {
     setMembers((prev) => [...prev, member])
@@ -198,6 +205,15 @@ export default function MembersTable({ members: initial, committeeId, committeeS
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
                       <div className="absolute right-2 top-full mt-1 z-20 w-52 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+                        <div className="border-b border-slate-100">
+                          <button
+                            onClick={() => { setEditing(member); setOpenMenu(null) }}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-slate-700 hover:bg-slate-50 transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            Edit member
+                          </button>
+                        </div>
                         <div className="px-3 py-2 border-b border-slate-100">
                           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                             Change role
@@ -256,6 +272,17 @@ export default function MembersTable({ members: initial, committeeId, committeeS
         committeeId={committeeId}
         committeeName={committeeName}
       />
+
+      {editing && (
+        <EditMemberDialog
+          key={editing.id}
+          open
+          onClose={() => setEditing(null)}
+          onSave={handleEditSave}
+          committeeSlug={committeeSlug}
+          member={editing}
+        />
+      )}
     </>
   )
 }
