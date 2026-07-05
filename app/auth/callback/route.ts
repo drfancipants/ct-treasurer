@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('redirectTo') ?? '/app'
-  const type = searchParams.get('type') // 'invite' | 'magiclink' | undefined
+  const type = searchParams.get('type') // 'invite' | 'magiclink' | 'recovery' | undefined
 
   if (code) {
     const supabase = await createClient()
@@ -27,6 +27,9 @@ export async function GET(request: NextRequest) {
 
       if (type === 'invite') {
         return NextResponse.redirect(`${origin}/accept-invite`)
+      }
+      if (type === 'recovery') {
+        return NextResponse.redirect(`${origin}/reset-password`)
       }
       return NextResponse.redirect(`${origin}${next}`)
     }

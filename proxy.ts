@@ -51,6 +51,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/privacy') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/accept-invite') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
     pathname.startsWith('/api/webhooks') ||  // Anedot + Stripe webhooks
     pathname.startsWith('/_next') ||
     pathname.startsWith('/templates')
