@@ -105,8 +105,8 @@ export function populateForm20(
   {
     const ws = wb.Sheets['Section C1']
     if (ws && cmteC.length > 0) {
-      const rows = cmteC.map((c, i) => [
-        i + 1,                                            //  0 Transaction ID
+      const rows = cmteC.map((c) => [
+        '',                                                //  0 User Supplied Transaction ID (left blank — optional)
         c.fromName,                                       //  1 Name of Committee
         c.treasurerName ?? '',                            //  2 Name of Treasurer
         c.street ?? '',                                   //  3 Committee Street Address
@@ -128,8 +128,8 @@ export function populateForm20(
   {
     const ws = wb.Sheets['Section B']
     if (ws && itemized.length > 0) {
-      const rows = itemized.map((c, i) => [
-        i + 1,                                            //  0 Transaction ID
+      const rows = itemized.map((c) => [
+        '',                                                //  0 User Supplied Transaction ID (left blank — optional)
         c.contributor.lastName,                           //  1 Last Name
         c.contributor.firstName,                          //  2 First Name
         c.contributor.middleInitial ?? '',                //  3 Middle Initials
@@ -160,7 +160,7 @@ export function populateForm20(
     const ws = wb.Sheets['Section P']
     if (ws && expends.length > 0) {
       const rows = expends.map((e, i) => [
-        i + 1,                                            //  0 Transaction ID
+        '',                                                //  0 User Supplied Transaction ID (left blank — optional)
         e.payee,                                          //  1 Payee Name
         e.payeeAddress1 ?? '',                            //  2 Street Address (optional)
         e.payeeCity ?? '',                                //  3 City
@@ -185,8 +185,8 @@ export function populateForm20(
   {
     const ws = wb.Sheets['Section L1']
     if (ws && evts.length > 0) {
-      const rows = evts.map((e, i) => [
-        i + 1,                          //  0 Transaction ID
+      const rows = evts.map((e) => [
+        '',                              //  0 User Supplied Transaction ID (left blank — optional)
         seecDate(e.date),               //  1 Date of Event
         e.letter,                       //  2 Letter for Event#
         e.description,                  //  3 Event Description
@@ -211,8 +211,8 @@ export function populateForm20(
   {
     const ws = wb.Sheets['Section M']
     if (ws && inKind.length > 0) {
-      const rows = inKind.map((c, i) => [
-        i + 1,                                            //  0 Transaction ID
+      const rows = inKind.map((c) => [
+        '',                                                //  0 User Supplied Transaction ID (left blank — optional)
         c.lastName,                                       //  1 Last Name / entity name
         c.firstName ?? '',                                //  2 First Name
         c.middleInitial ?? '',                            //  3 Middle Initials
@@ -245,8 +245,8 @@ export function populateForm20(
       // Section P rows are numbered i+1 above; a linked reimbursement points
       // at its Section P payment through that same number
       const expNumberById = new Map(expends.map((e, i) => [e.id, i + 1]))
-      const rows = reimbs.map((r, i) => [
-        i + 1,                                            //  0 Transaction ID
+      const rows = reimbs.map((r) => [
+        '',                                                //  0 User Supplied Transaction ID (left blank — optional)
         r.workerLastName,                                 //  1 Last Name of Worker/Consultant
         r.workerFirstName,                                //  2 First Name
         r.workerMiddleInitial ?? '',                      //  3 Middle Initial
