@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, MoreHorizontal, Pencil, Trash2, Search, Upload, RotateCcw } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Plus, MoreHorizontal, Pencil, Trash2, Search, Upload, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
 import type { RosterMember } from '@/lib/types'
 import { deleteRosterMember, setRosterMemberFlags, resetAllDues } from '@/actions/roster'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -26,6 +26,9 @@ const FILTERS: [Filter, string][] = [
   ['dues_unpaid', 'Dues unpaid'],
 ]
 
+type SortKey = 'member' | 'address' | 'contributions'
+type SortDir = 'asc' | 'desc'
+
 export default function RosterTable({ members: initial, committeeId, committeeSlug, canEdit }: Props) {
   const [rows, setRows] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
@@ -38,21 +41,46 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [error, setError] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('member')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir(key === 'contributions' ? 'desc' : 'asc')
+    }
+  }
 
   const activeCount = rows.filter((r) => r.isActive).length
   const duesPaidCount = rows.filter((r) => r.duesPaid || r.duesPaidViaAnedot).length
 
-  const visible = rows.filter((r) => {
-    if (filter === 'active' && !r.isActive) return false
-    if (filter === 'inactive' && r.isActive) return false
-    if (filter === 'dues_unpaid' && (r.duesPaid || r.duesPaidViaAnedot)) return false
-    if (query) {
-      const q = query.toLowerCase()
-      const hay = `${r.firstName} ${r.lastName} ${r.email ?? ''} ${r.phone ?? ''} ${r.city ?? ''}`.toLowerCase()
-      if (!hay.includes(q)) return false
-    }
-    return true
-  })
+  const visible = useMemo(() => {
+    return rows
+      .filter((r) => {
+        if (filter === 'active' && !r.isActive) return false
+        if (filter === 'inactive' && r.isActive) return false
+        if (filter === 'dues_unpaid' && (r.duesPaid || r.duesPaidViaAnedot)) return false
+        if (query) {
+          const q = query.toLowerCase()
+          const hay = `${r.firstName} ${r.lastName} ${r.email ?? ''} ${r.phone ?? ''} ${r.city ?? ''}`.toLowerCase()
+          if (!hay.includes(q)) return false
+        }
+        return true
+      })
+      .sort((a, b) => {
+        let cmp = 0
+        if (sortKey === 'contributions') {
+          cmp = a.contributionTotal - b.contributionTotal
+        } else if (sortKey === 'address') {
+          cmp = (a.city ?? '').toLowerCase().localeCompare((b.city ?? '').toLowerCase())
+        } else {
+          cmp = (a.lastName + a.firstName).toLowerCase().localeCompare((b.lastName + b.firstName).toLowerCase())
+        }
+        return sortDir === 'asc' ? cmp : -cmp
+      })
+  }, [rows, filter, query, sortKey, sortDir])
 
   function handleSave(row: RosterMember) {
     setRows((prev) => {
@@ -178,9 +206,24 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide">Member</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide hidden lg:table-cell">Address</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wide hidden md:table-cell">Contributions</th>
+              <SortableHeader label="Member" sortKey="member" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortableHeader
+                label="Address"
+                sortKey="address"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={toggleSort}
+                className="hidden lg:table-cell"
+              />
+              <SortableHeader
+                label="Contributions"
+                sortKey="contributions"
+                activeKey={sortKey}
+                dir={sortDir}
+                onSort={toggleSort}
+                align="right"
+                className="hidden md:table-cell"
+              />
               <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wide">Dues</th>
               <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wide">Status</th>
               <th className="px-4 py-3 w-10" />
@@ -345,6 +388,45 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
         />
       )}
     </>
+  )
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  activeKey,
+  dir,
+  onSort,
+  align = 'left',
+  className,
+}: {
+  label: string
+  sortKey: SortKey
+  activeKey: SortKey
+  dir: SortDir
+  onSort: (key: SortKey) => void
+  align?: 'left' | 'right'
+  className?: string
+}) {
+  const active = activeKey === sortKey
+  return (
+    <th className={cn('px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide', align === 'right' ? 'text-right' : 'text-left', className)}>
+      <button
+        onClick={() => onSort(sortKey)}
+        className={cn(
+          'inline-flex items-center gap-1 hover:text-slate-700 transition-colors',
+          align === 'right' && 'flex-row-reverse',
+          active && 'text-slate-700'
+        )}
+      >
+        {label}
+        {active ? (
+          dir === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+        ) : (
+          <ChevronDown className="w-3 h-3 opacity-0" />
+        )}
+      </button>
+    </th>
   )
 }
 
