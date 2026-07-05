@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { createClient } from '@/lib/supabase/server'
 import { mapCommittee } from '@/lib/map-committee'
+import { canEditFinances } from '@/lib/auth'
+import { upsertAuthUser } from '@/lib/user-sync'
 import type { Committee } from '@/lib/types'
 
 /** All committees the current user belongs to */
@@ -50,11 +52,12 @@ export async function createCommittee(data: {
 
   // Ensure a User row exists in the public schema (self-serve signup only
   // creates auth.users — the FK on CommitteeMembership requires this row).
-  await prisma.user.upsert({
-    where: { id: user.id },
-    create: { id: user.id, email: user.email!, name: user.user_metadata?.name ?? null },
-    update: {},
-  })
+  await upsertAuthUser(
+    user.id,
+    user.email!,
+    { name: user.user_metadata?.name ?? null },
+    {}
+  )
 
   const committee = await prisma.committee.create({
     data: {
@@ -96,13 +99,9 @@ export async function updateCommittee(
   if (!user) throw new Error('Unauthorized')
 
   const membership = await prisma.committeeMembership.findFirst({
-    where: {
-      userId: user.id,
-      committeeId,
-      role: { in: ['TREASURER', 'ASSISTANT_TREASURER'] },
-    },
+    where: { userId: user.id, committeeId },
   })
-  if (!membership) throw new Error('Forbidden')
+  if (!membership || !canEditFinances(membership.role)) throw new Error('Forbidden')
 
   const committee = await prisma.committee.update({
     where: { id: committeeId },

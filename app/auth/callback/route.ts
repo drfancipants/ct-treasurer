@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { prisma } from '@/lib/db'
+import { upsertAuthUser } from '@/lib/user-sync'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -15,15 +15,12 @@ export async function GET(request: NextRequest) {
     if (!error && data.user) {
       // Ensure a public-schema User row exists. The invite flow creates it at
       // invite time; self-serve signup only has an auth.users row until here.
-      await prisma.user.upsert({
-        where: { id: data.user.id },
-        create: {
-          id: data.user.id,
-          email: data.user.email!,
-          name: data.user.user_metadata?.name ?? null,
-        },
-        update: {},
-      })
+      await upsertAuthUser(
+        data.user.id,
+        data.user.email!,
+        { name: data.user.user_metadata?.name ?? null },
+        {}
+      )
 
       if (type === 'invite') {
         return NextResponse.redirect(`${origin}/accept-invite`)

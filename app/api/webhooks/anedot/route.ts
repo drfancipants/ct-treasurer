@@ -153,7 +153,6 @@ export async function POST(req: NextRequest) {
     // The donor may be a roster member — link them up
     await syncRosterContributorLinks(committee.id)
 
-    console.log(`[anedot-webhook] Saved $${amount} from ${donation.first_name} ${donation.last_name} (${donation.uid})`)
     return NextResponse.json({ received: true })
   } catch (err) {
     console.error('[anedot-webhook] Database error', err)

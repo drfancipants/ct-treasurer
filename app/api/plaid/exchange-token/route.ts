@@ -63,7 +63,6 @@ export async function POST(req: NextRequest) {
       )
     )
 
-    console.log(`[plaid/exchange-token] Linked ${accounts.length} account(s) for committee ${committeeId}`)
     return NextResponse.json({ linked: accounts.length })
   } catch (err) {
     console.error('[plaid/exchange-token]', err)

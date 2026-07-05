@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
-import { requireCommitteeMember, requireCommitteeMemberById } from '@/lib/auth'
+import { requireCommitteeMember, requireCommitteeMemberById, canEditFinances } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase/server'
 import type { CommitteeMember, MemberRole } from '@/lib/types'
 
@@ -79,7 +79,7 @@ export async function updateMember(
   committeeSlug: string
 ): Promise<CommitteeMember> {
   const { committeeId, role: callerRole } = await requireCommitteeMember(committeeSlug)
-  if (callerRole !== 'TREASURER' && callerRole !== 'ASSISTANT_TREASURER') throw new Error('Forbidden')
+  if (!canEditFinances(callerRole)) throw new Error('Forbidden')
 
   const target = await prisma.committeeMembership.findFirst({ where: { id: membershipId, committeeId } })
   if (!target) throw new Error('Forbidden')
@@ -105,7 +105,7 @@ export async function updateMemberRole(
   committeeSlug: string
 ) {
   const { committeeId, role: callerRole } = await requireCommitteeMember(committeeSlug)
-  if (callerRole !== 'TREASURER' && callerRole !== 'ASSISTANT_TREASURER') throw new Error('Forbidden')
+  if (!canEditFinances(callerRole)) throw new Error('Forbidden')
 
   const target = await prisma.committeeMembership.findFirst({ where: { id: membershipId, committeeId } })
   if (!target) throw new Error('Forbidden')
@@ -116,7 +116,7 @@ export async function updateMemberRole(
 
 export async function removeMember(membershipId: string, committeeSlug: string) {
   const { committeeId, role: callerRole } = await requireCommitteeMember(committeeSlug)
-  if (callerRole !== 'TREASURER' && callerRole !== 'ASSISTANT_TREASURER') throw new Error('Forbidden')
+  if (!canEditFinances(callerRole)) throw new Error('Forbidden')
 
   const target = await prisma.committeeMembership.findFirst({ where: { id: membershipId, committeeId } })
   if (!target) throw new Error('Forbidden')

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/db'
 import { stripe, STRIPE_PRICE_ID } from '@/lib/stripe'
+import { FINANCE_ROLES } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
   if (!process.env.STRIPE_SECRET_KEY || !STRIPE_PRICE_ID) {
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
   if (!committeeId) return NextResponse.json({ error: 'committeeId required' }, { status: 400 })
 
   const membership = await prisma.committeeMembership.findFirst({
-    where: { userId: user.id, committeeId, role: { in: ['TREASURER', 'ASSISTANT_TREASURER'] } },
+    where: { userId: user.id, committeeId, role: { in: FINANCE_ROLES } },
     include: { committee: true },
   })
   if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

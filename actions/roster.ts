@@ -4,8 +4,13 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { requireCommitteeMemberById, requireRosterRole, requireCommitteeMember } from '@/lib/auth'
 import { syncRosterContributorLinks } from '@/lib/roster-links'
+import { friendlyDbError } from '@/lib/friendly-db-error'
 import type { RosterMember, PaymentMethod, ContributionSource } from '@/lib/types'
 import type { ParsedRosterRow } from '@/lib/roster-csv'
+
+function friendlyImportError(err: unknown, context: string): Error {
+  return friendlyDbError(err, context, '[importRosterMembers]')
+}
 
 type PrismaRow = {
   id: string
@@ -273,63 +278,67 @@ export async function importRosterMembers(
 
   let created = 0
   let updated = 0
-  await prisma.$transaction(
-    importable.map((r) => {
-      const fields = {
-        firstName: str(r.firstName) ?? '',
-        lastName: str(r.lastName) ?? '',
-        email: str(r.email)?.toLowerCase(),
-        phone: str(r.phone),
-        address1: str(r.address1),
-        address2: str(r.address2),
-        city: str(r.city),
-        state: str(r.state),
-        zip: str(r.zip),
-        isActive: bool(r.isActive),
-        duesPaid: bool(r.duesPaid),
-        notes: str(r.notes),
-      }
-      if (r.action === 'update' && r.existingId && validIds.has(r.existingId)) {
-        updated++
-        // Only set fields the CSV provided — undefined keys are ignored by Prisma
-        return prisma.rosterMember.update({
-          where: { id: r.existingId },
+  try {
+    await prisma.$transaction(
+      importable.map((r) => {
+        const fields = {
+          firstName: str(r.firstName) ?? '',
+          lastName: str(r.lastName) ?? '',
+          email: str(r.email)?.toLowerCase(),
+          phone: str(r.phone),
+          address1: str(r.address1),
+          address2: str(r.address2),
+          city: str(r.city),
+          state: str(r.state),
+          zip: str(r.zip),
+          isActive: bool(r.isActive),
+          duesPaid: bool(r.duesPaid),
+          notes: str(r.notes),
+        }
+        if (r.action === 'update' && r.existingId && validIds.has(r.existingId)) {
+          updated++
+          // Only set fields the CSV provided — undefined keys are ignored by Prisma
+          return prisma.rosterMember.update({
+            where: { id: r.existingId },
+            data: {
+              firstName: fields.firstName || undefined,
+              lastName: fields.lastName || undefined,
+              email: fields.email,
+              phone: fields.phone,
+              address1: fields.address1,
+              address2: fields.address2,
+              city: fields.city,
+              state: fields.state,
+              zip: fields.zip,
+              isActive: fields.isActive,
+              duesPaid: fields.duesPaid,
+              notes: fields.notes,
+            },
+          })
+        }
+        created++
+        return prisma.rosterMember.create({
           data: {
-            firstName: fields.firstName || undefined,
-            lastName: fields.lastName || undefined,
-            email: fields.email,
-            phone: fields.phone,
-            address1: fields.address1,
-            address2: fields.address2,
-            city: fields.city,
-            state: fields.state,
-            zip: fields.zip,
-            isActive: fields.isActive,
-            duesPaid: fields.duesPaid,
-            notes: fields.notes,
+            committeeId,
+            firstName: fields.firstName,
+            lastName: fields.lastName,
+            email: fields.email ?? null,
+            phone: fields.phone ?? null,
+            address1: fields.address1 ?? null,
+            address2: fields.address2 ?? null,
+            city: fields.city ?? null,
+            state: fields.state ?? 'CT',
+            zip: fields.zip ?? null,
+            isActive: fields.isActive ?? true,
+            duesPaid: fields.duesPaid ?? false,
+            notes: fields.notes ?? null,
           },
         })
-      }
-      created++
-      return prisma.rosterMember.create({
-        data: {
-          committeeId,
-          firstName: fields.firstName,
-          lastName: fields.lastName,
-          email: fields.email ?? null,
-          phone: fields.phone ?? null,
-          address1: fields.address1 ?? null,
-          address2: fields.address2 ?? null,
-          city: fields.city ?? null,
-          state: fields.state ?? 'CT',
-          zip: fields.zip ?? null,
-          isActive: fields.isActive ?? true,
-          duesPaid: fields.duesPaid ?? false,
-          notes: fields.notes ?? null,
-        },
       })
-    })
-  )
+    )
+  } catch (err) {
+    throw friendlyImportError(err, `Failed to import ${importable.length} roster member${importable.length !== 1 ? 's' : ''}`)
+  }
 
   await syncRosterContributorLinks(committeeId)
   revalidatePath(`/app/${committeeSlug}/members`)
