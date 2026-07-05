@@ -37,11 +37,6 @@ export default async function DashboardPage({ params }: Props) {
     getCommitteeContributions(committee.id),
   ])
 
-  const totalRaised =
-    contributions.reduce((s, c) => s + c.amount, 0) +
-    committeeContributions.reduce((s, cc) => s + cc.amount, 0)
-  const totalSpent = expenditures.reduce((s, e) => s + e.amount, 0)
-
   // Same fallback the bank balance summary card uses — the account whose
   // balance is currently shown on the dashboard
   const dashboardAccount =
@@ -72,11 +67,9 @@ export default async function DashboardPage({ params }: Props) {
           </p>
         </div>
         <DashboardSummaryCards
-          totalRaised={totalRaised}
-          totalSpent={totalSpent}
-          seec={seec}
-          contributionCount={contributions.length + committeeContributions.length}
-          expenditureCount={expenditures.length}
+          contributions={contributions}
+          committeeContributions={committeeContributions}
+          expenditures={expenditures}
           bankAccounts={bankAccounts}
           selectedBankAccountId={committee.dashboardBankAccountId}
           canEdit={canEditFinances(role)}
