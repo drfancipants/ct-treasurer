@@ -9,6 +9,7 @@ import { getInKindContributions } from '@/actions/in-kind-contributions'
 import { getExpenditures } from '@/actions/expenses'
 import { getRosterMembers } from '@/actions/roster'
 import { getBankAccounts, getTransactions } from '@/actions/bank'
+import { getEvents } from '@/actions/events'
 import {
   getMonthlyData,
   getExpenseCategoryBreakdown,
@@ -50,13 +51,14 @@ export async function POST(req: NextRequest) {
   const committeeRow = await prisma.committee.findUniqueOrThrow({ where: { id: committeeId } })
   const committee = mapCommittee(committeeRow)
 
-  const [allContributions, allCommitteeContributions, allInKind, allExpenditures, rosterMembers, bankAccounts] = await Promise.all([
+  const [allContributions, allCommitteeContributions, allInKind, allExpenditures, rosterMembers, bankAccounts, allEvents] = await Promise.all([
     getContributions(committeeId),
     getCommitteeContributions(committeeId),
     getInKindContributions(committeeId),
     getExpenditures(committeeId),
     getRosterMembers(committeeId),
     getBankAccounts(committeeId),
+    getEvents(committeeId),
   ])
 
   // Same account the dashboard's bank balance card shows
@@ -68,6 +70,9 @@ export async function POST(req: NextRequest) {
   const committeeContributions = allCommitteeContributions.filter((c) => c.date >= start && c.date <= end)
   const inKindContributions = allInKind.filter((i) => i.date >= start && i.date <= end)
   const expenditures = allExpenditures.filter((e) => e.date >= start && e.date <= end)
+  const events = allEvents
+    .filter((e) => e.date >= start && e.date <= end)
+    .sort((a, b) => a.date.localeCompare(b.date))
 
   const totalRaised = contributions.reduce((s, c) => s + c.amount, 0) + committeeContributions.reduce((s, c) => s + c.amount, 0)
   const totalSpent = expenditures.reduce((s, e) => s + e.amount, 0)
@@ -116,6 +121,7 @@ export async function POST(req: NextRequest) {
     committeeContributions,
     inKindContributions,
     expenditures,
+    events,
     memberGiving: getMemberGivingSummary(rosterMembers, contributions),
   })
 

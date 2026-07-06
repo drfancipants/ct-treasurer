@@ -38,9 +38,14 @@ await ctx.addCookies([{ ...cookie, domain: 'localhost', path: '/', httpOnly: fal
 
 The same cookie works for API routes: `Cookie: ${name}=${value}` header on `fetch`.
 
-Committee slugs: `guilford-dtc` (has an active trial — use this one),
-`madison-dtc`, `grtc` (no subscription; entitlement may redirect). Authenticated
-pages live at `/app/<slug>/{dashboard,donations,expenses,bank,filings,members,settings}`.
+Committee slugs: the minted user's only membership is `gdtc` (committee id
+`cmr5lgmwj00008tilcfwsle9g`) — use that one. Other committees may exist in the
+local DB (e.g. `guilford-dtc`) but the user is not a member, so authenticated
+requests against them 403. Authenticated pages live at
+`/app/<slug>/{dashboard,donations,expenses,bank,filings,members,settings}`.
+
+When seeding throwaway rows for a drive, tag them (memo/notes field) and
+delete by tag afterward.
 
 ## Gotchas (all hit in practice)
 

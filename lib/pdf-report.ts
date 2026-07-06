@@ -1,6 +1,6 @@
 import PDFDocument from 'pdfkit'
 import { formatCurrency, formatShortDate } from '@/lib/utils'
-import type { Contribution, CommitteeContribution, InKindContribution, Expenditure } from '@/lib/types'
+import type { Contribution, CommitteeContribution, InKindContribution, Expenditure, CommitteeEvent } from '@/lib/types'
 import { PAYMENT_METHOD_LABELS, EXPENSE_CATEGORY_LABELS } from '@/lib/types'
 import type { MonthlyData, CategoryData, DonorTotal, MemberGivingSummary } from '@/lib/analytics'
 
@@ -26,6 +26,7 @@ export interface ReportData {
   committeeContributions: CommitteeContribution[]
   inKindContributions: InKindContribution[]
   expenditures: Expenditure[]
+  events: CommitteeEvent[]
   memberGiving: MemberGivingSummary
 }
 
@@ -383,6 +384,23 @@ export async function renderReportPdf(data: ReportData): Promise<Buffer> {
   ], data.inKindContributions, {
     empty: 'No in-kind donations in this period',
     total: ['', `Total (${data.inKindContributions.length})`, '', formatCurrency(inKindTotal)],
+  })
+  ctx.y += 18
+
+  // ── Fundraising events ──
+  sectionTitle(ctx, 'Fundraising Events')
+  const eventReceipts = data.events.reduce((s, e) => s + e.foodReceipts + e.tagSaleReceipts, 0)
+  drawPagedTable(ctx, [
+    { label: '#', width: 30, get: (r) => (r as CommitteeEvent).letter },
+    { label: 'Date', width: 70, get: (r) => formatShortDate((r as CommitteeEvent).date) },
+    { label: 'Event', width: 350, get: (r) => (r as CommitteeEvent).description },
+    { label: 'Receipts', width: 90, align: 'right', get: (r) => {
+      const e = r as CommitteeEvent
+      return e.foodReceipts + e.tagSaleReceipts > 0 ? formatCurrency(e.foodReceipts + e.tagSaleReceipts) : '—'
+    } },
+  ], data.events, {
+    empty: 'No events in this period',
+    total: ['', '', `Total receipts (${data.events.length} event${data.events.length === 1 ? '' : 's'})`, formatCurrency(eventReceipts)],
   })
   ctx.y += 18
 

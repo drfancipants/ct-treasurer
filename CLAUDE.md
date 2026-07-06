@@ -69,6 +69,8 @@ Vitest unit tests live in `lib/__tests__/` and cover the compliance-critical pur
 - `lib/form20.ts` — generates the eCRIS Form 20 `.xls` workbook (SheetJS) from the template in `public/templates/`; maps `ExpenseCategory` enum values to SEEC purpose codes
 - `lib/anedot-csv.ts` — PapaParse-based CSV parser that handles Anedot column name variants and deduplicates against existing `anedotId` values
 - `lib/supabase/client.ts` / `server.ts` — browser and server Supabase clients; server.ts also exports an `adminClient` that bypasses RLS (requires `SUPABASE_SERVICE_ROLE_KEY`)
+- `lib/pdf-report.ts` — the Reports page's multi-page PDF export (pdfkit, served by `POST /api/reports/pdf`): cover sheet, overview charts, itemized sections with paginating tables. Footers/headers are stamped after layout with `margins.bottom` zeroed — text whose line box crosses the bottom margin makes pdfkit silently add blank pages
+- `lib/report-chart.ts` / `lib/newsletter-chart.ts` — server-rendered chart PNGs (`@napi-rs/canvas`). **All canvas text must use `CHART_FONT` from `lib/chart-font.ts`** (bundled Liberation Sans, registered at render time). Generic families like `sans-serif` resolve against system fonts, and Vercel's runtime has none — text silently renders as nothing in production. `outputFileTracingIncludes` in next.config.mjs keeps the .ttf files in every function bundle
 
 ### Roles
 
