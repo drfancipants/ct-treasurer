@@ -1,4 +1,5 @@
 import type { MonthlyData, DuesStatusData } from './analytics'
+import { CHART_FONT, ensureChartFont } from './chart-font'
 
 // Colors match the dashboard charts (MonthlyChart / DuesStatusChart)
 const RAISED_COLOR = '#059669'
@@ -35,7 +36,7 @@ function legendItem(ctx: Canvas2D, x: number, y: number, color: string, label: s
   ctx.fill()
   ctx.fillStyle = LABEL_COLOR
   ctx.textAlign = 'left'
-  ctx.font = '11px sans-serif'
+  ctx.font = `11px ${CHART_FONT}`
   ctx.fillText(label, x + 13, y)
   return x + 13 + ctx.measureText(label).width + 18
 }
@@ -55,6 +56,7 @@ export async function renderReportChart(monthly: MonthlyData[]): Promise<Buffer>
   const hasBalance = monthly.some((m) => m.bankBalance != null)
   const PADDING = { top: 16, right: hasBalance ? 56 : 20, bottom: 52, left: 56 }
 
+  await ensureChartFont()
   const { createCanvas } = await import('@napi-rs/canvas')
   const canvas = createCanvas(WIDTH, HEIGHT)
   const ctx = canvas.getContext('2d')
@@ -74,7 +76,7 @@ export async function renderReportChart(monthly: MonthlyData[]): Promise<Buffer>
   // Gridlines + axis tick labels
   const steps = 4
   ctx.lineWidth = 1
-  ctx.font = '11px sans-serif'
+  ctx.font = `11px ${CHART_FONT}`
   for (let i = 0; i <= steps; i++) {
     const y = PADDING.top + plotHeight - (plotHeight / steps) * i
 
@@ -113,7 +115,7 @@ export async function renderReportChart(monthly: MonthlyData[]): Promise<Buffer>
     roundedTopBar(ctx, centerX + gap / 2, PADDING.top + plotHeight - spentHeight, barWidth, spentHeight, 4)
 
     ctx.fillStyle = TICK_COLOR
-    ctx.font = '11px sans-serif'
+    ctx.font = `11px ${CHART_FONT}`
     ctx.fillText(m.month, centerX, PADDING.top + plotHeight + 18)
   })
 
@@ -149,7 +151,7 @@ export async function renderReportChart(monthly: MonthlyData[]): Promise<Buffer>
   }
 
   // Centered dot legend under the plot, like the dashboard's
-  ctx.font = '11px sans-serif'
+  ctx.font = `11px ${CHART_FONT}`
   const items: [string, string][] = [
     [RAISED_COLOR, 'Raised'],
     [SPENT_COLOR, 'Spent'],
@@ -173,6 +175,7 @@ export async function renderDuesChart(data: DuesStatusData[], total: number): Pr
   const WIDTH = 460
   const HEIGHT = 190
 
+  await ensureChartFont()
   const { createCanvas } = await import('@napi-rs/canvas')
   const canvas = createCanvas(WIDTH, HEIGHT)
   const ctx = canvas.getContext('2d')
@@ -213,7 +216,7 @@ export async function renderDuesChart(data: DuesStatusData[], total: number): Pr
     ctx.arc(lx + 4, ly - 4, 4, 0, Math.PI * 2)
     ctx.fillStyle = DUES_COLORS[i % DUES_COLORS.length]
     ctx.fill()
-    ctx.font = '12px sans-serif'
+    ctx.font = `12px ${CHART_FONT}`
     ctx.fillStyle = LABEL_COLOR
     ctx.textAlign = 'left'
     ctx.fillText(entry.name, lx + 14, ly)

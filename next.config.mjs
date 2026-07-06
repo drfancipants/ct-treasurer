@@ -9,6 +9,11 @@ const nextConfig = {
   // location at runtime — bundling moves/inlines the JS but not those data
   // files, so it must also resolve via plain require().
   serverExternalPackages: ['@napi-rs/canvas', 'pdfkit'],
+  // Chart text fonts (lib/chart-font.ts) — read from disk at runtime, so
+  // every serverless function that can render a chart must bundle them.
+  outputFileTracingIncludes: {
+    '/**': ['./lib/fonts/*.ttf'],
+  },
 }
 
 export default nextConfig

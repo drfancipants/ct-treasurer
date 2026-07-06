@@ -1,4 +1,5 @@
 import type { MonthlyData } from './analytics'
+import { CHART_FONT, ensureChartFont } from './chart-font'
 
 const WIDTH = 700
 const HEIGHT = 350
@@ -18,6 +19,7 @@ function formatAxisDollar(v: number): string {
  * touch a canvas at all).
  */
 export async function renderContributionsChart(monthly: MonthlyData[]): Promise<Buffer> {
+  await ensureChartFont()
   const { createCanvas } = await import('@napi-rs/canvas')
   const canvas = createCanvas(WIDTH, HEIGHT)
   const ctx = canvas.getContext('2d')
@@ -26,7 +28,7 @@ export async function renderContributionsChart(monthly: MonthlyData[]): Promise<
   ctx.fillRect(0, 0, WIDTH, HEIGHT)
 
   ctx.fillStyle = '#0f172a'
-  ctx.font = '600 15px sans-serif'
+  ctx.font = `600 15px ${CHART_FONT}`
   ctx.textAlign = 'left'
   ctx.fillText('Donor contributions by month', PADDING.left, 22)
 
@@ -39,7 +41,7 @@ export async function renderContributionsChart(monthly: MonthlyData[]): Promise<
   ctx.strokeStyle = '#e2e8f0'
   ctx.lineWidth = 1
   ctx.fillStyle = '#94a3b8'
-  ctx.font = '11px sans-serif'
+  ctx.font = `11px ${CHART_FONT}`
   ctx.textAlign = 'right'
   for (let i = 0; i <= steps; i++) {
     const value = (maxRaised / steps) * i
@@ -64,7 +66,7 @@ export async function renderContributionsChart(monthly: MonthlyData[]): Promise<
     ctx.fillRect(x - barWidth / 2, PADDING.top + plotHeight - barHeight, barWidth, barHeight)
 
     ctx.fillStyle = '#64748b'
-    ctx.font = '10px sans-serif'
+    ctx.font = `10px ${CHART_FONT}`
     ctx.fillText(m.month, x, HEIGHT - PADDING.bottom + 16)
   })
 
