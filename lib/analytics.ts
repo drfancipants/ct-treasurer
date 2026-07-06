@@ -1,6 +1,7 @@
 import { format, parseISO } from 'date-fns'
 import type { Contribution, Expenditure, RosterMember, BankTransaction, CommitteeContribution } from './types'
-import { getSeecStatus, EXPENSE_CATEGORY_LABELS } from './types'
+import { getSeecStatus, EXPENSE_CATEGORY_LABELS, PAYMENT_METHOD_LABELS } from './types'
+import { donorKey } from './limits'
 
 // ─── Monthly raised vs spent ──────────────────────────────────────────────────
 
@@ -166,6 +167,49 @@ export function getExpenseCategoryBreakdown(expenditures: Expenditure[]): Catego
   return Array.from(map.entries())
     .map(([name, data]) => ({ name, ...data }))
     .sort((a, b) => b.amount - a.amount)
+}
+
+// ─── Payment method breakdown ─────────────────────────────────────────────────
+
+export function getPaymentMethodBreakdown(contributions: Contribution[]): CategoryData[] {
+  const map = new Map<string, { amount: number; count: number }>()
+  for (const c of contributions) {
+    const label = PAYMENT_METHOD_LABELS[c.method] ?? c.method
+    const existing = map.get(label) ?? { amount: 0, count: 0 }
+    map.set(label, { amount: existing.amount + c.amount, count: existing.count + 1 })
+  }
+  return Array.from(map.entries())
+    .map(([name, data]) => ({ name, ...data }))
+    .sort((a, b) => b.amount - a.amount)
+}
+
+// ─── Top donors ────────────────────────────────────────────────────────────────
+
+export interface DonorTotal {
+  name: string
+  email?: string
+  amount: number
+  count: number
+}
+
+export function getTopDonors(contributions: Contribution[], limit = 10): DonorTotal[] {
+  const map = new Map<string, DonorTotal>()
+  for (const c of contributions) {
+    const key = donorKey(c.contributor)
+    const entry = map.get(key) ?? {
+      name: `${c.contributor.firstName} ${c.contributor.lastName}`.trim(),
+      email: c.contributor.email,
+      amount: 0,
+      count: 0,
+    }
+    entry.amount += c.amount
+    entry.count += 1
+    if (!entry.email && c.contributor.email) entry.email = c.contributor.email
+    map.set(key, entry)
+  }
+  return Array.from(map.values())
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, limit)
 }
 
 // ─── SEEC compliance summary ──────────────────────────────────────────────────

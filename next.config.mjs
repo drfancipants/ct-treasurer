@@ -5,7 +5,10 @@ const nextConfig = {
   },
   // Native addon (prebuilt binary) — must be resolved at runtime via require(),
   // not bundled, or Turbopack fails on its non-ESM binding file.
-  serverExternalPackages: ['@napi-rs/canvas'],
+  // pdfkit ships font metrics (.afm) files it reads relative to its own
+  // location at runtime — bundling moves/inlines the JS but not those data
+  // files, so it must also resolve via plain require().
+  serverExternalPackages: ['@napi-rs/canvas', 'pdfkit'],
 }
 
 export default nextConfig

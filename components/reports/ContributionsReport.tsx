@@ -11,6 +11,8 @@ import {
   ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
+  FileDown,
+  Loader2,
 } from 'lucide-react'
 import type { Contribution, CommitteeEvent } from '@/lib/types'
 import { donorKey } from '@/lib/limits'
@@ -24,7 +26,8 @@ type SortDir = 'asc' | 'desc'
 const PAGE_SIZE = 10
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10)
+  // Local date, not toISOString() — UTC would roll to tomorrow in the evening.
+  return format(new Date(), 'yyyy-MM-dd')
 }
 
 interface MonthRow {
@@ -42,12 +45,51 @@ interface DonorRow {
   amount: number
 }
 
-export default function ContributionsReport({ contributions, events }: { contributions: Contribution[]; events: CommitteeEvent[] }) {
+export default function ContributionsReport({
+  contributions,
+  events,
+  committeeId,
+}: {
+  contributions: Contribution[]
+  events: CommitteeEvent[]
+  committeeId: string
+}) {
   const currentYear = new Date().getFullYear()
   const [tab, setTab] = useState<Tab>('overview')
   const [preset, setPreset] = useState<Preset>('ytd')
   const [start, setStart] = useState(`${currentYear}-01-01`)
   const [end, setEnd] = useState(today())
+  const [generatingPdf, setGeneratingPdf] = useState(false)
+  const [pdfError, setPdfError] = useState('')
+
+  async function handleGeneratePdf() {
+    setGeneratingPdf(true)
+    setPdfError('')
+    try {
+      const res = await fetch('/api/reports/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ committeeId, start, end }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? 'Failed to generate report')
+      }
+      const disposition = res.headers.get('Content-Disposition') ?? ''
+      const filename = disposition.match(/filename="(.+)"/)?.[1] ?? 'report.pdf'
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setPdfError(err instanceof Error ? err.message : 'Failed to generate report')
+    } finally {
+      setGeneratingPdf(false)
+    }
+  }
 
   // Sorting + pagination, per table
   const [monthSort, setMonthSort] = useState<{ key: keyof MonthRow; dir: SortDir }>({ key: 'key', dir: 'asc' })
@@ -189,8 +231,17 @@ export default function ContributionsReport({ contributions, events }: { contrib
             <PresetButton active={preset === 'prev-year'} onClick={() => applyPreset('prev-year')}>
               Previous year ({currentYear - 1})
             </PresetButton>
+            <button
+              onClick={handleGeneratePdf}
+              disabled={generatingPdf}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            >
+              {generatingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+              {generatingPdf ? 'Generating…' : 'PDF report'}
+            </button>
           </div>
         </div>
+        {pdfError && <p className="mt-2 text-xs text-red-600">{pdfError}</p>}
       </div>
 
       {/* Tabs */}

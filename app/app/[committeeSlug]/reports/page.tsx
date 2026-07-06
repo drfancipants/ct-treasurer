@@ -27,7 +27,7 @@ export default async function ReportsPage({ params }: Props) {
             Contribution totals for {committee.name}
           </p>
         </div>
-        <ContributionsReport contributions={contributions} events={events} />
+        <ContributionsReport contributions={contributions} events={events} committeeId={committee.id} />
       </div>
     </div>
   )
