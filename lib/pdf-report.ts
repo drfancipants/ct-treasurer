@@ -13,8 +13,12 @@ export interface ReportData {
   totalRaised: number
   totalSpent: number
   netBalance: number
+  /** Balance of the same bank account the dashboard's card shows */
+  bankBalance?: { amount: number; accountLabel: string }
   monthly: MonthlyData[]
   chartImage: Buffer
+  /** Dues-status donut, absent when the committee has no roster members */
+  duesChartImage?: Buffer
   paymentMethodBreakdown: CategoryData[]
   expenseCategoryBreakdown: CategoryData[]
   topDonors: DonorTotal[]
@@ -235,16 +239,19 @@ function drawCover(doc: PDFKit.PDFDocument, data: ReportData) {
   doc.fontSize(12).font('Helvetica').fillColor(COLOR.text)
   doc.text(data.periodLabel, PAGE_MARGIN, y, { width: CONTENT_WIDTH, align: 'center' })
 
-  // Key totals
+  // Key totals — with the bank balance leading, like the dashboard's card row
   y = 470
-  const cards: { label: string; value: string; color: string }[] = [
+  const cards: { label: string; value: string; color: string; sub?: string }[] = [
+    ...(data.bankBalance
+      ? [{ label: 'Bank Balance', value: formatCurrency(data.bankBalance.amount), color: COLOR.blue, sub: data.bankBalance.accountLabel }]
+      : []),
     { label: 'Total Raised', value: formatCurrency(data.totalRaised), color: COLOR.emerald },
     { label: 'Total Spent', value: formatCurrency(data.totalSpent), color: COLOR.red },
     { label: 'Net', value: formatCurrency(data.netBalance), color: COLOR.text },
   ]
   const cardGap = 10
-  const cardWidth = 140
-  const cardHeight = 56
+  const cardWidth = cards.length === 4 ? 124 : 140
+  const cardHeight = 62
   const cardsLeft = (PAGE_WIDTH - (cardWidth * cards.length + cardGap * (cards.length - 1))) / 2
   cards.forEach((card, i) => {
     const cx = cardsLeft + i * (cardWidth + cardGap)
@@ -254,6 +261,10 @@ function drawCover(doc: PDFKit.PDFDocument, data: ReportData) {
     doc.text(card.label.toUpperCase(), cx, y + 10, { width: cardWidth, align: 'center' })
     doc.fontSize(15).font('Helvetica-Bold').fillColor(card.color)
     doc.text(card.value, cx, y + 26, { width: cardWidth, align: 'center' })
+    if (card.sub) {
+      doc.fontSize(7).font('Helvetica').fillColor(COLOR.lightGray)
+      doc.text(truncateToWidth(doc, card.sub, cardWidth - 8), cx, y + 46, { width: cardWidth, align: 'center', lineBreak: false })
+    }
   })
   y += cardHeight + 16
 
@@ -401,6 +412,17 @@ export async function renderReportPdf(data: ReportData): Promise<Buffer> {
     ctx.y
   )
   ctx.y += 14
+
+  if (data.duesChartImage) {
+    const duesChartWidth = 320
+    const duesChartHeight = duesChartWidth * (190 / 460)
+    ensure(ctx, 14 + duesChartHeight + ROW_HEIGHT * 3)
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(COLOR.text)
+    doc.text('Dues status', left, ctx.y)
+    ctx.y += 14
+    doc.image(data.duesChartImage, left, ctx.y, { width: duesChartWidth })
+    ctx.y += duesChartHeight + 12
+  }
   const memberTotal = mg.rows.reduce((s, r) => s + r.amount, 0)
   drawPagedTable(ctx, [
     { label: 'Member', width: CONTENT_WIDTH * 0.6, get: (r) => (r as MemberGivingSummary['rows'][number]).name },

@@ -8,14 +8,17 @@ import { getCommitteeContributions } from '@/actions/committee-contributions'
 import { getInKindContributions } from '@/actions/in-kind-contributions'
 import { getExpenditures } from '@/actions/expenses'
 import { getRosterMembers } from '@/actions/roster'
+import { getBankAccounts, getTransactions } from '@/actions/bank'
 import {
   getMonthlyData,
   getExpenseCategoryBreakdown,
   getPaymentMethodBreakdown,
   getTopDonors,
   getMemberGivingSummary,
+  getDuesStatusBreakdown,
+  withBankBalances,
 } from '@/lib/analytics'
-import { renderReportChart } from '@/lib/report-chart'
+import { renderReportChart, renderDuesChart } from '@/lib/report-chart'
 import { renderReportPdf } from '@/lib/pdf-report'
 import { formatDate } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -47,13 +50,19 @@ export async function POST(req: NextRequest) {
   const committeeRow = await prisma.committee.findUniqueOrThrow({ where: { id: committeeId } })
   const committee = mapCommittee(committeeRow)
 
-  const [allContributions, allCommitteeContributions, allInKind, allExpenditures, rosterMembers] = await Promise.all([
+  const [allContributions, allCommitteeContributions, allInKind, allExpenditures, rosterMembers, bankAccounts] = await Promise.all([
     getContributions(committeeId),
     getCommitteeContributions(committeeId),
     getInKindContributions(committeeId),
     getExpenditures(committeeId),
     getRosterMembers(committeeId),
+    getBankAccounts(committeeId),
   ])
+
+  // Same account the dashboard's bank balance card shows
+  const dashboardAccount =
+    bankAccounts.find((a) => a.id === committee.dashboardBankAccountId) ?? bankAccounts[0]
+  const bankTransactions = dashboardAccount ? await getTransactions([dashboardAccount.id]) : []
 
   const contributions = allContributions.filter((c) => c.date >= start && c.date <= end)
   const committeeContributions = allCommitteeContributions.filter((c) => c.date >= start && c.date <= end)
@@ -63,8 +72,16 @@ export async function POST(req: NextRequest) {
   const totalRaised = contributions.reduce((s, c) => s + c.amount, 0) + committeeContributions.reduce((s, c) => s + c.amount, 0)
   const totalSpent = expenditures.reduce((s, e) => s + e.amount, 0)
 
-  const monthly = getMonthlyData(contributions, expenditures, committeeContributions)
-  const chartImage = await renderReportChart(monthly)
+  const monthly = withBankBalances(
+    getMonthlyData(contributions, expenditures, committeeContributions),
+    bankTransactions,
+    dashboardAccount?.currentBalance ?? 0
+  )
+  const duesStatus = getDuesStatusBreakdown(rosterMembers)
+  const [chartImage, duesChartImage] = await Promise.all([
+    renderReportChart(monthly),
+    renderDuesChart(duesStatus, rosterMembers.length),
+  ])
 
   const addressParts = [
     committee.address1,
@@ -83,8 +100,15 @@ export async function POST(req: NextRequest) {
     totalRaised,
     totalSpent,
     netBalance: totalRaised - totalSpent,
+    bankBalance: dashboardAccount
+      ? {
+          amount: dashboardAccount.currentBalance,
+          accountLabel: `${dashboardAccount.name} ••${dashboardAccount.lastFour}`,
+        }
+      : undefined,
     monthly,
     chartImage,
+    duesChartImage: duesChartImage ?? undefined,
     paymentMethodBreakdown: getPaymentMethodBreakdown(contributions),
     expenseCategoryBreakdown: getExpenseCategoryBreakdown(expenditures),
     topDonors: getTopDonors(contributions),
