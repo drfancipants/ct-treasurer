@@ -16,6 +16,7 @@ import {
   AlertCircle,
   CheckCircle2,
   XCircle,
+  ShieldAlert,
 } from 'lucide-react'
 import type { Contribution, PaymentMethod, ContributionSource, CommitteeEvent, RosterMember } from '@/lib/types'
 import {
@@ -30,6 +31,7 @@ import AnedotImportDialog from './AnedotImportDialog'
 import ErrorBanner from '@/components/ui/ErrorBanner'
 import FiledBadge from '@/components/ui/FiledBadge'
 import LimitAlerts from './LimitAlerts'
+import { getContributionViolations } from '@/lib/limits'
 
 const METHOD_COLORS: Record<PaymentMethod, string> = {
   CHECK: 'bg-slate-100 text-slate-700',
@@ -87,6 +89,10 @@ export default function DonationsTable({ contributions: initial, events, rosterM
     }
   }
 
+  // Violations depend on donor-year totals, so they're computed over the full
+  // list, not the filtered view
+  const violations = useMemo(() => getContributionViolations(contributions), [contributions])
+
   const filtered = useMemo(() => {
     return contributions
       .filter((c) => {
@@ -99,8 +105,9 @@ export default function DonationsTable({ contributions: initial, events, rosterM
         if (dateTo && c.date.slice(0, 10) > dateTo) return false
         if (seecFilter !== 'ALL') {
           const status = getSeecStatus(c).status
-          if (seecFilter === 'compliant' && status !== 'compliant') return false
-          if (seecFilter === 'issues' && status === 'compliant') return false
+          const hasViolation = violations.has(c.id)
+          if (seecFilter === 'compliant' && (status !== 'compliant' || hasViolation)) return false
+          if (seecFilter === 'issues' && status === 'compliant' && !hasViolation) return false
         }
         return true
       })
@@ -117,7 +124,7 @@ export default function DonationsTable({ contributions: initial, events, rosterM
         }
         return sortDir === 'asc' ? cmp : -cmp
       })
-  }, [contributions, search, methodFilter, sourceFilter, seecFilter, dateFrom, dateTo, sortKey, sortDir])
+  }, [contributions, violations, search, methodFilter, sourceFilter, seecFilter, dateFrom, dateTo, sortKey, sortDir])
 
   const filteredTotal = filtered.reduce((s, c) => s + c.amount, 0)
 
@@ -409,7 +416,12 @@ export default function DonationsTable({ contributions: initial, events, rosterM
 
                   {/* SEEC status */}
                   <td className="px-4 py-3.5">
-                    <SeecBadge status={seec.status} issues={seec.issues} />
+                    <div className="flex flex-col items-start gap-1">
+                      {violations.has(contribution.id) && (
+                        <ViolationBadge messages={violations.get(contribution.id)!} />
+                      )}
+                      <SeecBadge status={seec.status} issues={seec.issues} />
+                    </div>
                   </td>
 
                   {/* Filed */}
@@ -570,6 +582,18 @@ export default function DonationsTable({ contributions: initial, events, rosterM
         committeeSlug={committeeSlug}
       />
     </>
+  )
+}
+
+function ViolationBadge({ messages }: { messages: string[] }) {
+  return (
+    <span
+      title={messages.join('\n')}
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-600 text-white cursor-help"
+    >
+      <ShieldAlert className="w-3 h-3" />
+      Violation
+    </span>
   )
 }
 

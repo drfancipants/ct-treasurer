@@ -97,6 +97,58 @@ export function getLimitAlerts(contributions: Contribution[], year?: number): Do
   return getDonorYearTotals(contributions).filter((d) => d.year === y && d.status !== 'ok')
 }
 
+// ─── Recorded-contribution violations ─────────────────────────────────────────
+
+/**
+ * Flags recorded contributions that violate SEEC rules, by contribution id:
+ * - a single cash contribution over $100 (CGS § 9-611)
+ * - contributions that put a donor past the $2,000 calendar-year limit —
+ *   each donor-year is walked in date order and every contribution from the
+ *   crossing point on is flagged, so early legitimate gifts stay clean.
+ *
+ * These are violations of the law, distinct from getSeecStatus()'s
+ * missing-paperwork statuses; the prospective checks in checkProspective()
+ * warn at entry time, but imports, edits, and warnings the user clicked
+ * through can still land violating rows — this catches them after the fact.
+ */
+export function getContributionViolations(contributions: Contribution[]): Map<string, string[]> {
+  const violations = new Map<string, string[]>()
+  const add = (id: string, message: string) => {
+    violations.set(id, [...(violations.get(id) ?? []), message])
+  }
+
+  for (const c of contributions) {
+    if (c.method === 'CASH' && c.amount > CASH_CONTRIBUTION_MAX) {
+      add(c.id, `Cash contribution over $${CASH_CONTRIBUTION_MAX} (CGS § 9-611)`)
+    }
+  }
+
+  const groups = new Map<string, Contribution[]>()
+  for (const c of contributions) {
+    const year = c.date.slice(0, 4)
+    const key = `${donorKey(c.contributor)}@${year}`
+    groups.set(key, [...(groups.get(key) ?? []), c])
+  }
+  for (const group of groups.values()) {
+    const ordered = [...group].sort(
+      (a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)
+    )
+    let running = 0
+    for (const c of ordered) {
+      running += c.amount
+      if (running > INDIVIDUAL_ANNUAL_LIMIT) {
+        add(
+          c.id,
+          `Puts donor over the $${INDIVIDUAL_ANNUAL_LIMIT.toLocaleString()}/year limit ` +
+            `($${running.toLocaleString()} total for ${c.date.slice(0, 4)})`
+        )
+      }
+    }
+  }
+
+  return violations
+}
+
 // ─── Prospective contribution check (for entry forms / imports) ──────────────
 
 export interface ProspectiveCheck {

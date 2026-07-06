@@ -4,6 +4,7 @@ import {
   getDonorYearTotals,
   getLimitAlerts,
   checkProspective,
+  getContributionViolations,
   INDIVIDUAL_ANNUAL_LIMIT,
 } from '../limits'
 import { makeContribution } from './helpers'
@@ -128,5 +129,60 @@ describe('checkProspective', () => {
 
   it('exposes the statutory limit constant', () => {
     expect(INDIVIDUAL_ANNUAL_LIMIT).toBe(2000)
+  })
+})
+
+describe('getContributionViolations', () => {
+  const jane = { email: 'jane@example.com' }
+
+  it('flags recorded cash contributions over $100', () => {
+    const violations = getContributionViolations([
+      makeContribution({ id: 'c1', method: 'CASH', amount: 150 }),
+      makeContribution({ id: 'c2', method: 'CASH', amount: 100 }),
+      makeContribution({ id: 'c3', method: 'CHECK', amount: 150 }),
+    ])
+    expect(violations.get('c1')).toEqual(['Cash contribution over $100 (CGS § 9-611)'])
+    expect(violations.has('c2')).toBe(false)
+    expect(violations.has('c3')).toBe(false)
+  })
+
+  it('flags contributions from the annual-limit crossing point on, leaving earlier gifts clean', () => {
+    const violations = getContributionViolations([
+      makeContribution({ id: 'early', amount: 1500, date: '2026-02-01', contributor: jane }),
+      makeContribution({ id: 'crossing', amount: 600, date: '2026-05-01', contributor: jane }),
+      makeContribution({ id: 'after', amount: 50, date: '2026-08-01', contributor: jane }),
+    ])
+    expect(violations.has('early')).toBe(false)
+    expect(violations.get('crossing')).toEqual([
+      'Puts donor over the $2,000/year limit ($2,100 total for 2026)',
+    ])
+    expect(violations.get('after')).toEqual([
+      'Puts donor over the $2,000/year limit ($2,150 total for 2026)',
+    ])
+  })
+
+  it('walks each calendar year independently', () => {
+    const violations = getContributionViolations([
+      makeContribution({ id: 'y1', amount: 1900, date: '2025-06-01', contributor: jane }),
+      makeContribution({ id: 'y2', amount: 1900, date: '2026-06-01', contributor: jane }),
+    ])
+    expect(violations.size).toBe(0)
+  })
+
+  it('groups duplicate donor records by email when totaling', () => {
+    const violations = getContributionViolations([
+      makeContribution({ id: 'a', amount: 1500, date: '2026-01-01', contributor: { id: 'con_1', email: 'dup@x.com' } }),
+      makeContribution({ id: 'b', amount: 1000, date: '2026-03-01', contributor: { id: 'con_2', email: 'DUP@x.com' } }),
+    ])
+    expect(violations.has('a')).toBe(false)
+    expect(violations.has('b')).toBe(true)
+  })
+
+  it('can stack cash and limit violations on one contribution', () => {
+    const violations = getContributionViolations([
+      makeContribution({ id: 'a', amount: 1990, date: '2026-01-01', contributor: jane }),
+      makeContribution({ id: 'b', amount: 150, method: 'CASH', date: '2026-02-01', contributor: jane }),
+    ])
+    expect(violations.get('b')).toHaveLength(2)
   })
 })
