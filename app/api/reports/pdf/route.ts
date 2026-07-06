@@ -5,12 +5,15 @@ import { requireCommitteeMemberById } from '@/lib/auth'
 import { mapCommittee } from '@/lib/map-committee'
 import { getContributions } from '@/actions/donations'
 import { getCommitteeContributions } from '@/actions/committee-contributions'
+import { getInKindContributions } from '@/actions/in-kind-contributions'
 import { getExpenditures } from '@/actions/expenses'
+import { getRosterMembers } from '@/actions/roster'
 import {
   getMonthlyData,
   getExpenseCategoryBreakdown,
   getPaymentMethodBreakdown,
   getTopDonors,
+  getMemberGivingSummary,
 } from '@/lib/analytics'
 import { renderReportChart } from '@/lib/report-chart'
 import { renderReportPdf } from '@/lib/pdf-report'
@@ -44,14 +47,17 @@ export async function POST(req: NextRequest) {
   const committeeRow = await prisma.committee.findUniqueOrThrow({ where: { id: committeeId } })
   const committee = mapCommittee(committeeRow)
 
-  const [allContributions, allCommitteeContributions, allExpenditures] = await Promise.all([
+  const [allContributions, allCommitteeContributions, allInKind, allExpenditures, rosterMembers] = await Promise.all([
     getContributions(committeeId),
     getCommitteeContributions(committeeId),
+    getInKindContributions(committeeId),
     getExpenditures(committeeId),
+    getRosterMembers(committeeId),
   ])
 
   const contributions = allContributions.filter((c) => c.date >= start && c.date <= end)
   const committeeContributions = allCommitteeContributions.filter((c) => c.date >= start && c.date <= end)
+  const inKindContributions = allInKind.filter((i) => i.date >= start && i.date <= end)
   const expenditures = allExpenditures.filter((e) => e.date >= start && e.date <= end)
 
   const totalRaised = contributions.reduce((s, c) => s + c.amount, 0) + committeeContributions.reduce((s, c) => s + c.amount, 0)
@@ -77,13 +83,16 @@ export async function POST(req: NextRequest) {
     totalRaised,
     totalSpent,
     netBalance: totalRaised - totalSpent,
-    contributionCount: contributions.length + committeeContributions.length,
-    expenditureCount: expenditures.length,
     monthly,
     chartImage,
     paymentMethodBreakdown: getPaymentMethodBreakdown(contributions),
     expenseCategoryBreakdown: getExpenseCategoryBreakdown(expenditures),
     topDonors: getTopDonors(contributions),
+    contributions,
+    committeeContributions,
+    inKindContributions,
+    expenditures,
+    memberGiving: getMemberGivingSummary(rosterMembers, contributions),
   })
 
   const safeName = committee.name.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 40)

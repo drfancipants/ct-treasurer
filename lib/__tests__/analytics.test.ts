@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { getMonthlyData, getTrailingMonths, getPaymentMethodBreakdown, getTopDonors } from '../analytics'
-import { makeContribution } from './helpers'
+import { getMonthlyData, getTrailingMonths, getPaymentMethodBreakdown, getTopDonors, getMemberGivingSummary } from '../analytics'
+import { makeContribution, makeRosterMember } from './helpers'
 
 describe('getTrailingMonths', () => {
   it('returns exactly `count` months ending with the current month', () => {
@@ -102,5 +102,46 @@ describe('getTopDonors', () => {
       makeContribution({ amount: i + 1, contributor: { firstName: `Donor${i}`, lastName: 'X', email: `d${i}@x.com` } })
     )
     expect(getTopDonors(contributions)).toHaveLength(10)
+  })
+})
+
+describe('getMemberGivingSummary', () => {
+  it('matches by linked contributorId and by case-insensitive email', () => {
+    const members = [
+      makeRosterMember({ id: 'm1', firstName: 'Linked', lastName: 'ById', contributorId: 'con_a' }),
+      makeRosterMember({ id: 'm2', firstName: 'Matched', lastName: 'ByEmail', email: 'PAT@X.COM' }),
+      makeRosterMember({ id: 'm3', firstName: 'Never', lastName: 'Gave' }),
+    ]
+    const contributions = [
+      makeContribution({ amount: 100, contributor: { id: 'con_a', email: 'other@x.com' } }),
+      makeContribution({ amount: 40, contributor: { id: 'con_b', email: 'pat@x.com' } }),
+      makeContribution({ amount: 10, contributor: { id: 'con_b', email: 'pat@x.com' } }),
+    ]
+    const summary = getMemberGivingSummary(members, contributions)
+    expect(summary.rows).toEqual([
+      { name: 'Linked ById', amount: 100, count: 1 },
+      { name: 'Matched ByEmail', amount: 50, count: 2 },
+    ])
+    expect(summary.activeMembers).toBe(3)
+    expect(summary.membersWhoGave).toBe(2)
+  })
+
+  it('ignores inactive members and non-member contributions', () => {
+    const members = [
+      makeRosterMember({ id: 'm1', contributorId: 'con_a', isActive: false }),
+    ]
+    const contributions = [makeContribution({ contributor: { id: 'con_a' } })]
+    const summary = getMemberGivingSummary(members, contributions)
+    expect(summary.rows).toEqual([])
+    expect(summary.activeMembers).toBe(0)
+  })
+
+  it('does not double-count when contributorId and email both match the same member', () => {
+    const members = [
+      makeRosterMember({ id: 'm1', firstName: 'Both', lastName: 'Match', contributorId: 'con_a', email: 'both@x.com' }),
+    ]
+    const contributions = [makeContribution({ amount: 60, contributor: { id: 'con_a', email: 'both@x.com' } })]
+    const summary = getMemberGivingSummary(members, contributions)
+    expect(summary.rows).toEqual([{ name: 'Both Match', amount: 60, count: 1 }])
   })
 })

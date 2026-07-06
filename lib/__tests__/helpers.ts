@@ -1,4 +1,4 @@
-import type { Contribution, Contributor, Expenditure } from '../types'
+import type { Contribution, Contributor, Expenditure, RosterMember } from '../types'
 
 export function makeContributor(overrides: Partial<Contributor> = {}): Contributor {
   return {
@@ -33,6 +33,24 @@ export function makeContribution(overrides: ContributionOverrides = {}): Contrib
     isItemized: true,
     createdAt: '2026-05-15T12:00:00.000Z',
     ...rest,
+  }
+}
+
+export function makeRosterMember(overrides: Partial<RosterMember> = {}): RosterMember {
+  return {
+    id: 'mem_1',
+    committeeId: 'com_1',
+    firstName: 'Pat',
+    lastName: 'Member',
+    state: 'CT',
+    isActive: true,
+    duesPaid: false,
+    contributionTotal: 0,
+    contributionCount: 0,
+    duesPaidViaAnedot: false,
+    anedotDuesTotal: 0,
+    createdAt: '2026-01-01T12:00:00.000Z',
+    ...overrides,
   }
 }
 

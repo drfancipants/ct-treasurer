@@ -212,6 +212,51 @@ export function getTopDonors(contributions: Contribution[], limit = 10): DonorTo
     .slice(0, limit)
 }
 
+// ─── Member giving summary ────────────────────────────────────────────────────
+
+export interface MemberGivingSummary {
+  /** Active roster members who gave in the period, sorted by total descending */
+  rows: { name: string; amount: number; count: number }[]
+  activeMembers: number
+  membersWhoGave: number
+}
+
+/**
+ * Matches contributions to active roster members the same way the roster page
+ * does: by the linked contributorId when set, else by case-insensitive email.
+ */
+export function getMemberGivingSummary(members: RosterMember[], contributions: Contribution[]): MemberGivingSummary {
+  const active = members.filter((m) => m.isActive)
+  const byContributorId = new Map<string, number[]>()
+  const byEmail = new Map<string, number[]>()
+  active.forEach((m, i) => {
+    if (m.contributorId) byContributorId.set(m.contributorId, [...(byContributorId.get(m.contributorId) ?? []), i])
+    if (m.email) {
+      const key = m.email.toLowerCase()
+      byEmail.set(key, [...(byEmail.get(key) ?? []), i])
+    }
+  })
+
+  const totals = active.map(() => ({ amount: 0, count: 0 }))
+  for (const c of contributions) {
+    const matched = new Set([
+      ...(byContributorId.get(c.contributor.id) ?? []),
+      ...(c.contributor.email ? byEmail.get(c.contributor.email.toLowerCase()) ?? [] : []),
+    ])
+    for (const i of matched) {
+      totals[i].amount += c.amount
+      totals[i].count += 1
+    }
+  }
+
+  const rows = active
+    .map((m, i) => ({ name: `${m.firstName} ${m.lastName}`.trim(), ...totals[i] }))
+    .filter((r) => r.count > 0)
+    .sort((a, b) => b.amount - a.amount)
+
+  return { rows, activeMembers: active.length, membersWhoGave: rows.length }
+}
+
 // ─── SEEC compliance summary ──────────────────────────────────────────────────
 
 export interface SeecSummary {
