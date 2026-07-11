@@ -1,38 +1,55 @@
 'use client'
 
-import { Suspense, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Scale, Mail, Lock, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { REMEMBER_ME_COOKIE, REMEMBERED_MAX_AGE, applyRememberMeCookiePolicy } from '@/lib/session'
 
 type Mode = 'password' | 'magic-link'
 
+/**
+ * Sanitized post-login redirect target, read from the URL at call time rather
+ * than via useSearchParams(). Using the hook forces the whole page to render
+ * only its Suspense fallback on the server — which contained no input fields,
+ * so any hydration hiccup (a blocked JS bundle on a locked-down browser, say)
+ * left the user staring at a card with no sign-in fields. Reading it here keeps
+ * the form in the server-rendered HTML so the fields always appear.
+ */
+function getRedirectTo(): string {
+  if (typeof window === 'undefined') return '/app'
+  const raw = new URLSearchParams(window.location.search).get('redirectTo') || ''
+  return raw.startsWith('/') && !raw.startsWith('//') && raw !== '/' ? raw : '/app'
+}
+
 export default function LoginPage() {
-  return (
-    <Suspense fallback={<Shell><div className="h-48" /></Shell>}>
-      <LoginForm />
-    </Suspense>
-  )
+  return <LoginForm />
 }
 
 function LoginForm() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const raw = searchParams.get('redirectTo') || ''
-  const redirectTo = raw.startsWith('/') && !raw.startsWith('//') && raw !== '/' ? raw : '/app'
 
   const [mode, setMode] = useState<Mode>('password')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(() =>
-    searchParams.get('error') === 'auth_callback_failed'
-      ? 'That sign-in link couldn’t be completed. Magic links only work in the browser where you requested them — request a new one below, or sign in with your password.'
-      : ''
-  )
+  const [error, setError] = useState('')
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
+
+  // Surface the failed-callback message after mount, so reading the URL never
+  // pulls the form out of the server-rendered HTML (see getRedirectTo). Setting
+  // state in the effect (rather than a lazy initializer) is deliberate: the
+  // server can't read window, so initializing from the URL would render a
+  // different tree on the client and trip a hydration mismatch.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('error') === 'auth_callback_failed') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- see comment above
+      setError(
+        'That sign-in link couldn’t be completed. Magic links only work in the browser where you requested them — request a new one below, or sign in with your password.'
+      )
+    }
+  }, [])
 
   /** Marks whether this login should persist past a browser restart — read
    * by the server client and proxy.ts on every later request so a
@@ -56,7 +73,7 @@ function LoginForm() {
       setLoading(false)
     } else {
       applyRememberMeCookiePolicy(rememberMe)
-      router.push(redirectTo)
+      router.push(getRedirectTo())
       router.refresh()
     }
   }
@@ -70,7 +87,7 @@ function LoginForm() {
     const { error } = await createClient().auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?redirectTo=${redirectTo}`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?redirectTo=${getRedirectTo()}`,
       },
     })
 
@@ -106,6 +123,13 @@ function LoginForm() {
 
   return (
     <Shell>
+      <noscript>
+        <div className="mb-4 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
+          Signing in requires JavaScript. If the fields below don’t work, your browser or network
+          may be blocking scripts — try a different browser, or ask your IT department to allow this site.
+        </div>
+      </noscript>
+
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-slate-100 rounded-lg mb-6">
         {(['password', 'magic-link'] as Mode[]).map((m) => (
