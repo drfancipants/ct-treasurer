@@ -11,6 +11,15 @@ export const REMEMBER_ME_COOKIE = 'remember-me'
 export const REMEMBERED_MAX_AGE = 30 * 24 * 60 * 60
 
 /**
+ * `; secure` on HTTPS so the session cookie is never sent over plain HTTP;
+ * omitted on http://localhost so dev still works. Client-side only (these
+ * cookies are written via document.cookie).
+ */
+export function secureCookieFlag(): string {
+  return typeof window !== 'undefined' && window.location.protocol === 'https:' ? '; secure' : ''
+}
+
+/**
  * Rewrites the just-written Supabase session cookie(s) with the desired
  * Max-Age, using their existing value untouched. Needed because
  * createBrowserClient's own cookieOptions.maxAge doesn't take effect in this
@@ -25,6 +34,6 @@ export function applyRememberMeCookiePolicy(rememberMe: boolean) {
     if (!name.startsWith('sb-') || !name.includes('-auth-token')) continue
     const value = pair.slice(eq + 1)
     const maxAge = rememberMe ? `; max-age=${REMEMBERED_MAX_AGE}` : ''
-    document.cookie = `${name}=${value}; path=/${maxAge}; samesite=lax`
+    document.cookie = `${name}=${value}; path=/${maxAge}; samesite=lax${secureCookieFlag()}`
   }
 }

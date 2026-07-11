@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Scale, Mail, Lock, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { REMEMBER_ME_COOKIE, REMEMBERED_MAX_AGE, applyRememberMeCookiePolicy } from '@/lib/session'
+import { REMEMBER_ME_COOKIE, REMEMBERED_MAX_AGE, applyRememberMeCookiePolicy, secureCookieFlag } from '@/lib/session'
 
 type Mode = 'password' | 'magic-link'
 
@@ -55,9 +55,10 @@ function LoginForm() {
    * by the server client and proxy.ts on every later request so a
    * session-only choice isn't silently upgraded back to persistent. */
   function setRememberMeCookie(remember: boolean) {
+    const secure = secureCookieFlag()
     document.cookie = remember
-      ? `${REMEMBER_ME_COOKIE}=1; path=/; max-age=${REMEMBERED_MAX_AGE}; samesite=lax`
-      : `${REMEMBER_ME_COOKIE}=0; path=/; samesite=lax`
+      ? `${REMEMBER_ME_COOKIE}=1; path=/; max-age=${REMEMBERED_MAX_AGE}; samesite=lax${secure}`
+      : `${REMEMBER_ME_COOKIE}=0; path=/; samesite=lax${secure}`
   }
 
   async function handlePasswordSignIn(e: React.FormEvent) {
