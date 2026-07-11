@@ -45,7 +45,7 @@ export default function DashboardSummaryCards({
   canEdit = false,
   committeeSlug,
 }: Props) {
-  const [range, setRange] = useState<Range>('all')
+  const [range, setRange] = useState<Range>('ytd')
   const showBank = bankAccounts.length > 0
 
   const now = new Date()
