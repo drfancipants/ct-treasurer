@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { Contribution, CommitteeContribution, InKindContribution, CommitteeEvent, RosterMember } from '@/lib/types'
+import type { LimitPolicy } from '@/lib/limits'
 import { cn } from '@/lib/utils'
 import DonationSummaryCards from './DonationSummaryCards'
 import CommitteeContributionSummaryCards from './CommitteeContributionSummaryCards'
@@ -21,10 +22,11 @@ interface Props {
   committeeId: string
   committeeSlug: string
   canEdit: boolean
+  policy: LimitPolicy
 }
 
 export default function DonationsTabs({
-  contributions, committeeContributions, inKindContributions, rosterMembers, events, committeeId, committeeSlug, canEdit,
+  contributions, committeeContributions, inKindContributions, rosterMembers, events, committeeId, committeeSlug, canEdit, policy,
 }: Props) {
   const [tab, setTab] = useState<Tab>('individuals')
 
@@ -61,6 +63,7 @@ export default function DonationsTabs({
             committeeId={committeeId}
             committeeSlug={committeeSlug}
             canEdit={canEdit}
+            policy={policy}
           />
         </>
       )}
@@ -73,6 +76,7 @@ export default function DonationsTabs({
             committeeId={committeeId}
             committeeSlug={committeeSlug}
             canEdit={canEdit}
+            policy={policy}
           />
         </>
       )}

@@ -6,7 +6,32 @@ import { createClient } from '@/lib/supabase/server'
 import { mapCommittee } from '@/lib/map-committee'
 import { canEditFinances } from '@/lib/auth'
 import { upsertAuthUser } from '@/lib/user-sync'
-import type { Committee } from '@/lib/types'
+import type { Committee, CommitteeType, OfficeSought } from '@/lib/types'
+import { OFFICE_LABELS } from '@/lib/types'
+
+/** Parse an ISO yyyy-mm-dd string to a Date at UTC midnight, or null. */
+function parseDateOnly(iso: string | undefined): Date | null {
+  if (!iso) return null
+  const d = new Date(`${iso}T00:00:00Z`)
+  if (isNaN(d.getTime())) throw new Error(`Invalid date: ${iso}`)
+  return d
+}
+
+function validateCandidateFields(data: {
+  type?: CommitteeType
+  candidateName?: string
+  officeSought?: OfficeSought
+  primaryDate?: string
+  electionDate?: string
+}) {
+  if (!data.candidateName?.trim()) throw new Error('Candidate name is required for a candidate committee')
+  if (!data.officeSought || !(data.officeSought in OFFICE_LABELS)) {
+    throw new Error('Office sought is required for a candidate committee')
+  }
+  if (data.primaryDate && data.electionDate && data.primaryDate >= data.electionDate) {
+    throw new Error('The primary date must be before the election date')
+  }
+}
 
 /** All committees the current user belongs to */
 export async function getCommitteesForUser(): Promise<Committee[]> {
@@ -42,6 +67,13 @@ export async function createCommittee(data: {
   slug: string
   electionYear?: number
   city?: string
+  type?: CommitteeType
+  candidateName?: string
+  officeSought?: OfficeSought
+  district?: string
+  cepParticipant?: boolean
+  primaryDate?: string
+  electionDate?: string
 }): Promise<Committee> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -49,6 +81,9 @@ export async function createCommittee(data: {
 
   const existing = await prisma.committee.findUnique({ where: { slug: data.slug } })
   if (existing) throw new Error('That URL is already taken — choose a different one')
+
+  const type: CommitteeType = data.type === 'CANDIDATE' ? 'CANDIDATE' : 'PARTY'
+  if (type === 'CANDIDATE') validateCandidateFields(data)
 
   // Ensure a User row exists in the public schema (self-serve signup only
   // creates auth.users — the FK on CommitteeMembership requires this row).
@@ -65,6 +100,13 @@ export async function createCommittee(data: {
       slug: data.slug,
       electionYear: data.electionYear ?? null,
       city: data.city ?? null,
+      type,
+      candidateName: type === 'CANDIDATE' ? data.candidateName!.trim() : null,
+      officeSought: type === 'CANDIDATE' ? data.officeSought : null,
+      district: type === 'CANDIDATE' ? data.district?.trim() || null : null,
+      cepParticipant: type === 'CANDIDATE' ? !!data.cepParticipant : false,
+      primaryDate: type === 'CANDIDATE' ? parseDateOnly(data.primaryDate) : null,
+      electionDate: type === 'CANDIDATE' ? parseDateOnly(data.electionDate) : null,
       memberships: {
         create: { userId: user.id, role: 'TREASURER' },
       },
@@ -91,6 +133,12 @@ export async function updateCommittee(
     electionYear?: number
     duesAnedotCampaign?: string
     duesThreshold?: number
+    candidateName?: string
+    officeSought?: OfficeSought
+    district?: string
+    cepParticipant?: boolean
+    primaryDate?: string
+    electionDate?: string
   },
   committeeSlug: string
 ): Promise<Committee> {
@@ -100,12 +148,28 @@ export async function updateCommittee(
 
   const membership = await prisma.committeeMembership.findFirst({
     where: { userId: user.id, committeeId },
+    include: { committee: { select: { type: true } } },
   })
   if (!membership || !canEditFinances(membership.role)) throw new Error('Forbidden')
+
+  // `type` is immutable and candidate fields only apply to candidate committees —
+  // the stored type decides, never the client payload.
+  const isCandidate = membership.committee.type === 'CANDIDATE'
+  if (isCandidate) validateCandidateFields(data)
 
   const committee = await prisma.committee.update({
     where: { id: committeeId },
     data: {
+      ...(isCandidate
+        ? {
+            candidateName: data.candidateName!.trim(),
+            officeSought: data.officeSought,
+            district: data.district?.trim() || null,
+            cepParticipant: !!data.cepParticipant,
+            primaryDate: parseDateOnly(data.primaryDate),
+            electionDate: parseDateOnly(data.electionDate),
+          }
+        : {}),
       name: data.name,
       seecId: data.seecId ?? null,
       anedotAccountId: data.anedotAccountId ?? null,

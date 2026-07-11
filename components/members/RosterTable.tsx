@@ -15,21 +15,24 @@ interface Props {
   committeeId: string
   committeeSlug: string
   canEdit: boolean
+  /** Dues are a town-committee concept — candidate committees hide the dues UI */
+  showDues?: boolean
 }
 
 type Filter = 'all' | 'active' | 'inactive' | 'dues_unpaid'
 
-const FILTERS: [Filter, string][] = [
+const BASE_FILTERS: [Filter, string][] = [
   ['all', 'All'],
   ['active', 'Active'],
   ['inactive', 'Inactive'],
-  ['dues_unpaid', 'Dues unpaid'],
 ]
+const DUES_FILTER: [Filter, string] = ['dues_unpaid', 'Dues unpaid']
 
 type SortKey = 'member' | 'address' | 'contributions'
 type SortDir = 'asc' | 'desc'
 
-export default function RosterTable({ members: initial, committeeId, committeeSlug, canEdit }: Props) {
+export default function RosterTable({ members: initial, committeeId, committeeSlug, canEdit, showDues = true }: Props) {
+  const FILTERS: [Filter, string][] = showDues ? [...BASE_FILTERS, DUES_FILTER] : BASE_FILTERS
   const [rows, setRows] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [showImport, setShowImport] = useState(false)
@@ -157,11 +160,13 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Committee roster</h2>
           <p className="text-sm text-slate-500 mt-0.5">
-            {rows.length} {rows.length === 1 ? 'member' : 'members'} · {activeCount} active · {duesPaidCount} paid dues
+            {rows.length} {rows.length === 1 ? 'member' : 'members'} · {activeCount} active
+            {showDues && ` · ${duesPaidCount} paid dues`}
           </p>
         </div>
         {canEdit && (
           <div className="flex items-center gap-2">
+            {showDues && (
             <button
               onClick={() => setShowResetConfirm(true)}
               disabled={duesPaidCount === 0}
@@ -171,6 +176,7 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
               <RotateCcw className="w-4 h-4" />
               Reset dues
             </button>
+            )}
             <button
               onClick={() => setShowImport(true)}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors"
@@ -240,7 +246,7 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
                 align="right"
                 className="hidden md:table-cell"
               />
-              <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wide">Dues</th>
+              {showDues && <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wide">Dues</th>}
               <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wide">Status</th>
               <th className="px-4 py-3 w-10" />
             </tr>
@@ -277,6 +283,7 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
                     <span className="text-sm text-slate-400">—</span>
                   )}
                 </td>
+                {showDues && (
                 <td className="px-4 py-3.5 text-center">
                   <FlagBadge
                     on={r.duesPaid || r.duesPaidViaAnedot}
@@ -293,6 +300,7 @@ export default function RosterTable({ members: initial, committeeId, committeeSl
                     }
                   />
                 </td>
+                )}
                 <td className="px-4 py-3.5 text-center">
                   <FlagBadge
                     on={r.isActive}

@@ -31,7 +31,7 @@ import AnedotImportDialog from './AnedotImportDialog'
 import ErrorBanner from '@/components/ui/ErrorBanner'
 import FiledBadge from '@/components/ui/FiledBadge'
 import LimitAlerts from './LimitAlerts'
-import { getContributionViolations } from '@/lib/limits'
+import { getContributionViolations, getContributionWarnings, PARTY_POLICY, type LimitPolicy } from '@/lib/limits'
 
 const METHOD_COLORS: Record<PaymentMethod, string> = {
   CHECK: 'bg-slate-100 text-slate-700',
@@ -60,9 +60,10 @@ interface Props {
   committeeId: string
   committeeSlug: string
   canEdit: boolean
+  policy?: LimitPolicy
 }
 
-export default function DonationsTable({ contributions: initial, events, rosterMembers, committeeId, committeeSlug, canEdit }: Props) {
+export default function DonationsTable({ contributions: initial, events, rosterMembers, committeeId, committeeSlug, canEdit, policy = PARTY_POLICY }: Props) {
   const [contributions, setContributions] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Contribution | null>(null)
@@ -91,7 +92,8 @@ export default function DonationsTable({ contributions: initial, events, rosterM
 
   // Violations depend on donor-year totals, so they're computed over the full
   // list, not the filtered view
-  const violations = useMemo(() => getContributionViolations(contributions), [contributions])
+  const violations = useMemo(() => getContributionViolations(contributions, policy), [contributions, policy])
+  const warnings = useMemo(() => getContributionWarnings(contributions, policy), [contributions, policy])
 
   const filtered = useMemo(() => {
     return contributions
@@ -227,7 +229,7 @@ export default function DonationsTable({ contributions: initial, events, rosterM
 
       {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
 
-      <LimitAlerts contributions={contributions} />
+      <LimitAlerts contributions={contributions} policy={policy} />
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 mt-4">
@@ -420,6 +422,9 @@ export default function DonationsTable({ contributions: initial, events, rosterM
                       {violations.has(contribution.id) && (
                         <ViolationBadge messages={violations.get(contribution.id)!} />
                       )}
+                      {warnings.has(contribution.id) && (
+                        <WarningBadge messages={warnings.get(contribution.id)!} />
+                      )}
                       <SeecBadge status={seec.status} issues={seec.issues} />
                     </div>
                   </td>
@@ -557,6 +562,7 @@ export default function DonationsTable({ contributions: initial, events, rosterM
           committeeSlug={committeeSlug}
           existingContributions={contributions}
           events={events}
+          policy={policy}
         />
       )}
       {editing && (
@@ -570,6 +576,7 @@ export default function DonationsTable({ contributions: initial, events, rosterM
           contribution={editing}
           existingContributions={contributions}
           events={events}
+          policy={policy}
         />
       )}
       <AnedotImportDialog
@@ -580,6 +587,7 @@ export default function DonationsTable({ contributions: initial, events, rosterM
         rosterMembers={rosterMembers}
         committeeId={committeeId}
         committeeSlug={committeeSlug}
+        policy={policy}
       />
     </>
   )
@@ -593,6 +601,18 @@ function ViolationBadge({ messages }: { messages: string[] }) {
     >
       <ShieldAlert className="w-3 h-3" />
       Violation
+    </span>
+  )
+}
+
+function WarningBadge({ messages }: { messages: string[] }) {
+  return (
+    <span
+      title={messages.join('\n')}
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 ring-1 ring-amber-200 cursor-help"
+    >
+      <ShieldAlert className="w-3 h-3" />
+      Below CEP min
     </span>
   )
 }

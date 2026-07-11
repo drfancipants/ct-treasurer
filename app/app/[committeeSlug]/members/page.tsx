@@ -31,6 +31,7 @@ export default async function MembersPage({ params }: Props) {
           committeeSlug={committeeSlug}
           committeeName={committee.name}
           canEditRoster={canEditRoster(role)}
+          showDues={committee.type !== 'CANDIDATE'}
         />
       </div>
     </div>

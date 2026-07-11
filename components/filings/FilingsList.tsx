@@ -4,10 +4,12 @@ import { useState } from 'react'
 import { FileText, Download, CheckCircle2, Clock, Wallet, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution, InKindContribution, Reimbursement } from '@/lib/types'
 import type { Committee } from '@/lib/types'
+import { FORM_30_OFFICES } from '@/lib/types'
+import { FORM_SECTIONS } from '@/lib/seec-export'
 import type { SeecFilingRecord, CustomFilingPeriodRecord } from '@/actions/filings'
 import type { FilingPeriod } from '@/lib/filing-periods'
-import { generateQuarterlyPeriods, mergeFilingPeriods } from '@/lib/filing-periods'
-import Form20ExportDialog from '@/components/filings/Form20ExportDialog'
+import { generateQuarterlyPeriods, generateStatutoryCandidatePeriods, mergeFilingPeriods } from '@/lib/filing-periods'
+import FilingExportDialog from '@/components/filings/FilingExportDialog'
 import FilingBalanceDialog from '@/components/filings/FilingBalanceDialog'
 import CustomPeriodDialog from '@/components/filings/CustomPeriodDialog'
 import { formatCurrency } from '@/lib/utils'
@@ -55,7 +57,17 @@ export default function FilingsList({ contributions, expenditures, events, commi
 
   // Newest-first, matching generateQuarterlyPeriods' order — so the
   // "previous" period (chronologically earlier) for periods[i] is periods[i + 1]
-  const periods = mergeFilingPeriods(generateQuarterlyPeriods(committee.electionYear), customPeriods)
+  const periods = mergeFilingPeriods(generateQuarterlyPeriods(committee.electionYear), [
+    ...generateStatutoryCandidatePeriods(committee),
+    ...customPeriods,
+  ])
+
+  // Statewide & General Assembly candidate committees file Form 30; everyone
+  // else (party committees, municipal & probate candidates) files Form 20.
+  const formNumber: 20 | 30 =
+    committee.type === 'CANDIDATE' && committee.officeSought && FORM_30_OFFICES.includes(committee.officeSought)
+      ? 30
+      : 20
 
   async function handleDeleteCustomPeriod(id: string) {
     const snapshot = customPeriods
@@ -91,7 +103,7 @@ export default function FilingsList({ contributions, expenditures, events, commi
         <div>
           <h1 className="text-xl font-semibold text-slate-900">SEEC Filings</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Generate Form 20 uploads for eCRIS · SEEC ID:{' '}
+            {formNumber === 30 ? 'Prepare Form 30 statements for eCRIS' : 'Generate Form 20 uploads for eCRIS'} · SEEC ID:{' '}
             <span className="font-mono text-slate-700">{committee.seecId ?? '—'}</span>
           </p>
         </div>
@@ -110,7 +122,7 @@ export default function FilingsList({ contributions, expenditures, events, commi
         <p className="text-xs font-semibold text-blue-800 mb-2">How to file</p>
         <ol className="space-y-1">
           {[
-            'Click "Generate Form 20" for the filing period below',
+            `Click "Generate Form ${formNumber}" for the filing period below`,
             "Download the .xlsx file — it's pre-filled with your contributions and expenses",
             'Log in to eCRIS at seec.ct.gov and select your filing period',
             'Click "Upload Report" and select the downloaded file',
@@ -192,6 +204,11 @@ export default function FilingsList({ contributions, expenditures, events, commi
                           Custom
                         </span>
                       )}
+                      {period.isStatutory && (
+                        <span className="ml-1.5 inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium bg-sky-50 text-sky-700 ring-1 ring-sky-200 align-middle">
+                          Statutory
+                        </span>
+                      )}
                     </p>
                     <div className="flex items-center gap-3 mt-1">
                       <span className="text-xs text-slate-500">Due {period.due}</span>
@@ -250,7 +267,7 @@ export default function FilingsList({ contributions, expenditures, events, commi
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    Generate Form 20
+                    Generate Form {formNumber}
                   </button>
                 </div>
               </div>
@@ -266,9 +283,9 @@ export default function FilingsList({ contributions, expenditures, events, commi
         </p>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { section: 'A', desc: 'Small contributor total', detail: 'Non-itemized donations (aggregate)' },
-            { section: 'B', desc: 'Itemized contributions', detail: 'Individual donors with full address + employer' },
-            { section: 'P', desc: 'Committee expenses', detail: 'All expenditures with SEEC purpose codes' },
+            { section: FORM_SECTIONS[formNumber].small, desc: 'Small contributor total', detail: 'Non-itemized donations (aggregate)' },
+            { section: FORM_SECTIONS[formNumber].itemized, desc: 'Itemized contributions', detail: 'Individual donors with full address + employer' },
+            { section: FORM_SECTIONS[formNumber].expenses, desc: 'Committee expenses', detail: 'All expenditures with SEEC purpose codes' },
           ].map((s) => (
             <div key={s.section} className="rounded-lg bg-slate-50 p-3">
               <div className="flex items-center gap-2 mb-1.5">
@@ -282,14 +299,16 @@ export default function FilingsList({ contributions, expenditures, events, commi
           ))}
         </div>
         <p className="text-[11px] text-slate-400 mt-3">
-          Sections C1 (committee contributions), M (in-kind), L1 (events), and T (worker
-          reimbursements) are also filled from your data. All other sections (D, E, K, Q, R, S…)
-          are included as empty sheets — fill them manually in Excel if needed before uploading.
+          Sections {FORM_SECTIONS[formNumber].committee} (committee contributions),
+          {' '}{FORM_SECTIONS[formNumber].inKind} (in-kind), {FORM_SECTIONS[formNumber].events} (events),
+          and {FORM_SECTIONS[formNumber].reimbursements} (worker reimbursements) are also filled from your
+          data. Any remaining sections are included as empty sheets — fill them manually in Excel if needed
+          before uploading.
         </p>
       </div>
 
       {exportPeriod && (
-        <Form20ExportDialog
+        <FilingExportDialog
           key={exportPeriod.start}
           open
           onClose={() => setExportPeriod(null)}
@@ -300,6 +319,7 @@ export default function FilingsList({ contributions, expenditures, events, commi
           inKindContributions={inKindContributions}
           reimbursements={reimbursements}
           committeeName={committee.name}
+          formNumber={formNumber}
           initialPeriod={exportPeriod}
           onFiled={canEdit ? handleFiled : undefined}
         />

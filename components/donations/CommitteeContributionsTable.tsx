@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { Plus, MoreHorizontal, Pencil, Trash2, Search, ChevronDown, ChevronUp } from 'lucide-react'
 import type { CommitteeContribution, CommitteeEvent, PaymentMethod } from '@/lib/types'
 import { PAYMENT_METHOD_LABELS } from '@/lib/types'
+import { getCommitteeSourceViolation, PARTY_POLICY, type LimitPolicy } from '@/lib/limits'
 import { deleteCommitteeContribution } from '@/actions/committee-contributions'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import ErrorBanner from '@/components/ui/ErrorBanner'
@@ -28,9 +29,11 @@ interface Props {
   committeeId: string
   committeeSlug: string
   canEdit: boolean
+  policy?: LimitPolicy
 }
 
-export default function CommitteeContributionsTable({ contributions: initial, events, committeeId, committeeSlug, canEdit }: Props) {
+export default function CommitteeContributionsTable({ contributions: initial, events, committeeId, committeeSlug, canEdit, policy = PARTY_POLICY }: Props) {
+  const committeeSourceViolation = getCommitteeSourceViolation(policy)
   const [rows, setRows] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<CommitteeContribution | null>(null)
@@ -121,6 +124,11 @@ export default function CommitteeContributionsTable({ contributions: initial, ev
 
   return (
     <>
+      {committeeSourceViolation && (
+        <div className="mb-4 px-3.5 py-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
+          {committeeSourceViolation}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Contributions from other committees</h2>

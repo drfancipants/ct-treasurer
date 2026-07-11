@@ -5,8 +5,16 @@ import {
   getLimitAlerts,
   checkProspective,
   getContributionViolations,
+  getContributionWarnings,
+  createRunningLimitChecker,
+  getLimitPolicy,
+  bucketFor,
+  getCommitteeSourceViolation,
+  OFFICE_INDIVIDUAL_LIMITS,
   INDIVIDUAL_ANNUAL_LIMIT,
+  type LimitPolicy,
 } from '../limits'
+import type { Committee } from '../types'
 import { makeContribution } from './helpers'
 
 describe('donorKey', () => {
@@ -184,5 +192,147 @@ describe('getContributionViolations', () => {
       makeContribution({ id: 'b', amount: 150, method: 'CASH', date: '2026-02-01', contributor: jane }),
     ])
     expect(violations.get('b')).toHaveLength(2)
+  })
+})
+
+// ─── Candidate committee policies ─────────────────────────────────────────────
+
+const candidateBase: Pick<Committee, 'type' | 'officeSought' | 'cepParticipant' | 'primaryDate' | 'electionDate' | 'electionYear'> = {
+  type: 'CANDIDATE',
+  officeSought: 'STATE_REPRESENTATIVE',
+  cepParticipant: false,
+  primaryDate: '2026-08-11',
+  electionDate: '2026-11-03',
+  electionYear: 2026,
+}
+
+describe('getLimitPolicy', () => {
+  it('returns the $2,000/calendar-year party policy for party committees', () => {
+    const p = getLimitPolicy({ type: 'PARTY', cepParticipant: false })
+    expect(p.kind).toBe('PARTY')
+    expect(p.individualLimit).toBe(2000)
+  })
+
+  it('uses the office-based limit for a non-CEP candidate', () => {
+    expect(getLimitPolicy(candidateBase).individualLimit).toBe(250)
+    expect(getLimitPolicy({ ...candidateBase, officeSought: 'GOVERNOR' }).individualLimit).toBe(3500)
+  })
+
+  it('switches to the CEP cycle cap and prohibits committee/contractor sources', () => {
+    const p = getLimitPolicy({ ...candidateBase, cepParticipant: true })
+    expect(p.kind).toBe('CANDIDATE_CEP')
+    expect(p.individualLimit).toBe(340) // 2026 cycle
+    expect(p.cepMin).toBe(5)
+    expect(p.committeeSourceProhibited).toBe(true)
+    expect(p.stateContractorProhibited).toBe(true)
+  })
+
+  it('exposes the full office limit table', () => {
+    expect(OFFICE_INDIVIDUAL_LIMITS.GOVERNOR).toBe(3500)
+    expect(OFFICE_INDIVIDUAL_LIMITS.STATE_REPRESENTATIVE).toBe(250)
+    expect(OFFICE_INDIVIDUAL_LIMITS.STATE_SENATOR).toBe(1000)
+  })
+})
+
+describe('bucketFor (candidate phases)', () => {
+  const policy = getLimitPolicy(candidateBase)
+
+  it('counts a contribution on primary day toward the primary', () => {
+    expect(bucketFor(policy, '2026-08-11')).toBe('PRIMARY')
+  })
+
+  it('counts the day after the primary toward the election', () => {
+    expect(bucketFor(policy, '2026-08-12')).toBe('ELECTION')
+  })
+
+  it('uses a single election bucket when there is no primary', () => {
+    const noPrimary = getLimitPolicy({ ...candidateBase, primaryDate: undefined })
+    expect(bucketFor(noPrimary, '2026-08-11')).toBe('ELECTION')
+    expect(bucketFor(noPrimary, '2026-11-30')).toBe('ELECTION')
+  })
+})
+
+describe('candidate per-phase violations', () => {
+  const policy = getLimitPolicy(candidateBase)
+  const jane = { email: 'jane@example.com' }
+
+  it('does not flag $250 in the primary plus $250 in the election', () => {
+    const violations = getContributionViolations(
+      [
+        makeContribution({ id: 'p', amount: 250, date: '2026-07-01', contributor: jane }),
+        makeContribution({ id: 'e', amount: 250, date: '2026-09-01', contributor: jane }),
+      ],
+      policy
+    )
+    expect(violations.size).toBe(0)
+  })
+
+  it('flags the crossing gift when a donor exceeds the primary limit', () => {
+    const violations = getContributionViolations(
+      [
+        makeContribution({ id: 'p1', amount: 250, date: '2026-07-01', contributor: jane }),
+        makeContribution({ id: 'p2', amount: 1, date: '2026-07-15', contributor: jane }),
+      ],
+      policy
+    )
+    expect(violations.has('p1')).toBe(false)
+    expect(violations.get('p2')?.[0]).toContain('over the $250/primary limit')
+  })
+})
+
+describe('CEP rules', () => {
+  const policy = getLimitPolicy({ ...candidateBase, cepParticipant: true })
+  const jane = { email: 'jane@example.com' }
+
+  it('flags contributions over the $340 cycle cap', () => {
+    const violations = getContributionViolations(
+      [makeContribution({ id: 'a', amount: 350, date: '2026-06-01', contributor: jane })],
+      policy
+    )
+    expect(violations.get('a')?.[0]).toContain('over the $340/cycle limit')
+  })
+
+  it('flags state-contractor contributions as violations', () => {
+    const violations = getContributionViolations(
+      [makeContribution({ id: 'a', amount: 100, date: '2026-06-01', contributor: jane, isStateContractor: true })],
+      policy
+    )
+    expect(violations.get('a')).toContain('State contractor contributions are prohibited for CEP participants')
+  })
+
+  it('warns (does not violate) on gifts below the $5 qualifying minimum', () => {
+    const rows = [makeContribution({ id: 'a', amount: 4, date: '2026-06-01', contributor: jane })]
+    expect(getContributionViolations(rows, policy).has('a')).toBe(false)
+    expect(getContributionWarnings(rows, policy).get('a')?.[0]).toContain('$5 CEP qualifying minimum')
+  })
+
+  it('checkProspective reports cepBelowMin and the CEP limit', () => {
+    const donor = { email: 'jane@example.com', firstName: 'Jane', lastName: 'Donor', zip: '06443' }
+    const r = checkProspective([], donor, 4, '2026-06-01', 'CHECK', policy)
+    expect(r.cepBelowMin).toBe(true)
+    expect(r.limit).toBe(340)
+  })
+
+  it('prohibits committee-source contributions via the banner helper', () => {
+    expect(getCommitteeSourceViolation(policy)).toContain('may not accept contributions from committees')
+    expect(getCommitteeSourceViolation(getLimitPolicy(candidateBase))).toBeNull()
+  })
+})
+
+describe('createRunningLimitChecker', () => {
+  it('flags a batch of small gifts from the crossing row on (candidate primary)', () => {
+    const policy = getLimitPolicy(candidateBase)
+    const check = createRunningLimitChecker([], policy)
+    const jane = { firstName: 'Jane', lastName: 'Donor', zip: '06443' }
+    expect(check(jane, 200, '2026-07-01')).toEqual([]) // 200 ≤ 250
+    const second = check(jane, 100, '2026-07-05') // 300 > 250
+    expect(second[0]).toContain('over the $250 primary limit')
+  })
+
+  it('defaults to the party policy, preserving the annual-limit message', () => {
+    const check = createRunningLimitChecker([])
+    const jane = { firstName: 'Jane', lastName: 'Donor', zip: '06443' }
+    const issues = check(jane, 2100, '2026-01-01')
+    expect(issues[0]).toContain('over the $2,000 annual limit')
   })
 })

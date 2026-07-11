@@ -28,6 +28,36 @@ export const ROLE_ORDER: Record<MemberRole, number> = {
 
 export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled'
 
+export type CommitteeType = 'PARTY' | 'CANDIDATE'
+
+/** The seven individual-limit classes from SEEC's contribution limits chart (Jan 2026). */
+export type OfficeSought =
+  | 'GOVERNOR'
+  | 'STATEWIDE'
+  | 'STATE_SENATOR'
+  | 'PROBATE_JUDGE'
+  | 'CHIEF_EXECUTIVE'
+  | 'STATE_REPRESENTATIVE'
+  | 'OTHER_MUNICIPAL'
+
+export const OFFICE_LABELS: Record<OfficeSought, string> = {
+  GOVERNOR: 'Governor',
+  STATEWIDE: 'Other statewide office (Lt. Gov, SOTS, Treasurer, Comptroller, AG)',
+  STATE_SENATOR: 'State Senator',
+  PROBATE_JUDGE: 'Judge of Probate',
+  CHIEF_EXECUTIVE: 'Chief elected official of a town (mayor, first selectman)',
+  STATE_REPRESENTATIVE: 'State Representative',
+  OTHER_MUNICIPAL: 'Other municipal office',
+}
+
+/** Statewide + General Assembly candidates file Form 30 with SEEC; municipal & probate file Form 20. */
+export const FORM_30_OFFICES: readonly OfficeSought[] = [
+  'GOVERNOR',
+  'STATEWIDE',
+  'STATE_SENATOR',
+  'STATE_REPRESENTATIVE',
+]
+
 export interface Committee {
   id: string
   name: string
@@ -42,6 +72,17 @@ export interface Committee {
   phone?: string
   email?: string
   electionYear?: number
+  /** Immutable after creation — limit rules, filing form, and calendar key off it */
+  type: CommitteeType
+  candidateName?: string
+  officeSought?: OfficeSought
+  district?: string
+  /** Citizens' Election Program participant — switches limit rules ($340 cap for 2026, committee money prohibited) */
+  cepParticipant: boolean
+  /** ISO date; set ⇔ candidate competes in a primary (individual limits apply separately per phase) */
+  primaryDate?: string
+  /** ISO date of the general election */
+  electionDate?: string
   /** Which linked bank account's balance the dashboard shows */
   dashboardBankAccountId?: string
   stripeCustomerId?: string

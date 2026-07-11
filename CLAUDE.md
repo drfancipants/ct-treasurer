@@ -60,14 +60,16 @@ All pages are wired to the database via Prisma (`lib/db`). List pages fetch serv
 
 ### Tests
 
-Vitest unit tests live in `lib/__tests__/` and cover the compliance-critical pure logic: `getSeecStatus()` ($50 itemization rules), `form20.ts` (SEEC code mappings, exercised against the real template in `public/templates/`), and `anedot-csv.ts` (column variants, dedup, refund skipping). Run with `npm test`.
+Vitest unit tests live in `lib/__tests__/` and cover the compliance-critical pure logic: `getSeecStatus()` ($50 itemization rules), `limits.ts` (party calendar-year + candidate per-phase/CEP limits), `filing-periods.ts` (quarterly + statutory candidate periods), `form20.ts` (SEEC code mappings, exercised against the real template in `public/templates/`), and `anedot-csv.ts` (column variants, dedup, refund skipping). Run with `npm test`.
 
 ### Key library files
 
 - `lib/types.ts` — all TypeScript interfaces shared across client and server, plus `getSeecStatus()` which is the core SEEC compliance evaluation function
 - `lib/analytics.ts` — aggregation helpers that transform raw contributions/expenditures into chart-ready data
-- `lib/form20.ts` — generates the eCRIS Form 20 `.xls` workbook (SheetJS) from the template in `public/templates/`; maps `ExpenseCategory` enum values to SEEC purpose codes
-- `lib/anedot-csv.ts` — PapaParse-based CSV parser that handles Anedot column name variants and deduplicates against existing `anedotId` values
+- `lib/limits.ts` — CT contribution-limit engine. A `LimitPolicy` derived from the committee (`getLimitPolicy`) drives every check: party committees use $2,000/donor/**calendar year**; candidate committees use office-based limits applied **separately per primary/election phase** (`bucketFor` splits on `primaryDate`); CEP participants use the per-cycle cap (`CEP_CYCLE_LIMITS`) and prohibit committee/PAC/state-contractor money. All exported functions take the policy as a trailing optional param defaulting to `PARTY_POLICY`, so party call sites are unchanged. `createRunningLimitChecker` is the shared batch checker used by the Anedot import
+- `lib/form20.ts` / `lib/form30.ts` — generate the eCRIS Form 20 / Form 30 `.xls` workbooks (SheetJS) from the templates in `public/templates/`; map `ExpenseCategory` to SEEC purpose codes. **The two forms have genuinely different column layouts** (Form 30 Section B has an extra "Contribution ID" column shifting everything; its events/in-kind/expense sections drop or reorder columns), so each has its own row-builders — they only share code-maps and the preview math via `lib/seec-export.ts`. `FilingExportDialog` picks the populate fn by `formNumber` (20 vs 30). Both are exercised against their real templates in `lib/__tests__/`
+- `lib/seec-export.ts` — form-agnostic SEEC export machinery shared by Form 20/30: method/purpose code maps, `previewFiling` (per-section counts/totals), and `FORM_SECTIONS` (which eCRIS section letter each record type lands in per form: Form 20 uses A/B/C1/L1/M/P/T, Form 30 uses A/B/C1/J1/K/N/R). `FilingExportDialog` keeps a `summaryOnly` fallback that shows the preview totals if a template file is ever missing at runtime
+- `lib/anedot-csv.ts` — PapaParse-based CSV parser that handles Anedot column name variants and deduplicates against existing `anedotId` values; takes a `LimitPolicy` to flag over-limit rows under the committee's rules
 - `lib/supabase/client.ts` / `server.ts` — browser and server Supabase clients; server.ts also exports an `adminClient` that bypasses RLS (requires `SUPABASE_SERVICE_ROLE_KEY`)
 - `lib/pdf-report.ts` — the Reports page's multi-page PDF export (pdfkit, served by `POST /api/reports/pdf`): cover sheet, overview charts, itemized sections with paginating tables. Footers/headers are stamped after layout with `margins.bottom` zeroed — text whose line box crosses the bottom margin makes pdfkit silently add blank pages
 - `lib/report-chart.ts` / `lib/newsletter-chart.ts` — server-rendered chart PNGs (`@napi-rs/canvas`). **All canvas text must use `CHART_FONT` from `lib/chart-font.ts`** (bundled Liberation Sans, registered at render time). Generic families like `sans-serif` resolve against system fonts, and Vercel's runtime has none — text silently renders as nothing in production. `outputFileTracingIncludes` in next.config.mjs keeps the .ttf files in every function bundle
@@ -83,6 +85,8 @@ The app is multi-committee. `Committee` is the tenant root in Prisma. Every `Con
 ### SEEC compliance
 
 Connecticut SEEC requires itemized donor details (address, employer, occupation) for contributions ≥ $50. `getSeecStatus()` in `lib/types.ts` returns `compliant | missing_info | incomplete`. The Form 20 export maps `PaymentMethod` → SEEC method codes (`PC`, `CA`, `CD`) and `ExpenseCategory` → SEEC purpose codes (`PRNT`, `POST`, `A-SIGN`, etc.).
+
+`Committee.type` is `PARTY` (town committee) or `CANDIDATE` (a single candidate's campaign), set at creation and immutable. Candidate committees carry `officeSought`, `district`, `cepParticipant`, `primaryDate`, `electionDate`, and file **Form 30** (statewide & General Assembly offices per `FORM_30_OFFICES`) or Form 20 (municipal/probate) — derived server-side in `actions/filings.ts`. Their filing calendar adds statutory "7th day preceding" primary/election statements (`generateStatutoryCandidatePeriods` in `lib/filing-periods.ts`). Town-committee-only features (membership dues on the dashboard, settings, roster, and newsletter) are gated off for candidate committees via a `showDues`/type check; the candidate dashboard shows `LimitStatusCard` in place of the dues donut. See `lib/limits.ts` for the per-type/per-phase/CEP contribution limits.
 
 ### Auth / invite flow
 

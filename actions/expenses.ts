@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
 import { requireCommitteeMemberById, requireFinanceRole } from '@/lib/auth'
 import { groupFeesByPeriod } from '@/lib/anedot-fees'
-import { generateQuarterlyPeriods, mergeFilingPeriods } from '@/lib/filing-periods'
+import { generateQuarterlyPeriods, generateStatutoryCandidatePeriods, mergeFilingPeriods } from '@/lib/filing-periods'
 import type { Expenditure, PaymentMethod, ExpenseCategory } from '@/lib/types'
 
 type PrismaExpenditure = {
@@ -203,18 +203,28 @@ export async function recordAnedotFees(
       where: { committeeId, processingFee: { gt: 0 }, feeExpenditureId: null },
       select: { id: true, date: true, processingFee: true },
     }),
-    prisma.committee.findUnique({ where: { id: committeeId }, select: { electionYear: true } }),
+    prisma.committee.findUnique({
+      where: { id: committeeId },
+      select: { electionYear: true, primaryDate: true, electionDate: true },
+    }),
     prisma.customFilingPeriod.findMany({ where: { committeeId } }),
   ])
+  const isoDate = (d: Date | null) => d?.toISOString().split('T')[0]
   const periods = mergeFilingPeriods(
     generateQuarterlyPeriods(committee?.electionYear ?? undefined),
-    customPeriods.map((p) => ({
-      id: p.id,
-      label: p.label,
-      periodStart: p.periodStart.toISOString().split('T')[0],
-      periodEnd: p.periodEnd.toISOString().split('T')[0],
-      dueDate: p.dueDate ?? undefined,
-    }))
+    [
+      ...generateStatutoryCandidatePeriods({
+        primaryDate: isoDate(committee?.primaryDate ?? null),
+        electionDate: isoDate(committee?.electionDate ?? null),
+      }),
+      ...customPeriods.map((p) => ({
+        id: p.id,
+        label: p.label,
+        periodStart: p.periodStart.toISOString().split('T')[0],
+        periodEnd: p.periodEnd.toISOString().split('T')[0],
+        dueDate: p.dueDate ?? undefined,
+      })),
+    ]
   )
   const batches = groupFeesByPeriod(
     rows.map((r) => ({

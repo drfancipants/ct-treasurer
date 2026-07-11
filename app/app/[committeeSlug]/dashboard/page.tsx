@@ -10,9 +10,12 @@ import {
   getMonthlyData, getTrailingMonths, getCumulativeData, getDuesStatusBreakdown, withBankBalances,
   getExpenseCategoryBreakdown, getSeecSummary, getRecentActivity,
 } from '@/lib/analytics'
+import { getLimitPolicy } from '@/lib/limits'
+import { OFFICE_LABELS } from '@/lib/types'
 import DashboardSummaryCards from '@/components/dashboard/DashboardSummaryCards'
 import MonthlyChart from '@/components/dashboard/MonthlyChart'
 import DuesStatusChart from '@/components/dashboard/DuesStatusChart'
+import LimitStatusCard from '@/components/dashboard/LimitStatusCard'
 import CumulativeBalanceChart from '@/components/dashboard/CumulativeBalanceChart'
 import ExpenseCategoryChart from '@/components/dashboard/ExpenseCategoryChart'
 import RecentActivity from '@/components/dashboard/RecentActivity'
@@ -52,6 +55,7 @@ export default async function DashboardPage({ params }: Props) {
     bankTransactions,
     dashboardAccount?.currentBalance ?? 0
   )
+  const isCandidate = committee.type === 'CANDIDATE'
   const duesStatus = getDuesStatusBreakdown(rosterMembers)
   const categories = getExpenseCategoryBreakdown(expenditures)
   const seec = getSeecSummary(contributions)
@@ -63,7 +67,10 @@ export default async function DashboardPage({ params }: Props) {
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Dashboard</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {committee.name} · {committee.electionYear} election cycle
+            {committee.name}
+            {isCandidate && committee.officeSought
+              ? ` · ${committee.candidateName} for ${OFFICE_LABELS[committee.officeSought]}`
+              : ` · ${committee.electionYear} election cycle`}
           </p>
         </div>
         <DashboardSummaryCards
@@ -77,7 +84,11 @@ export default async function DashboardPage({ params }: Props) {
         />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2"><MonthlyChart data={monthly} /></div>
-          <div><DuesStatusChart data={duesStatus} total={rosterMembers.length} /></div>
+          <div>
+            {isCandidate
+              ? <LimitStatusCard contributions={contributions} policy={getLimitPolicy(committee)} />
+              : <DuesStatusChart data={duesStatus} total={rosterMembers.length} />}
+          </div>
         </div>
         <CumulativeBalanceChart data={cumulative} />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

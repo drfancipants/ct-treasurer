@@ -3,7 +3,9 @@
 import { useState, useMemo } from 'react'
 import { X, FileDown, AlertCircle, CheckCircle2, FileText, Loader2 } from 'lucide-react'
 import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution, InKindContribution, Reimbursement } from '@/lib/types'
-import { previewForm20, populateForm20 } from '@/lib/form20'
+import { populateForm20 } from '@/lib/form20'
+import { populateForm30 } from '@/lib/form30'
+import { previewFiling, FORM_SECTIONS } from '@/lib/seec-export'
 import { formatCurrency } from '@/lib/utils'
 
 // Standard CT SEEC filing periods
@@ -24,6 +26,13 @@ interface Props {
   inKindContributions: InKindContribution[]
   reimbursements: Reimbursement[]
   committeeName: string
+  /**
+   * Which SEEC disclosure form this committee files: 20 (party committees,
+   * municipal & probate candidate committees — full .xls export) or 30
+   * (statewide & General Assembly candidate committees — period summary to
+   * key into eCRIS, until the Form 30 upload template is bundled).
+   */
+  formNumber?: 20 | 30
   initialPeriod?: { start: string; end: string }
   onFiled?: (start: string, end: string) => void
 }
@@ -42,7 +51,7 @@ function matchStandardQuarter(start: string, end: string): { year: string; perio
   return idx === -1 ? null : { year, periodIdx: idx }
 }
 
-export default function Form20ExportDialog({
+export default function FilingExportDialog({
   open,
   onClose,
   contributions,
@@ -52,6 +61,7 @@ export default function Form20ExportDialog({
   inKindContributions,
   reimbursements,
   committeeName,
+  formNumber = 20,
   initialPeriod,
   onFiled,
 }: Props) {
@@ -70,6 +80,12 @@ export default function Form20ExportDialog({
   const [markingFiled, setMarkingFiled] = useState(false)
   const [downloaded, setDownloaded] = useState(false)
   const [error, setError] = useState('')
+  // Form 30's eCRIS upload template isn't published outside a login, so if it
+  // isn't bundled we fall back to a "key it into eCRIS from this summary" mode.
+  const [summaryOnly, setSummaryOnly] = useState(false)
+
+  const sections = FORM_SECTIONS[formNumber]
+  const templatePath = `/templates/Form_${formNumber}_Upload_Template.xls`
 
   const periodStart = useCustom
     ? customStart
@@ -82,7 +98,7 @@ export default function Form20ExportDialog({
   const preview = useMemo(
     () =>
       periodStart && periodEnd
-        ? previewForm20(contributions, expenditures, periodStart, periodEnd, events, committeeContributions, inKindContributions, reimbursements)
+        ? previewFiling(contributions, expenditures, periodStart, periodEnd, events, committeeContributions, inKindContributions, reimbursements)
         : null,
     [contributions, expenditures, events, committeeContributions, inKindContributions, reimbursements, periodStart, periodEnd]
   )
@@ -106,12 +122,17 @@ export default function Form20ExportDialog({
 
     try {
       // Fetch the template from the public directory
-      const res = await fetch('/templates/Form_20_Upload_Template.xls')
-      if (!res.ok) throw new Error('Could not load template file')
+      const res = await fetch(templatePath)
+      if (!res.ok) {
+        // Template not bundled — fall back to the on-screen summary so the
+        // treasurer can key the figures into eCRIS by hand.
+        setSummaryOnly(true)
+        return
+      }
       const buffer = await res.arrayBuffer()
 
-      // Populate the template
-      const output = populateForm20(buffer, contributions, expenditures, periodStart, periodEnd, events, committeeContributions, inKindContributions, reimbursements)
+      const populate = formNumber === 30 ? populateForm30 : populateForm20
+      const output = populate(buffer, contributions, expenditures, periodStart, periodEnd, events, committeeContributions, inKindContributions, reimbursements)
 
       // Trigger download
       const blob = new Blob([new Uint8Array(output).buffer], {
@@ -121,7 +142,7 @@ export default function Form20ExportDialog({
       const a = document.createElement('a')
       const safeCommittee = committeeName.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30)
       a.href = url
-      a.download = `Form20_${safeCommittee}_${periodStart}_${periodEnd}.xlsx`
+      a.download = `Form${formNumber}_${safeCommittee}_${periodStart}_${periodEnd}.xlsx`
       a.click()
       URL.revokeObjectURL(url)
       setDownloaded(true)
@@ -157,7 +178,7 @@ export default function Form20ExportDialog({
               <FileText className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-slate-900">Generate SEEC Form 20</h2>
+              <h2 className="text-base font-semibold text-slate-900">Generate SEEC Form {formNumber}</h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 Populates the eCRIS upload template with your data
               </p>
@@ -243,45 +264,45 @@ export default function Form20ExportDialog({
               </div>
               <div className="divide-y divide-slate-100">
                 <PreviewRow
-                  label="Section A — Small contributions"
+                  label={`Section ${sections.small} — Small contributions`}
                   count={preview.nonItemizedCount}
                   total={preview.nonItemizedTotal}
                   note="Non-itemized (aggregate total only)"
                 />
                 <PreviewRow
-                  label="Section B — Itemized contributions"
+                  label={`Section ${sections.itemized} — Itemized contributions`}
                   count={preview.itemizedCount}
                   total={preview.itemizedTotal}
                   note="Individual contributions, one row each"
                 />
                 <PreviewRow
-                  label="Section P — Committee expenses"
+                  label={`Section ${sections.expenses} — Committee expenses`}
                   count={preview.expenditureCount}
                   total={preview.expenditureTotal}
                   note="Expenses paid by committee"
                   amountColor="text-rose-700"
                 />
                 <PreviewRow
-                  label="Section C1 — Contributions from committees"
+                  label={`Section ${sections.committee} — Contributions from committees`}
                   count={preview.committeeContribCount}
                   total={preview.committeeContribTotal}
                   note="Received from other committees"
                 />
                 <PreviewRow
-                  label="Section M — In-kind contributions"
+                  label={`Section ${sections.inKind} — In-kind contributions`}
                   count={preview.inKindCount}
                   total={preview.inKindTotal}
                   note="Goods/services (fair market value)"
                 />
                 <PreviewRow
-                  label="Section T — Worker reimbursements"
+                  label={`Section ${sections.reimbursements} — Worker reimbursements`}
                   count={preview.reimbursementCount}
                   total={preview.reimbursementTotal}
                   note="Out-of-pocket payments by workers"
                   amountColor="text-rose-700"
                 />
                 <PreviewRow
-                  label="Section L1 — Fundraising events"
+                  label={`Section ${sections.events} — Fundraising events`}
                   count={preview.eventCount}
                   total={preview.eventTotal}
                   note="Event details & food/tag-sale receipts"
@@ -326,20 +347,26 @@ export default function Form20ExportDialog({
 
           {/* Info note */}
           <p className="text-[11px] text-slate-400 leading-snug">
-            The downloaded file uses the official eCRIS Form 20 template with Sections A, B, C1, L1, M, P, and T pre-filled.
+            The downloaded file uses the official eCRIS Form {formNumber} template with Sections{' '}
+            {sections.small}, {sections.itemized}, {sections.committee}, {sections.events},{' '}
+            {sections.inKind}, {sections.expenses}, and {sections.reimbursements} pre-filled.
             Upload it directly at <span className="font-medium">seec.ct.gov → eCRIS → Upload Report</span>.
           </p>
         </div>
 
         {/* Footer */}
-        {downloaded ? (
+        {downloaded || summaryOnly ? (
           <div className="px-6 py-4 border-t border-slate-200 bg-emerald-50 rounded-b-2xl space-y-3 shrink-0">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <p className="text-sm font-medium text-emerald-800">File downloaded successfully</p>
+              <p className="text-sm font-medium text-emerald-800">
+                {summaryOnly ? 'Summary ready' : 'File downloaded successfully'}
+              </p>
             </div>
             <p className="text-xs text-emerald-700">
-              Upload it to eCRIS at seec.ct.gov → Upload Report, then mark this period as filed.
+              {summaryOnly
+                ? 'Enter these section totals into your Form 30 in eCRIS, then mark this period as filed.'
+                : 'Upload it to eCRIS at seec.ct.gov → Upload Report, then mark this period as filed.'}
             </p>
             <div className="flex gap-3">
               <button

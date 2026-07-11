@@ -1,5 +1,3 @@
-import type { CustomFilingPeriodRecord } from '@/actions/filings'
-
 // ─── Period generation ────────────────────────────────────────────────────────
 // Shared between the Filings page (rendering the list) and Anedot fee
 // recording (grouping fees into the same periods donations get filed under)
@@ -19,6 +17,22 @@ export interface FilingPeriod {
   due: string
   isCustom?: boolean
   customId?: string
+  /** Statutory candidate-committee statement (pre-primary / post-primary / pre-election) — not deletable */
+  isStatutory?: boolean
+}
+
+/**
+ * Anything mergeFilingPeriods can splice into the quarterly schedule:
+ * treasurer-defined CustomFilingPeriodRecords satisfy this structurally, and
+ * generateStatutoryCandidatePeriods() produces id-less statutory entries.
+ */
+export interface SpliceablePeriod {
+  id?: string
+  label: string
+  periodStart: string
+  periodEnd: string
+  dueDate?: string
+  isStatutory?: boolean
 }
 
 export function generateQuarterlyPeriods(electionYear?: number, today: Date = new Date()): FilingPeriod[] {
@@ -53,6 +67,62 @@ function formatShortDate(iso: string): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 }
 
+function formatDueDate(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+  })
+}
+
+/**
+ * The statutory candidate-committee statements beyond the quarterlies
+ * (CGS § 9-608): due the 7th day preceding a primary/election and the 30th
+ * day following a primary, each complete through 11:59 p.m. of the 2nd day
+ * preceding its filing day. Returned as spliceable periods so
+ * mergeFilingPeriods() carves them out of the quarterly schedule exactly like
+ * treasurer-defined custom periods.
+ *
+ * Each period's coverage starts at the later of (a) the day after the previous
+ * statutory period's end and (b) the first day of the quarter containing its
+ * own end — because any intervening quarterly statement resets coverage.
+ *
+ * Party committees (no primary/election dates) get an empty array. Periods
+ * that haven't started yet relative to `today` are omitted, matching
+ * generateQuarterlyPeriods.
+ */
+export function generateStatutoryCandidatePeriods(
+  committee: { primaryDate?: string; electionDate?: string },
+  today: Date = new Date()
+): SpliceablePeriod[] {
+  const todayStr = today.toISOString().slice(0, 10)
+  const events: { name: string; due: string }[] = []
+  if (committee.primaryDate) {
+    events.push({ name: 'Pre-primary', due: addDays(committee.primaryDate, -7) })
+    events.push({ name: 'Post-primary', due: addDays(committee.primaryDate, 30) })
+  }
+  if (committee.electionDate) {
+    events.push({ name: 'Pre-election', due: addDays(committee.electionDate, -7) })
+  }
+  events.sort((a, b) => a.due.localeCompare(b.due))
+
+  const periods: SpliceablePeriod[] = []
+  let prevEnd: string | undefined
+  for (const ev of events) {
+    const end = addDays(ev.due, -2)
+    const quarterStart = `${end.slice(0, 5)}${['01-01', '04-01', '07-01', '10-01'][Math.floor((parseInt(end.slice(5, 7), 10) - 1) / 3)]}`
+    const start = prevEnd && addDays(prevEnd, 1) > quarterStart ? addDays(prevEnd, 1) : quarterStart
+    prevEnd = end
+    if (start > todayStr || start > end) continue
+    periods.push({
+      label: `${ev.name} — ${formatShortDate(start)} – ${formatShortDate(end)}`,
+      periodStart: start,
+      periodEnd: end,
+      dueDate: formatDueDate(ev.due),
+      isStatutory: true,
+    })
+  }
+  return periods
+}
+
 /**
  * Inserts treasurer-defined custom periods (e.g. a pre-election filing) into
  * the standard quarterly schedule, splitting any quarter a custom period
@@ -60,7 +130,7 @@ function formatShortDate(iso: string): string {
  * keep the original quarter's due date (SEEC's quarterly deadline doesn't
  * move just because part of it was reported early).
  */
-export function mergeFilingPeriods(basePeriods: FilingPeriod[], customPeriods: CustomFilingPeriodRecord[]): FilingPeriod[] {
+export function mergeFilingPeriods(basePeriods: FilingPeriod[], customPeriods: SpliceablePeriod[]): FilingPeriod[] {
   let result = basePeriods
   for (const custom of customPeriods) {
     const next: FilingPeriod[] = []
@@ -94,8 +164,9 @@ export function mergeFilingPeriods(basePeriods: FilingPeriod[], customPeriods: C
       start: custom.periodStart,
       end: custom.periodEnd,
       due: custom.dueDate ?? '—',
-      isCustom: true,
+      isCustom: !custom.isStatutory,
       customId: custom.id,
+      isStatutory: custom.isStatutory,
     })
     result = next
   }

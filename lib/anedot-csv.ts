@@ -1,6 +1,6 @@
 import Papa from 'papaparse'
 import type { Contribution, PaymentMethod, RosterMember } from './types'
-import { donorKey, getDonorYearTotals, INDIVIDUAL_ANNUAL_LIMIT, CASH_CONTRIBUTION_MAX } from './limits'
+import { createRunningLimitChecker, PARTY_POLICY, type LimitPolicy } from './limits'
 import { parseMethod, parseAmount, parseBoolish, parseContractorAnswer, matchQuestionKey } from './anedot-fields'
 
 // ─── Column name mapping ──────────────────────────────────────────────────────
@@ -175,7 +175,8 @@ function mapRow(raw: Record<string, string>): Record<string, string> {
 export function parseAnedotCsv(
   csvText: string,
   existingContributions: Contribution[],
-  rosterMembers: RosterMember[] = []
+  rosterMembers: RosterMember[] = [],
+  policy: LimitPolicy = PARTY_POLICY
 ): ParseResult {
   const { data, errors } = Papa.parse<Record<string, string>>(csvText, {
     header: true,
@@ -349,28 +350,21 @@ export function parseAnedotCsv(
     }
   })
 
-  // ── Annual-limit flags (CT: $2,000/individual/calendar year to a town
-  // committee; cash contributions capped at $100 each — CGS § 9-611).
-  // Accumulate existing totals plus earlier rows in this same file so a batch
-  // of small donations that collectively cross the limit still gets flagged.
-  const yearTotals = new Map<string, number>()
-  for (const d of getDonorYearTotals(existingContributions)) {
-    yearTotals.set(`${d.key}@${d.year}`, d.total)
-  }
+  // ── Contribution-limit flags under the committee's policy (party: $2,000/
+  // donor/calendar year; candidate: office-based per-phase limits; CEP: cycle
+  // cap + qualifying minimum; cash always capped at $100 — CGS § 9-611).
+  // The checker accumulates existing totals plus earlier rows in this same
+  // file so a batch of small donations that collectively cross the limit
+  // still gets flagged.
+  const checkLimits = createRunningLimitChecker(existingContributions, policy)
   for (const r of rows) {
     if (r.isError || r.isDuplicate) continue
-    const key = `${donorKey({ email: r.email, firstName: r.firstName, lastName: r.lastName, zip: r.zip })}@${r.date.slice(0, 4)}`
-    const prior = yearTotals.get(key) ?? 0
-    const newTotal = prior + r.amount
-    if (newTotal > INDIVIDUAL_ANNUAL_LIMIT) {
-      r.limitIssues.push(
-        `Donor reaches $${newTotal.toLocaleString()} for ${r.date.slice(0, 4)} — over the $${INDIVIDUAL_ANNUAL_LIMIT.toLocaleString()} annual limit`
-      )
+    r.limitIssues.push(
+      ...checkLimits({ email: r.email, firstName: r.firstName, lastName: r.lastName, zip: r.zip }, r.amount, r.date, r.method)
+    )
+    if (policy.stateContractorProhibited && r.isStateContractor) {
+      r.limitIssues.push('State contractor contributions are prohibited for CEP participants')
     }
-    if (r.method === 'CASH' && r.amount > CASH_CONTRIBUTION_MAX) {
-      r.limitIssues.push(`Cash contribution over $${CASH_CONTRIBUTION_MAX} (CGS § 9-611)`)
-    }
-    yearTotals.set(key, newTotal)
   }
 
   const importable = rows.filter((r) => !r.isError && !r.isDuplicate)

@@ -15,16 +15,18 @@ interface Props {
   committeeSlug: string
   committeeName: string
   canEdit: boolean
+  /** Dues are a town-committee concept — candidate committees hide the dues segment */
+  showDues?: boolean
 }
 
 type Filter = 'all' | 'active' | 'inactive' | 'dues_unpaid'
 
-const FILTERS: [Filter, string][] = [
+const BASE_FILTERS: [Filter, string][] = [
   ['all', 'All'],
   ['active', 'Active'],
   ['inactive', 'Inactive'],
-  ['dues_unpaid', 'Dues unpaid'],
 ]
+const DUES_FILTER: [Filter, string] = ['dues_unpaid', 'Dues unpaid']
 
 export default function NewsletterComposer({
   rosterMembers,
@@ -33,7 +35,9 @@ export default function NewsletterComposer({
   committeeSlug,
   committeeName,
   canEdit,
+  showDues = true,
 }: Props) {
+  const FILTERS: [Filter, string][] = showDues ? [...BASE_FILTERS, DUES_FILTER] : BASE_FILTERS
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [selected, setSelected] = useState<Set<string>>(new Set())

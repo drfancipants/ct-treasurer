@@ -1,8 +1,28 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import type { SeecFormType } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { requireCommitteeMemberById, requireFinanceRole } from '@/lib/auth'
+import { FORM_30_OFFICES } from '@/lib/types'
+
+/**
+ * Which SEEC disclosure form a committee files. Statewide & General Assembly
+ * candidate committees file Form 30; everyone else (party committees, plus
+ * municipal & probate candidates) files Form 20. Derived server-side from the
+ * stored committee — never trust a form type from the client.
+ */
+async function getFormType(committeeId: string): Promise<SeecFormType> {
+  const committee = await prisma.committee.findUnique({
+    where: { id: committeeId },
+    select: { type: true, officeSought: true },
+  })
+  return committee?.type === 'CANDIDATE' &&
+    committee.officeSought &&
+    FORM_30_OFFICES.includes(committee.officeSought)
+    ? 'FORM_30'
+    : 'FORM_20'
+}
 
 export interface SeecFilingRecord {
   id: string
@@ -41,19 +61,20 @@ export async function markFiled(
 ): Promise<SeecFilingRecord> {
   const { committeeId: verifiedId } = await requireFinanceRole(committeeSlug)
   if (verifiedId !== committeeId) throw new Error('Forbidden')
+  const formType = await getFormType(committeeId)
 
   const filing = await prisma.seecFiling.upsert({
     where: {
       committeeId_formType_periodStart_periodEnd: {
         committeeId,
-        formType: 'FORM_20',
+        formType,
         periodStart: new Date(periodStart),
         periodEnd: new Date(periodEnd),
       },
     },
     create: {
       committeeId,
-      formType: 'FORM_20',
+      formType,
       periodStart: new Date(periodStart),
       periodEnd: new Date(periodEnd),
       status: 'FILED',
@@ -87,7 +108,7 @@ export async function markFiled(
 export async function getFilings(committeeId: string): Promise<SeecFilingRecord[]> {
   await requireCommitteeMemberById(committeeId)
   const filings = await prisma.seecFiling.findMany({
-    where: { committeeId, formType: 'FORM_20' },
+    where: { committeeId, formType: await getFormType(committeeId) },
     orderBy: { periodStart: 'desc' },
   })
   return filings.map(mapFiling)
@@ -109,19 +130,20 @@ export async function updateFilingBalance(
 ): Promise<SeecFilingRecord> {
   const { committeeId: verifiedId } = await requireFinanceRole(committeeSlug)
   if (verifiedId !== committeeId) throw new Error('Forbidden')
+  const formType = await getFormType(committeeId)
 
   const filing = await prisma.seecFiling.upsert({
     where: {
       committeeId_formType_periodStart_periodEnd: {
         committeeId,
-        formType: 'FORM_20',
+        formType,
         periodStart: new Date(periodStart),
         periodEnd: new Date(periodEnd),
       },
     },
     create: {
       committeeId,
-      formType: 'FORM_20',
+      formType,
       periodStart: new Date(periodStart),
       periodEnd: new Date(periodEnd),
       status: 'DRAFT',
