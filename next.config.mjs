@@ -1,7 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverActions: { allowedOrigins: ['localhost:3000'], bodySizeLimit: '10mb' },
+    // No allowedOrigins: Server Actions default to same-origin only (Next
+    // compares Origin to Host), which covers both localhost dev and the
+    // production domain. Listing extra origins would only widen CSRF surface.
+    serverActions: { bodySizeLimit: '10mb' },
   },
   // Native addon (prebuilt binary) — must be resolved at runtime via require(),
   // not bundled, or Turbopack fails on its non-ESM binding file.
