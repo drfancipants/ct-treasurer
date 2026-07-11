@@ -12,6 +12,7 @@ import {
   MoreHorizontal,
   ExternalLink,
   Pencil,
+  Copy,
   Trash2,
   AlertCircle,
   CheckCircle2,
@@ -67,6 +68,7 @@ export default function DonationsTable({ contributions: initial, events, rosterM
   const [contributions, setContributions] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Contribution | null>(null)
+  const [duplicating, setDuplicating] = useState<Contribution | null>(null)
   const [showImport, setShowImport] = useState(false)
   const [search, setSearch] = useState('')
   const [methodFilter, setMethodFilter] = useState<PaymentMethod | 'ALL'>('ALL')
@@ -163,6 +165,7 @@ export default function DonationsTable({ contributions: initial, events, rosterM
     })
     setShowAdd(false)
     setEditing(null)
+    setDuplicating(null)
   }
 
   function handleImport(imported: Contribution[]) {
@@ -460,6 +463,13 @@ export default function DonationsTable({ contributions: initial, events, rosterM
                             <Pencil className="w-3.5 h-3.5" />
                             Edit
                           </button>
+                          <button
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                            onClick={() => { setDuplicating(contribution); setOpenMenu(null) }}
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            Duplicate
+                          </button>
                           {contribution.anedotId && (
                             <a
                               href={`https://app.anedot.com/donations/${contribution.anedotId}`}
@@ -574,6 +584,20 @@ export default function DonationsTable({ contributions: initial, events, rosterM
           committeeId={committeeId}
           committeeSlug={committeeSlug}
           contribution={editing}
+          existingContributions={contributions}
+          events={events}
+          policy={policy}
+        />
+      )}
+      {duplicating && (
+        <AddDonationDialog
+          key={`dup-${duplicating.id}`}
+          open
+          onClose={() => setDuplicating(null)}
+          onAdd={handleAdd}
+          committeeId={committeeId}
+          committeeSlug={committeeSlug}
+          duplicateFrom={duplicating}
           existingContributions={contributions}
           events={events}
           policy={policy}
