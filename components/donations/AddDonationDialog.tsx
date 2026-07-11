@@ -24,6 +24,8 @@ interface Props {
   events?: CommitteeEvent[] // for the optional event link
   /** Seeds the form for a new (non-edit) donation — e.g. reconciling a bank transaction. Ignored when `contribution` is set. */
   initialValues?: Partial<{ amount: number; date: string }>
+  /** Pre-fills a NEW donation from an existing one (donor + details copied, date reset to today), so the user can tweak and save it as a separate record. Ignored when `contribution` is set. */
+  duplicateFrom?: Contribution
   policy?: LimitPolicy
 }
 
@@ -77,38 +79,48 @@ const EMPTY: FormData = {
   occupation: '',
 }
 
-export default function AddDonationDialog({ open, onClose, onAdd, committeeId, committeeSlug, contribution, existingContributions, events = [], initialValues, policy = PARTY_POLICY }: Props) {
+/** Maps an existing contribution onto the editable form fields. */
+function formFromContribution(c: Contribution): FormData {
+  return {
+    amount: c.amount.toFixed(2),
+    date: c.date,
+    method: c.method,
+    checkNumber: c.checkNumber ?? '',
+    isItemized: c.isItemized,
+    memo: c.memo ?? '',
+    eventId: c.eventId ?? '',
+    isStateContractor: c.isStateContractor ?? false,
+    contractorBranch: c.contractorBranch ?? 'E',
+    isLobbyist: c.isLobbyist ?? false,
+    firstName: c.contributor.firstName,
+    middleInitial: c.contributor.middleInitial ?? '',
+    lastName: c.contributor.lastName,
+    email: c.contributor.email ?? '',
+    address1: c.contributor.address1,
+    address2: c.contributor.address2 ?? '',
+    city: c.contributor.city,
+    state: c.contributor.state,
+    zip: c.contributor.zip,
+    employer: c.contributor.employer ?? '',
+    occupation: c.contributor.occupation ?? '',
+  }
+}
+
+export default function AddDonationDialog({ open, onClose, onAdd, committeeId, committeeSlug, contribution, existingContributions, events = [], initialValues, duplicateFrom, policy = PARTY_POLICY }: Props) {
   const isEdit = !!contribution
+  const isDuplicate = !contribution && !!duplicateFrom
   const [form, setForm] = useState<FormData>(
     contribution
-      ? {
-          amount: contribution.amount.toFixed(2),
-          date: contribution.date,
-          method: contribution.method,
-          checkNumber: contribution.checkNumber ?? '',
-          isItemized: contribution.isItemized,
-          memo: contribution.memo ?? '',
-          eventId: contribution.eventId ?? '',
-          isStateContractor: contribution.isStateContractor ?? false,
-          contractorBranch: contribution.contractorBranch ?? 'E',
-          isLobbyist: contribution.isLobbyist ?? false,
-          firstName: contribution.contributor.firstName,
-          middleInitial: contribution.contributor.middleInitial ?? '',
-          lastName: contribution.contributor.lastName,
-          email: contribution.contributor.email ?? '',
-          address1: contribution.contributor.address1,
-          address2: contribution.contributor.address2 ?? '',
-          city: contribution.contributor.city,
-          state: contribution.contributor.state,
-          zip: contribution.contributor.zip,
-          employer: contribution.contributor.employer ?? '',
-          occupation: contribution.contributor.occupation ?? '',
-        }
-      : {
-          ...EMPTY,
-          amount: initialValues?.amount !== undefined ? initialValues.amount.toFixed(2) : EMPTY.amount,
-          date: initialValues?.date ?? EMPTY.date,
-        }
+      ? formFromContribution(contribution)
+      : duplicateFrom
+        // A duplicate is a brand-new gift: copy every field but reset the date
+        // to today, so it isn't an accidental byte-for-byte clone.
+        ? { ...formFromContribution(duplicateFrom), date: EMPTY.date }
+        : {
+            ...EMPTY,
+            amount: initialValues?.amount !== undefined ? initialValues.amount.toFixed(2) : EMPTY.amount,
+            date: initialValues?.date ?? EMPTY.date,
+          }
   )
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
   const [saving, setSaving] = useState(false)
@@ -222,10 +234,12 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 shrink-0">
           <div>
             <h2 className="text-base font-semibold text-slate-900">
-              {isEdit ? 'Edit donation' : 'Record a donation'}
+              {isEdit ? 'Edit donation' : isDuplicate ? 'Duplicate donation' : 'Record a donation'}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              All information is required for SEEC-compliant itemized contributions
+              {isDuplicate
+                ? 'Copied from an existing donation — review and edit, then save as a new record'
+                : 'All information is required for SEEC-compliant itemized contributions'}
             </p>
           </div>
           <button
