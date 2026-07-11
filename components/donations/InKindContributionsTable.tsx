@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Plus, MoreHorizontal, Pencil, Trash2, Search, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, MoreHorizontal, Pencil, Copy, Trash2, Search, ChevronDown, ChevronUp } from 'lucide-react'
 import type { InKindContribution, CommitteeEvent, InKindEntityType } from '@/lib/types'
 import { IN_KIND_ENTITY_LABELS } from '@/lib/types'
 import { deleteInKindContribution } from '@/actions/in-kind-contributions'
@@ -30,6 +30,7 @@ export default function InKindContributionsTable({ contributions: initial, event
   const [rows, setRows] = useState(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<InKindContribution | null>(null)
+  const [duplicating, setDuplicating] = useState<InKindContribution | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null)
   const [error, setError] = useState('')
@@ -88,6 +89,7 @@ export default function InKindContributionsTable({ contributions: initial, event
     })
     setShowAdd(false)
     setEditing(null)
+    setDuplicating(null)
   }
 
   // The dropdown uses position: fixed (not absolute) so it isn't clipped by
@@ -240,6 +242,9 @@ export default function InKindContributionsTable({ contributions: initial, event
                         <button onClick={() => { setEditing(r); setOpenMenu(null) }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                           <Pencil className="w-3.5 h-3.5" /> Edit
                         </button>
+                        <button onClick={() => { setDuplicating(r); setOpenMenu(null) }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                          <Copy className="w-3.5 h-3.5" /> Duplicate
+                        </button>
                         <button onClick={() => handleDelete(r.id)} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
                           <Trash2 className="w-3.5 h-3.5" /> Delete
                         </button>
@@ -283,6 +288,9 @@ export default function InKindContributionsTable({ contributions: initial, event
       )}
       {editing && (
         <InKindContributionDialog key={editing.id} open onClose={() => setEditing(null)} onSave={handleSave} committeeId={committeeId} committeeSlug={committeeSlug} contribution={editing} events={events} />
+      )}
+      {duplicating && (
+        <InKindContributionDialog key={`dup-${duplicating.id}`} open onClose={() => setDuplicating(null)} onSave={handleSave} committeeId={committeeId} committeeSlug={committeeSlug} duplicateFrom={duplicating} events={events} />
       )}
     </>
   )

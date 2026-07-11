@@ -21,6 +21,8 @@ interface Props {
   events: CommitteeEvent[]
   /** Seeds the form for a new (non-edit) contribution — e.g. reconciling a bank transaction. Ignored when `contribution` is set. */
   initialValues?: Partial<{ amount: number; date: string; fromName: string }>
+  /** Pre-fills a NEW contribution from an existing one (date reset to today), to save as a separate record. Ignored when `contribution` is set. */
+  duplicateFrom?: CommitteeContribution
 }
 
 type FormState = {
@@ -56,10 +58,18 @@ function initial(c?: CommitteeContribution, initialValues?: Partial<{ amount: nu
 }
 
 export default function CommitteeContributionDialog({
-  open, onClose, onSave, committeeId, committeeSlug, contribution, events, initialValues,
+  open, onClose, onSave, committeeId, committeeSlug, contribution, events, initialValues, duplicateFrom,
 }: Props) {
   const isEdit = !!contribution
-  const [form, setForm] = useState<FormState>(() => initial(contribution, initialValues))
+  const isDuplicate = !contribution && !!duplicateFrom
+  const [form, setForm] = useState<FormState>(() =>
+    contribution
+      ? initial(contribution)
+      : duplicateFrom
+        // Copy every field but reset the date — a duplicate is a fresh receipt.
+        ? { ...initial(duplicateFrom), date: new Date().toISOString().split('T')[0] }
+        : initial(undefined, initialValues)
+  )
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -109,7 +119,7 @@ export default function CommitteeContributionDialog({
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 shrink-0">
           <div>
             <h2 className="text-base font-semibold text-slate-900">
-              {isEdit ? 'Edit committee contribution' : 'Add committee contribution'}
+              {isEdit ? 'Edit committee contribution' : isDuplicate ? 'Duplicate committee contribution' : 'Add committee contribution'}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">Received from another committee (SEEC Section C1)</p>
           </div>

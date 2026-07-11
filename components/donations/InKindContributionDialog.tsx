@@ -19,6 +19,8 @@ interface Props {
   committeeSlug: string
   contribution?: InKindContribution
   events: CommitteeEvent[]
+  /** Pre-fills a NEW contribution from an existing one (date reset to today), to save as a separate record. Ignored when `contribution` is set. */
+  duplicateFrom?: InKindContribution
 }
 
 type FormState = {
@@ -64,10 +66,18 @@ function initial(c?: InKindContribution): FormState {
 }
 
 export default function InKindContributionDialog({
-  open, onClose, onSave, committeeId, committeeSlug, contribution, events,
+  open, onClose, onSave, committeeId, committeeSlug, contribution, events, duplicateFrom,
 }: Props) {
   const isEdit = !!contribution
-  const [form, setForm] = useState<FormState>(() => initial(contribution))
+  const isDuplicate = !contribution && !!duplicateFrom
+  const [form, setForm] = useState<FormState>(() =>
+    contribution
+      ? initial(contribution)
+      : duplicateFrom
+        // Copy every field but reset the date — a duplicate is a fresh donation.
+        ? { ...initial(duplicateFrom), date: new Date().toISOString().split('T')[0] }
+        : initial(undefined)
+  )
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -125,7 +135,7 @@ export default function InKindContributionDialog({
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 shrink-0">
           <div>
             <h2 className="text-base font-semibold text-slate-900">
-              {isEdit ? 'Edit in-kind contribution' : 'Add in-kind contribution'}
+              {isEdit ? 'Edit in-kind contribution' : isDuplicate ? 'Duplicate in-kind contribution' : 'Add in-kind contribution'}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">Donated goods or services (SEEC Section M)</p>
           </div>
