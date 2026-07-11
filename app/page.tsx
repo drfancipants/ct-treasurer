@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   ArrowRight,
   ShieldCheck,
+  Vote,
+  Gauge,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 
@@ -78,8 +80,8 @@ function Hero() {
           Campaign finance compliance,<br className="hidden sm:block" /> simplified
         </h1>
         <p className="text-lg text-slate-300 max-w-2xl mx-auto mb-8">
-          The treasurer suite built for Connecticut political committees. Track donations, record expenses,
-          sync your bank, and generate SEEC Form 20 reports — all in one place.
+          The treasurer suite built for Connecticut town committees and candidate campaigns. Track donations,
+          record expenses, sync your bank, and generate SEEC Form 20 and Form 30 reports — all in one place.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
@@ -97,6 +99,10 @@ function Hero() {
           </Link>
         </div>
         <p className="mt-4 text-sm text-slate-400">14-day free trial · No credit card required</p>
+        <p className="mt-6 text-xs text-slate-500">
+          An independent product — not affiliated with the State of Connecticut, the Office of the State
+          Treasurer, or the State Elections Enforcement Commission (SEEC).
+        </p>
       </div>
     </section>
   )
@@ -107,9 +113,21 @@ function Hero() {
 const FEATURES = [
   {
     icon: FileText,
-    title: 'SEEC Form 20 export',
+    title: 'SEEC Form 20 & Form 30 export',
     description:
-      'Generate the official eCRIS upload template pre-filled with your contributions and expenses. Download and upload directly to seec.ct.gov.',
+      'Generate the official eCRIS upload templates pre-filled with your contributions and expenses — Form 20 for town committees and municipal offices, Form 30 for statewide and General Assembly campaigns. Download and upload directly to seec.ct.gov.',
+  },
+  {
+    icon: Vote,
+    title: 'Party & candidate committees',
+    description:
+      'Run a town committee or a candidate campaign from the same suite. Candidate committees get office-aware filing calendars, statutory pre-primary and pre-election statements, and CEP participant support.',
+  },
+  {
+    icon: Gauge,
+    title: 'Contribution limit tracking',
+    description:
+      'Connecticut limits are enforced automatically — calendar-year limits for party committees, per-phase office-based limits for candidates, and CEP cycle caps. Over-limit donations are flagged before you accept them.',
   },
   {
     icon: DollarSign,
@@ -163,9 +181,9 @@ function Features() {
 // ─── How it works ─────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { n: '1', title: 'Create your committee', body: 'Sign up and set up your committee in minutes. Add your SEEC registration ID and election year from the Settings page.' },
-  { n: '2', title: 'Record your activity', body: 'Enter donations and expenses as they happen, or import from Anedot and sync your bank account via Plaid.' },
-  { n: '3', title: 'File with confidence', body: 'Generate a pre-filled SEEC Form 20 for any filing period and upload it directly to eCRIS at seec.ct.gov.' },
+  { n: '1', title: 'Create your committee', body: 'Sign up and set up your town committee or candidate committee in minutes. Add your SEEC registration ID, office sought, and election dates.' },
+  { n: '2', title: 'Record your activity', body: 'Enter donations and expenses as they happen, or import from Anedot and sync your bank account via Plaid. Contribution limits are checked as you go.' },
+  { n: '3', title: 'File with confidence', body: 'Generate a pre-filled SEEC Form 20 or Form 30 for any filing period — including statutory pre-primary and pre-election statements — and upload it directly to eCRIS at seec.ct.gov.' },
 ]
 
 function HowItWorks() {
@@ -198,7 +216,9 @@ function HowItWorks() {
 
 const PLAN_FEATURES = [
   'Unlimited donations & expenses',
-  'SEEC Form 20 export (eCRIS template)',
+  'Party & candidate committees',
+  'SEEC Form 20 & 30 exports (eCRIS templates)',
+  'Contribution limit tracking (incl. CEP)',
   'Anedot CSV import',
   'Plaid bank account sync',
   'Up to 10 committee members',
@@ -269,6 +289,13 @@ function Footer() {
             SEEC ↗
           </a>
         </div>
+      </div>
+      <div className="max-w-6xl mx-auto px-6 mt-6 pt-6 border-t border-slate-100">
+        <p className="text-xs text-slate-400 text-center sm:text-left leading-relaxed">
+          CT Committee Treasurer Suite is an independent product and is not affiliated with, endorsed by, or
+          connected to the State of Connecticut, the Office of the State Treasurer, or the State Elections
+          Enforcement Commission (SEEC).
+        </p>
       </div>
     </footer>
   )
