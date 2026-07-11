@@ -38,6 +38,7 @@ export default async function NewsletterPage({ params }: Props) {
           committeeSlug={committeeSlug}
           committeeName={committee.name}
           canEdit={canEditRoster(role)}
+          showDues={committee.type !== 'CANDIDATE'}
         />
       </div>
     </div>

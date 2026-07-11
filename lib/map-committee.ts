@@ -1,4 +1,4 @@
-import type { SubscriptionStatus, Prisma } from '@prisma/client'
+import type { SubscriptionStatus, CommitteeType, OfficeSought, Prisma } from '@prisma/client'
 import type { Committee } from '@/lib/types'
 
 type CommitteeRow = {
@@ -6,11 +6,16 @@ type CommitteeRow = {
   anedotAccountId: string | null; address1: string | null; address2: string | null
   city: string | null; state: string; zip: string | null; phone: string | null
   email: string | null; electionYear: number | null
+  type: CommitteeType
+  candidateName: string | null; officeSought: OfficeSought | null; district: string | null
+  cepParticipant: boolean; primaryDate: Date | null; electionDate: Date | null
   dashboardBankAccountId: string | null
   stripeCustomerId: string | null; stripeSubscriptionId: string | null
   subscriptionStatus: SubscriptionStatus | null; trialEndsAt: Date | null
   duesAnedotCampaign: string | null; duesThreshold: Prisma.Decimal | null
 }
+
+const isoDate = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : undefined)
 
 export function mapCommittee(c: CommitteeRow): Committee {
   return {
@@ -25,6 +30,13 @@ export function mapCommittee(c: CommitteeRow): Committee {
     phone: c.phone ?? undefined,
     email: c.email ?? undefined,
     electionYear: c.electionYear ?? undefined,
+    type: c.type,
+    candidateName: c.candidateName ?? undefined,
+    officeSought: c.officeSought ?? undefined,
+    district: c.district ?? undefined,
+    cepParticipant: c.cepParticipant,
+    primaryDate: isoDate(c.primaryDate),
+    electionDate: isoDate(c.electionDate),
     dashboardBankAccountId: c.dashboardBankAccountId ?? undefined,
     stripeCustomerId: c.stripeCustomerId ?? undefined,
     stripeSubscriptionId: c.stripeSubscriptionId ?? undefined,

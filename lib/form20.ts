@@ -1,63 +1,15 @@
 import * as XLSX from 'xlsx'
 import type { Contribution, Expenditure, CommitteeEvent, CommitteeContribution, InKindContribution, Reimbursement } from './types'
-import { getSeecStatus } from './types'
-
-function yn(b: boolean): string {
-  return b ? 'Y' : 'N'
-}
-
-// ─── SEEC eCRIS code mappings (from the Code List sheet) ─────────────────────
-
-/** Section B – Method of Contribution codes */
-const CONTRIBUTION_METHOD: Record<string, string> = {
-  CHECK:       'PC',  // Personal Check
-  CASH:        'CA',  // Cash
-  CREDIT_CARD: 'CD',  // Credit/Debit Card
-  DEBIT_CARD:  'CD',  // Credit/Debit Card
-  ONLINE:      'CD',  // Treat online as CD (ACH would be separate)
-  OTHER:       'PC',  // Default to check
-}
-
-/** Section P – Method of Payment codes (different from Section B) */
-const EXPENDITURE_METHOD: Record<string, string> = {
-  CHECK:       'CH',  // Check
-  CASH:        'CH',  // No cash code in Section P; CH is closest
-  CREDIT_CARD: 'DC',  // Debit Card (credit card charges go in Section R)
-  DEBIT_CARD:  'DC',  // Debit Card
-  ONLINE:      'EFT', // Electronic Funds Transfer
-  OTHER:       'CH',
-}
-
-/**
- * Section P – Purpose of Expenditure. Expenditure.category now stores the
- * SEEC code directly (e.g. "A-RAD"); this map only converts legacy app
- * categories that may survive in old data.
- */
-const LEGACY_EXPENSE_PURPOSE: Record<string, string> = {
-  PRINTING:             'PRNT',
-  ADVERTISING:          'A-NEWS',
-  EVENT:                'FNDR',
-  POSTAGE:              'POST',
-  OFFICE_SUPPLIES:      'OFFICE',
-  TECHNOLOGY:           'WEB',
-  PROFESSIONAL_SERVICES:'CNSLT',
-  HEADQUARTERS:         'OVHD',
-  SIGNAGE:              'A-SIGN',
-  OTHER:                'MISC',
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Convert YYYY-MM-DD → mm/dd/yyyy (SEEC required format) */
-function seecDate(iso: string): string {
-  if (!iso || iso.length < 10) return ''
-  const [y, m, d] = iso.split('-')
-  return `${m}/${d}/${y}`
-}
-
-function inPeriod(date: string, start: string, end: string): boolean {
-  return date >= start && date <= end
-}
+import {
+  yn,
+  seecDate,
+  inPeriod,
+  previewFiling,
+  CONTRIBUTION_METHOD,
+  EXPENDITURE_METHOD,
+  LEGACY_EXPENSE_PURPOSE,
+  type FilingPreview,
+} from './seec-export'
 
 // ─── Main export function ─────────────────────────────────────────────────────
 
@@ -271,64 +223,8 @@ export function populateForm20(
 }
 
 // ─── Preview data (used by the dialog before generating) ─────────────────────
+// The section math is form-agnostic and lives in seec-export.ts; these
+// re-exports keep existing imports working.
 
-export interface Form20Preview {
-  itemizedCount: number
-  itemizedTotal: number
-  nonItemizedCount: number
-  nonItemizedTotal: number
-  expenditureCount: number
-  expenditureTotal: number
-  eventCount: number
-  eventTotal: number
-  committeeContribCount: number
-  committeeContribTotal: number
-  inKindCount: number
-  inKindTotal: number
-  reimbursementCount: number
-  reimbursementTotal: number
-  seecIssues: { contributionId: string; issues: string[] }[]
-}
-
-export function previewForm20(
-  contributions: Contribution[],
-  expenditures: Expenditure[],
-  periodStart: string,
-  periodEnd: string,
-  events: CommitteeEvent[] = [],
-  committeeContributions: CommitteeContribution[] = [],
-  inKindContributions: InKindContribution[] = [],
-  reimbursements: Reimbursement[] = []
-): Form20Preview {
-  const contribs = contributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
-  const expends  = expenditures.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
-  const evts     = events.filter((e)  => inPeriod(e.date, periodStart, periodEnd))
-  const cmteC    = committeeContributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
-  const inKind   = inKindContributions.filter((c) => inPeriod(c.date, periodStart, periodEnd))
-  const reimbs   = reimbursements.filter((r) => inPeriod(r.date, periodStart, periodEnd))
-
-  const itemized    = contribs.filter((c) =>  c.isItemized)
-  const nonItemized = contribs.filter((c) => !c.isItemized)
-
-  const seecIssues = itemized
-    .map((c) => ({ contributionId: c.id, issues: getSeecStatus(c).issues }))
-    .filter((r) => r.issues.length > 0)
-
-  return {
-    itemizedCount:    itemized.length,
-    itemizedTotal:    itemized.reduce((s, c) => s + c.amount, 0),
-    nonItemizedCount: nonItemized.length,
-    nonItemizedTotal: nonItemized.reduce((s, c) => s + c.amount, 0),
-    expenditureCount: expends.length,
-    expenditureTotal: expends.reduce((s, e) => s + e.amount, 0),
-    eventCount: evts.length,
-    eventTotal: evts.reduce((s, e) => s + e.foodReceipts + e.tagSaleReceipts, 0),
-    committeeContribCount: cmteC.length,
-    committeeContribTotal: cmteC.reduce((s, c) => s + c.amount, 0),
-    inKindCount: inKind.length,
-    inKindTotal: inKind.reduce((s, c) => s + c.fairMarketValue, 0),
-    reimbursementCount: reimbs.length,
-    reimbursementTotal: reimbs.reduce((s, r) => s + r.amount, 0),
-    seecIssues,
-  }
-}
+export type Form20Preview = FilingPreview
+export const previewForm20 = previewFiling

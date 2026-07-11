@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseAnedotCsv } from '../anedot-csv'
+import { getLimitPolicy } from '../limits'
 import { makeContribution } from './helpers'
 
 const ANEDOT_HEADER =
@@ -280,6 +281,20 @@ describe('contribution limit flags', () => {
       []
     )
     expect(result.rows[0].limitIssues[0]).toMatch(/Cash contribution over \$100/)
+  })
+
+  it('applies a candidate policy: $300 to a $250 State Rep primary is flagged', () => {
+    const policy = getLimitPolicy({
+      type: 'CANDIDATE', officeSought: 'STATE_REPRESENTATIVE', cepParticipant: false,
+      primaryDate: '2026-08-11', electionDate: '2026-11-03', electionYear: 2026,
+    })
+    const result = parseAnedotCsv(
+      csv('an_c1,2026-07-01,Jane,Donor,jane@example.com,300,check,12 Elm St,Madison,CT,06443,Acme,Engineer,Completed'),
+      [],
+      [],
+      policy
+    )
+    expect(result.rows[0].limitIssues[0]).toMatch(/over the \$250 primary limit/)
   })
 })
 

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import type { Contribution, RosterMember } from '@/lib/types'
 import { parseAnedotCsv, type ParseResult, type ParsedRow } from '@/lib/anedot-csv'
+import { PARTY_POLICY, type LimitPolicy } from '@/lib/limits'
 import { importContributions } from '@/actions/donations'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 
@@ -26,6 +27,7 @@ interface Props {
   rosterMembers?: RosterMember[]
   committeeId: string
   committeeSlug: string
+  policy?: LimitPolicy
 }
 
 export default function AnedotImportDialog({
@@ -36,6 +38,7 @@ export default function AnedotImportDialog({
   rosterMembers = [],
   committeeId,
   committeeSlug,
+  policy = PARTY_POLICY,
 }: Props) {
   const [step, setStep] = useState<Step>('upload')
   const [dragging, setDragging] = useState(false)
@@ -72,7 +75,7 @@ export default function AnedotImportDialog({
     const reader = new FileReader()
     reader.onload = (e) => {
       const text = e.target?.result as string
-      const result = parseAnedotCsv(text, existingContributions, rosterMembers)
+      const result = parseAnedotCsv(text, existingContributions, rosterMembers, policy)
       setParseResult(result)
       setStep('preview')
     }

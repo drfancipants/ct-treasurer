@@ -82,10 +82,11 @@ export async function POST(req: NextRequest) {
     bankTransactions,
     dashboardAccount?.currentBalance ?? 0
   )
+  // Dues are a town-committee concept; candidate committees don't collect them.
   const duesStatus = getDuesStatusBreakdown(rosterMembers)
   const [chartImage, duesChartImage] = await Promise.all([
     renderReportChart(monthly),
-    renderDuesChart(duesStatus, rosterMembers.length),
+    committee.type === 'CANDIDATE' ? Promise.resolve(null) : renderDuesChart(duesStatus, rosterMembers.length),
   ])
 
   const addressParts = [

@@ -5,8 +5,13 @@ import { X, AlertCircle } from 'lucide-react'
 import type { Contribution, PaymentMethod, CommitteeEvent } from '@/lib/types'
 import { createContribution, updateContribution } from '@/actions/donations'
 import { PAYMENT_METHOD_LABELS } from '@/lib/types'
-import { checkProspective, INDIVIDUAL_ANNUAL_LIMIT, CASH_CONTRIBUTION_MAX } from '@/lib/limits'
+import { checkProspective, CASH_CONTRIBUTION_MAX, PARTY_POLICY, type LimitPolicy } from '@/lib/limits'
 import { formatCurrency, formatDate } from '@/lib/utils'
+
+/** "for 2026" (party, year bucket) vs "toward the primary" (candidate phase). */
+function bucketPhrase(policy: LimitPolicy, bucketLabel: string): string {
+  return policy.kind === 'PARTY' ? `for ${bucketLabel}` : `toward the ${bucketLabel.toLowerCase()}`
+}
 
 interface Props {
   open: boolean
@@ -19,6 +24,7 @@ interface Props {
   events?: CommitteeEvent[] // for the optional event link
   /** Seeds the form for a new (non-edit) donation — e.g. reconciling a bank transaction. Ignored when `contribution` is set. */
   initialValues?: Partial<{ amount: number; date: string }>
+  policy?: LimitPolicy
 }
 
 interface FormData {
@@ -71,7 +77,7 @@ const EMPTY: FormData = {
   occupation: '',
 }
 
-export default function AddDonationDialog({ open, onClose, onAdd, committeeId, committeeSlug, contribution, existingContributions, events = [], initialValues }: Props) {
+export default function AddDonationDialog({ open, onClose, onAdd, committeeId, committeeSlug, contribution, existingContributions, events = [], initialValues, policy = PARTY_POLICY }: Props) {
   const isEdit = !!contribution
   const [form, setForm] = useState<FormData>(
     contribution
@@ -118,7 +124,8 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
           { email: form.email || undefined, firstName: form.firstName, lastName: form.lastName, zip: form.zip },
           parsedAmount,
           form.date,
-          form.method
+          form.method,
+          policy
         )
       : null
 
@@ -513,8 +520,13 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
             </section>
           </div>
 
-          {limitCheck && (limitCheck.cashOverMax || limitCheck.priorTotal > 0 || limitCheck.status !== 'ok') && (
+          {limitCheck && (limitCheck.cashOverMax || limitCheck.cepBelowMin || limitCheck.priorTotal > 0 || limitCheck.status !== 'ok' || (policy.stateContractorProhibited && form.isStateContractor)) && (
             <div className="px-6 pb-4 space-y-2 shrink-0">
+              {policy.stateContractorProhibited && form.isStateContractor && (
+                <p className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
+                  State contractor contributions are prohibited for Citizens’ Election Program participants.
+                </p>
+              )}
               {limitCheck.cashOverMax && (
                 <p className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
                   Cash contributions over {formatCurrency(CASH_CONTRIBUTION_MAX)} are prohibited (CGS § 9-611) —
@@ -523,20 +535,25 @@ export default function AddDonationDialog({ open, onClose, onAdd, committeeId, c
               )}
               {limitCheck.wouldExceed ? (
                 <p className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
-                  This would bring the donor to {formatCurrency(limitCheck.newTotal)} for {form.date.slice(0, 4)} —
-                  over the {formatCurrency(INDIVIDUAL_ANNUAL_LIMIT)} individual annual limit for town committees.
+                  This would bring the donor to {formatCurrency(limitCheck.newTotal)} {bucketPhrase(policy, limitCheck.bucketLabel)} —
+                  over the {limitCheck.limitLabel} individual limit.
                 </p>
               ) : limitCheck.status === 'warning' ? (
                 <p className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
                   With this donation the donor reaches {formatCurrency(limitCheck.newTotal)} of the{' '}
-                  {formatCurrency(INDIVIDUAL_ANNUAL_LIMIT)} annual limit ({formatCurrency(limitCheck.remaining)} remaining).
+                  {formatCurrency(limitCheck.limit)} limit ({formatCurrency(limitCheck.remaining)} remaining).
                 </p>
               ) : limitCheck.priorTotal > 0 ? (
                 <p className="px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
-                  This donor has given {formatCurrency(limitCheck.priorTotal)} in {form.date.slice(0, 4)} —
-                  {' '}{formatCurrency(limitCheck.remaining)} remaining under the annual limit after this donation.
+                  This donor has given {formatCurrency(limitCheck.priorTotal)} {bucketPhrase(policy, limitCheck.bucketLabel)} —
+                  {' '}{formatCurrency(limitCheck.remaining)} remaining under the limit after this donation.
                 </p>
               ) : null}
+              {limitCheck.cepBelowMin && (
+                <p className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
+                  Below the CEP qualifying minimum — this gift is legal to accept but won’t count toward qualifying funds.
+                </p>
+              )}
             </div>
           )}
 

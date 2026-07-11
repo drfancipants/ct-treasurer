@@ -42,6 +42,25 @@ async function main() {
       },
       update: {},
     }),
+    // A candidate committee for exercising the per-phase limit rules and Form 30 flow.
+    prisma.committee.upsert({
+      where: { slug: 'friends-of-pat-doe' },
+      create: {
+        name: 'Friends of Pat Doe',
+        slug: 'friends-of-pat-doe',
+        city: 'Guilford',
+        state: 'CT',
+        electionYear: 2026,
+        type: 'CANDIDATE',
+        candidateName: 'Pat Doe',
+        officeSought: 'STATE_REPRESENTATIVE',
+        district: '98th Assembly District',
+        cepParticipant: false,
+        primaryDate: new Date('2026-08-11T00:00:00Z'),
+        electionDate: new Date('2026-11-03T00:00:00Z'),
+      },
+      update: {},
+    }),
     // Add more committees here:
     // prisma.committee.upsert({
     //   where: { slug: 'your-committee' },

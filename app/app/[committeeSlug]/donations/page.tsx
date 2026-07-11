@@ -6,6 +6,7 @@ import { getEvents } from '@/actions/events'
 import { getCommitteeContributions } from '@/actions/committee-contributions'
 import { getInKindContributions } from '@/actions/in-kind-contributions'
 import { getRosterMembers } from '@/actions/roster'
+import { getLimitPolicy } from '@/lib/limits'
 import DonationsTabs from '@/components/donations/DonationsTabs'
 
 interface Props {
@@ -40,6 +41,7 @@ export default async function DonationsPage({ params }: Props) {
           committeeId={committee.id}
           committeeSlug={committeeSlug}
           canEdit={canEdit}
+          policy={getLimitPolicy(committee)}
         />
       </div>
     </div>

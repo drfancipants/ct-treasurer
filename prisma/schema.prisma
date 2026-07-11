@@ -17,6 +17,24 @@ enum SubscriptionStatus {
   canceled
 }
 
+enum CommitteeType {
+  PARTY     // town committee
+  CANDIDATE // single candidate's campaign committee
+  // future: EXPLORATORY, PAC
+}
+
+// The seven individual-contribution-limit classes from SEEC's
+// "Revised Contribution Limits & Restrictions" chart (January 2026).
+enum OfficeSought {
+  GOVERNOR             // $3,500 per primary / per election
+  STATEWIDE            // Lt. Gov, SOTS, Treasurer, Comptroller, AG — $2,000
+  STATE_SENATOR        // $1,000
+  PROBATE_JUDGE        // $1,000
+  CHIEF_EXECUTIVE      // mayor / first selectman — $1,000
+  STATE_REPRESENTATIVE // $250
+  OTHER_MUNICIPAL      // $250
+}
+
 // ─── Committees (tenants) ────────────────────────────────────────────────────
 
 model Committee {
@@ -33,6 +51,13 @@ model Committee {
   phone        String?
   email        String?
   electionYear         Int?
+  type           CommitteeType @default(PARTY) // immutable after creation — limit rules, filing form, and calendar all key off it
+  candidateName  String?
+  officeSought   OfficeSought?
+  district       String? // e.g. "91st Assembly District", ward, or blank for town-wide
+  cepParticipant Boolean       @default(false) // Citizens' Election Program — switches limit rules entirely
+  primaryDate    DateTime?     @db.Date // set ⇔ candidate competes in a primary (limits apply per phase)
+  electionDate   DateTime?     @db.Date
   dashboardBankAccountId String? // which linked account's balance the dashboard shows
   stripeCustomerId     String?
   stripeSubscriptionId String?
@@ -492,7 +517,7 @@ enum SeecFormType {
   FORM_1    // Committee registration
   FORM_20   // Campaign finance disclosure
   FORM_21   // Related party expenditure
-  FORM_30   // Dissolution
+  FORM_30   // Campaign finance disclosure — candidate/exploratory committees for statewide office & General Assembly
 }
 
 enum FilingStatus {

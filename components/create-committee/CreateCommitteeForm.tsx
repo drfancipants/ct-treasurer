@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createCommittee } from '@/actions/committees'
+import { OFFICE_LABELS, type CommitteeType, type OfficeSought } from '@/lib/types'
+import { OFFICE_INDIVIDUAL_LIMITS } from '@/lib/limits'
 
 function slugify(name: string): string {
   return name
@@ -19,8 +21,15 @@ export default function CreateCommitteeForm() {
   const [slugEdited, setSlugEdited] = useState(false)
   const [electionYear, setElectionYear] = useState('')
   const [city, setCity] = useState('')
+  const [type, setType] = useState<CommitteeType>('PARTY')
+  const [candidateName, setCandidateName] = useState('')
+  const [officeSought, setOfficeSought] = useState<OfficeSought | ''>('')
+  const [district, setDistrict] = useState('')
+  const [primaryDate, setPrimaryDate] = useState('')
+  const [electionDate, setElectionDate] = useState('')
+  const [cepParticipant, setCepParticipant] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [errors, setErrors] = useState<{ name?: string; slug?: string; general?: string }>({})
+  const [errors, setErrors] = useState<{ name?: string; slug?: string; candidateName?: string; officeSought?: string; general?: string }>({})
 
   // Derived from name until the user edits the slug field directly
   const slug = slugEdited ? customSlug : slugify(name)
@@ -37,6 +46,13 @@ export default function CreateCommitteeForm() {
     if (!name.trim()) errs.name = 'Committee name is required'
     if (!slug.trim()) errs.slug = 'URL slug is required'
     if (slug && !/^[a-z0-9-]+$/.test(slug)) errs.slug = 'Only lowercase letters, numbers, and hyphens'
+    if (type === 'CANDIDATE') {
+      if (!candidateName.trim()) errs.candidateName = 'Candidate name is required'
+      if (!officeSought) errs.officeSought = 'Select the office being sought'
+      if (primaryDate && electionDate && primaryDate >= electionDate) {
+        errs.general = 'The primary date must be before the election date'
+      }
+    }
     if (Object.keys(errs).length) { setErrors(errs); return }
 
     setSaving(true)
@@ -47,6 +63,17 @@ export default function CreateCommitteeForm() {
         slug,
         electionYear: electionYear ? parseInt(electionYear) : undefined,
         city: city.trim() || undefined,
+        type,
+        ...(type === 'CANDIDATE'
+          ? {
+              candidateName: candidateName.trim(),
+              officeSought: officeSought as OfficeSought,
+              district: district.trim() || undefined,
+              primaryDate: primaryDate || undefined,
+              electionDate: electionDate || undefined,
+              cepParticipant,
+            }
+          : {}),
       })
       router.push(`/app/${committee.slug}/dashboard`)
     } catch (err) {
@@ -62,6 +89,33 @@ export default function CreateCommitteeForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Committee type */}
+      <div className="space-y-1.5">
+        <label className="block text-xs font-medium text-slate-700">Committee type</label>
+        <div className="grid grid-cols-2 gap-3">
+          {([
+            { value: 'PARTY', title: 'Party committee', desc: 'A town committee (DTC / RTC)' },
+            { value: 'CANDIDATE', title: 'Candidate committee', desc: "One candidate's campaign" },
+          ] as const).map((opt) => (
+            <button
+              type="button"
+              key={opt.value}
+              onClick={() => setType(opt.value)}
+              className={[
+                'text-left rounded-xl border p-3 transition-colors',
+                type === opt.value
+                  ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50'
+                  : 'border-slate-200 hover:border-slate-300 bg-white',
+              ].join(' ')}
+            >
+              <p className="text-sm font-medium text-slate-900">{opt.title}</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-slate-400">This can’t be changed later.</p>
+      </div>
+
       {/* Name */}
       <div className="space-y-1.5">
         <label className="block text-xs font-medium text-slate-700">
@@ -71,12 +125,99 @@ export default function CreateCommitteeForm() {
           type="text"
           value={name}
           onChange={(e) => { setName(e.target.value); setErrors((er) => ({ ...er, name: undefined })) }}
-          placeholder="Friends of Jane Smith"
+          placeholder={type === 'CANDIDATE' ? 'Friends of Jane Smith' : 'New Haven Democratic Town Committee'}
           autoFocus
           className={inputCls(!!errors.name)}
         />
         {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
       </div>
+
+      {/* Candidate details */}
+      {type === 'CANDIDATE' && (
+        <div className="space-y-4 rounded-xl border border-slate-200 p-4 bg-slate-50/50">
+          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Candidate & election</p>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-slate-700">
+              Candidate name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={candidateName}
+              onChange={(e) => { setCandidateName(e.target.value); setErrors((er) => ({ ...er, candidateName: undefined })) }}
+              placeholder="Jane Smith"
+              className={inputCls(!!errors.candidateName)}
+            />
+            {errors.candidateName && <p className="text-xs text-red-600">{errors.candidateName}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-slate-700">
+              Office sought <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={officeSought}
+              onChange={(e) => { setOfficeSought(e.target.value as OfficeSought); setErrors((er) => ({ ...er, officeSought: undefined })) }}
+              className={inputCls(!!errors.officeSought)}
+            >
+              <option value="">Select an office…</option>
+              {(Object.keys(OFFICE_LABELS) as OfficeSought[]).map((o) => (
+                <option key={o} value={o}>
+                  {OFFICE_LABELS[o]} — ${OFFICE_INDIVIDUAL_LIMITS[o].toLocaleString()}/donor per phase
+                </option>
+              ))}
+            </select>
+            {errors.officeSought && <p className="text-xs text-red-600">{errors.officeSought}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-slate-700">District (optional)</label>
+            <input
+              type="text"
+              value={district}
+              onChange={(e) => setDistrict(e.target.value)}
+              placeholder="98th Assembly District"
+              className={inputCls(false)}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-slate-700">Primary date</label>
+              <input
+                type="date"
+                value={primaryDate}
+                onChange={(e) => setPrimaryDate(e.target.value)}
+                className={inputCls(false)}
+              />
+              <p className="text-[11px] text-slate-400">Leave blank if not in a primary — limits apply separately to primary and election.</p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-slate-700">Election date</label>
+              <input
+                type="date"
+                value={electionDate}
+                onChange={(e) => setElectionDate(e.target.value)}
+                className={inputCls(false)}
+              />
+            </div>
+          </div>
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={cepParticipant}
+              onChange={(e) => setCepParticipant(e.target.checked)}
+              className="w-4 h-4 mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-xs text-slate-600">
+              <span className="font-medium text-slate-700">Citizens’ Election Program participant</span>
+              <br />
+              Caps individual gifts at $340 (2026 cycle, $5 minimum) and prohibits committee, PAC, and state-contractor contributions.
+            </span>
+          </label>
+        </div>
+      )}
 
       {/* Slug */}
       <div className="space-y-1.5">

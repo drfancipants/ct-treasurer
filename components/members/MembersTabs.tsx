@@ -15,10 +15,11 @@ interface Props {
   committeeSlug: string
   committeeName: string
   canEditRoster: boolean
+  showDues?: boolean
 }
 
 export default function MembersTabs({
-  rosterMembers, members, committeeId, committeeSlug, committeeName, canEditRoster,
+  rosterMembers, members, committeeId, committeeSlug, committeeName, canEditRoster, showDues = true,
 }: Props) {
   const [tab, setTab] = useState<Tab>('roster')
 
@@ -48,6 +49,7 @@ export default function MembersTabs({
           committeeId={committeeId}
           committeeSlug={committeeSlug}
           canEdit={canEditRoster}
+          showDues={showDues}
         />
       )}
       {tab === 'access' && (

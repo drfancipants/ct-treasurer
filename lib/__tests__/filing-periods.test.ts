@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { generateQuarterlyPeriods, mergeFilingPeriods, type FilingPeriod } from '../filing-periods'
+import { generateQuarterlyPeriods, generateStatutoryCandidatePeriods, mergeFilingPeriods, type FilingPeriod } from '../filing-periods'
 import type { CustomFilingPeriodRecord } from '@/actions/filings'
 
 const TODAY = new Date('2026-07-05T12:00:00Z')
@@ -68,6 +68,55 @@ const Q3_2026: FilingPeriod = {
   end: '2026-09-30',
   due: 'Oct 10, 2026',
 }
+
+describe('generateStatutoryCandidatePeriods', () => {
+  // Use a late "today" so all 2026 events have started and appear.
+  const LATE = new Date('2026-12-01T12:00:00Z')
+
+  it('returns nothing for a committee with no primary/election dates (party committee)', () => {
+    expect(generateStatutoryCandidatePeriods({}, LATE)).toEqual([])
+  })
+
+  it('computes the pre-election period as due = election − 7, ending 2 days before due', () => {
+    const periods = generateStatutoryCandidatePeriods({ electionDate: '2026-11-03' }, LATE)
+    const preElection = periods.find((p) => p.label.startsWith('Pre-election'))
+    expect(preElection?.dueDate).toBe('Oct 27, 2026')
+    expect(preElection?.periodEnd).toBe('2026-10-25')
+    expect(preElection?.isStatutory).toBe(true)
+  })
+
+  it('emits pre-primary, post-primary, and pre-election statements when a primary is set', () => {
+    const periods = generateStatutoryCandidatePeriods(
+      { primaryDate: '2026-08-11', electionDate: '2026-11-03' },
+      LATE
+    )
+    expect(periods.map((p) => p.label.split(' —')[0]).sort()).toEqual([
+      'Post-primary', 'Pre-election', 'Pre-primary',
+    ])
+    // Pre-primary due Aug 4 (11 − 7), ending Aug 2
+    const prePrimary = periods.find((p) => p.label.startsWith('Pre-primary'))
+    expect(prePrimary?.dueDate).toBe('Aug 4, 2026')
+    expect(prePrimary?.periodEnd).toBe('2026-08-02')
+  })
+
+  it('omits periods that have not started yet relative to today', () => {
+    const early = new Date('2026-01-01T12:00:00Z')
+    // Pre-election coverage starts Oct 1 (its quarter) — not started on Jan 1
+    expect(generateStatutoryCandidatePeriods({ electionDate: '2026-11-03' }, early)).toEqual([])
+  })
+
+  it('splices into the quarterly schedule, carving the statutory period out of its quarter', () => {
+    const merged = mergeFilingPeriods(
+      generateQuarterlyPeriods(2026, LATE),
+      generateStatutoryCandidatePeriods({ electionDate: '2026-11-03' }, LATE)
+    )
+    const statutory = merged.find((p) => p.isStatutory)
+    expect(statutory).toBeTruthy()
+    expect(statutory?.isCustom).toBe(false)
+    // Q4 gets split: a remainder piece after the pre-election period end
+    expect(merged.some((p) => p.label.includes('(part)') && p.start === '2026-10-26')).toBe(true)
+  })
+})
 
 describe('mergeFilingPeriods', () => {
   it('returns the base periods unchanged (but sorted) when there are no custom periods', () => {
