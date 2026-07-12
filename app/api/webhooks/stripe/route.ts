@@ -1,24 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { SubscriptionStatus } from '@prisma/client'
 import { stripe, STRIPE_WEBHOOK_SECRET } from '@/lib/stripe'
+import { toSubscriptionStatus, applyCheckoutSession } from '@/lib/billing'
 import { prisma } from '@/lib/db'
 import type Stripe from 'stripe'
-
-function toSubscriptionStatus(stripeStatus: string): SubscriptionStatus {
-  switch (stripeStatus) {
-    case 'trialing':            return SubscriptionStatus.trialing
-    case 'active':              return SubscriptionStatus.active
-    case 'past_due':            return SubscriptionStatus.past_due
-    case 'canceled':            return SubscriptionStatus.canceled
-    case 'unpaid':              return SubscriptionStatus.past_due
-    case 'incomplete':          return SubscriptionStatus.past_due
-    case 'incomplete_expired':  return SubscriptionStatus.canceled
-    // 'paused' means the trial ended without a payment method — not paying
-    case 'paused':              return SubscriptionStatus.past_due
-    // Fail closed on unknown/future Stripe statuses rather than granting access
-    default:                    return SubscriptionStatus.past_due
-  }
-}
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
@@ -39,26 +23,7 @@ export async function POST(req: NextRequest) {
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session
-        if (session.mode !== 'subscription') break
-
-        const committeeId = typeof session.metadata?.committeeId === 'string'
-          ? session.metadata.committeeId
-          : null
-        if (!committeeId) break
-
-        const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
-        await prisma.committee.update({
-          where: { id: committeeId },
-          data: {
-            stripeCustomerId: session.customer as string,
-            stripeSubscriptionId: subscription.id,
-            subscriptionStatus: toSubscriptionStatus(subscription.status),
-            trialEndsAt: subscription.trial_end
-              ? new Date(subscription.trial_end * 1000)
-              : null,
-          },
-        })
+        await applyCheckoutSession(event.data.object as Stripe.Checkout.Session)
         break
       }
 

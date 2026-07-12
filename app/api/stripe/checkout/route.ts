@@ -49,7 +49,10 @@ export async function POST(req: NextRequest) {
       trial_period_days: 14,
       metadata: { committeeId: committee.id },
     },
-    success_url: `${appUrl}/app/${committee.slug}/settings?billing=success`,
+    // Return through a self-healing handler that verifies the session and grants
+    // entitlement synchronously, so a slow or misconfigured webhook can't strand
+    // a paying user at the paywall. It redirects on to the dashboard.
+    success_url: `${appUrl}/app/checkout-return?slug=${committee.slug}&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appUrl}/app/${committee.slug}/settings?billing=canceled`,
   })
 
