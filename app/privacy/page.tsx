@@ -24,7 +24,7 @@ export default function PrivacyPage() {
 
       <main className="max-w-3xl mx-auto px-6 py-14">
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Privacy Policy</h1>
-        <p className="text-sm text-slate-400 mb-10">Effective date: June 28, 2026</p>
+        <p className="text-sm text-slate-400 mb-10">Effective date: July 12, 2026</p>
 
         <div className="prose prose-slate max-w-none text-sm leading-7 space-y-8">
 
@@ -34,7 +34,9 @@ export default function PrivacyPage() {
             <ul className="list-disc pl-5 text-slate-600 space-y-1 mt-2">
               <li><strong>Account information</strong> — your name and email address when you sign up</li>
               <li><strong>Committee data</strong> — the donations, expenditures, and committee details you enter into the Service</li>
+              <li><strong>Donor and roster details</strong> — contact information (and, for donors, employer and occupation as required by SEEC) of contributors and committee roster members, entered by your committee; these individuals may not themselves be users of the Service</li>
               <li><strong>Bank data</strong> — transaction data fetched via Plaid when you connect a bank account</li>
+              <li><strong>Billing information</strong> — subscription payments are processed by Stripe; we store your subscription status but never your card number</li>
               <li><strong>Usage data</strong> — pages visited, actions taken, and errors encountered, used to improve the Service</li>
               <li><strong>Cookies</strong> — session cookies required to keep you signed in</li>
             </ul>
@@ -45,8 +47,9 @@ export default function PrivacyPage() {
             <p className="text-slate-600">We use your data to:</p>
             <ul className="list-disc pl-5 text-slate-600 space-y-1 mt-2">
               <li>Provide and operate the Service</li>
-              <li>Generate SEEC Form 20 reports and other exports you request</li>
+              <li>Generate SEEC Form 20 and Form 30 reports and other exports you request</li>
               <li>Send transactional emails (account invites, password resets)</li>
+              <li>Send newsletters to your committee&apos;s roster members, only at your committee&apos;s direction and through your committee&apos;s own email account</li>
               <li>Diagnose errors and improve reliability</li>
               <li>Comply with legal obligations</li>
             </ul>
@@ -57,9 +60,12 @@ export default function PrivacyPage() {
             <h2 className="text-base font-semibold text-slate-900 mb-2">3. Third-Party Services</h2>
             <p className="text-slate-600">We use the following sub-processors to operate the Service:</p>
             <ul className="list-disc pl-5 text-slate-600 space-y-1 mt-2">
+              <li><strong>Vercel</strong> — application hosting</li>
               <li><strong>Supabase</strong> — authentication and database hosting</li>
+              <li><strong>Stripe</strong> — subscription billing and payment processing</li>
               <li><strong>Plaid</strong> — bank account connectivity (only if you connect a bank account)</li>
               <li><strong>Anedot</strong> — donation import (only if you use the Anedot integration)</li>
+              <li><strong>Google (Gmail)</strong> — newsletter delivery through your committee&apos;s own Gmail account (only if you connect one)</li>
             </ul>
             <p className="text-slate-600 mt-3">Each sub-processor is subject to data processing agreements and their own privacy policies.</p>
           </section>
@@ -74,7 +80,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-base font-semibold text-slate-900 mb-2">5. Security</h2>
             <p className="text-slate-600">
-              All data is transmitted over HTTPS. Database access is controlled by row-level security policies. Bank credentials (Plaid access tokens) are stored encrypted and never exposed in the UI. We conduct periodic security reviews.
+              All data is transmitted over HTTPS. Database access is controlled by row-level security policies. Bank access tokens (Plaid) and connected email credentials are stored encrypted and never exposed in the UI. Optional two-factor authentication (authenticator app) is available on every account. We conduct periodic security reviews.
             </p>
           </section>
 
