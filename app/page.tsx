@@ -48,6 +48,9 @@ function Nav() {
           <span className="text-sm font-semibold text-slate-900">CT Committee Treasurer Suite</span>
         </Link>
         <div className="flex items-center gap-3">
+          <Link href="/quickstart" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
+            Quickstart
+          </Link>
           <Link href="#pricing" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
             Pricing
           </Link>
@@ -207,6 +210,15 @@ function HowItWorks() {
             </div>
           ))}
         </div>
+        <div className="text-center mt-10">
+          <Link
+            href="/quickstart"
+            className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+          >
+            Read the full quickstart tutorial
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
     </section>
   )
@@ -281,6 +293,7 @@ function Footer() {
         </div>
         <div className="flex items-center gap-6 text-sm text-slate-400">
           <Link href="#features" className="hover:text-slate-600 transition-colors">Features</Link>
+          <Link href="/quickstart" className="hover:text-slate-600 transition-colors">Quickstart</Link>
           <Link href="#pricing" className="hover:text-slate-600 transition-colors">Pricing</Link>
           <Link href="/login" className="hover:text-slate-600 transition-colors">Sign in</Link>
           <Link href="/terms" className="hover:text-slate-600 transition-colors">Terms</Link>

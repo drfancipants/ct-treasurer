@@ -20,6 +20,7 @@ import CumulativeBalanceChart from '@/components/dashboard/CumulativeBalanceChar
 import ExpenseCategoryChart from '@/components/dashboard/ExpenseCategoryChart'
 import RecentActivity from '@/components/dashboard/RecentActivity'
 import SeecWidget from '@/components/dashboard/SeecWidget'
+import QuickstartCard from '@/components/dashboard/QuickstartCard'
 
 interface Props {
   params: Promise<{ committeeSlug: string }>
@@ -73,6 +74,13 @@ export default async function DashboardPage({ params }: Props) {
               : ` · ${committee.electionYear} election cycle`}
           </p>
         </div>
+        {contributions.length === 0 && expenditures.length === 0 && committeeContributions.length === 0 && (
+          <QuickstartCard
+            committeeId={committee.id}
+            committeeSlug={committeeSlug}
+            canEdit={canEditFinances(role)}
+          />
+        )}
         <DashboardSummaryCards
           contributions={contributions}
           committeeContributions={committeeContributions}

@@ -49,6 +49,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/signup') ||
     pathname.startsWith('/terms') ||
     pathname.startsWith('/privacy') ||
+    pathname.startsWith('/quickstart') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/accept-invite') ||
     pathname.startsWith('/forgot-password') ||
