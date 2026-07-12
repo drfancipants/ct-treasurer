@@ -67,14 +67,21 @@ function LoginForm() {
     setError('')
 
     setRememberMeCookie(rememberMe)
-    const { error } = await createClient().auth.signInWithPassword({ email, password })
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
       applyRememberMeCookiePolicy(rememberMe)
-      router.push(getRedirectTo())
+      // Users with a verified TOTP factor go to the challenge page first (the
+      // proxy would force this anyway; routing directly avoids a redirect hop)
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      const needsMfa = aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2'
+      router.push(
+        needsMfa ? `/mfa?redirectTo=${encodeURIComponent(getRedirectTo())}` : getRedirectTo()
+      )
       router.refresh()
     }
   }

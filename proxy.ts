@@ -65,6 +65,30 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // MFA enforcement: a user with a verified TOTP factor must complete the
+  // challenge (AAL2) before reaching any authenticated route. Local check —
+  // decodes the session JWT and inspects the user's factors, no network call.
+  if (user) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    const needsMfa = aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2'
+
+    if (needsMfa && !isPublic && !pathname.startsWith('/mfa')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/mfa'
+      url.search = ''
+      url.searchParams.set('redirectTo', pathname)
+      return NextResponse.redirect(url)
+    }
+
+    // Fully authenticated (or no factor enrolled) users don't need the
+    // challenge page
+    if (!needsMfa && pathname === '/mfa') {
+      const raw = request.nextUrl.searchParams.get('redirectTo') ?? ''
+      const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/app'
+      return NextResponse.redirect(new URL(redirectTo, request.url))
+    }
+  }
+
   // Logged-in users don't need the login page
   if (user && pathname === '/login') {
     const raw = request.nextUrl.searchParams.get('redirectTo') ?? ''

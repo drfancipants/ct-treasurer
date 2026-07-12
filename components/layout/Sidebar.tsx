@@ -16,6 +16,7 @@ import {
   Scale,
   LogOut,
   Mail,
+  ShieldCheck,
 } from 'lucide-react'
 import CommitteeSwitcher from './CommitteeSwitcher'
 import type { Committee } from '@/lib/types'
@@ -159,6 +160,13 @@ function UserProfile() {
         <p className="text-[12px] text-white font-medium truncate leading-tight">{user.name}</p>
         <p className="text-[10px] text-slate-400 truncate leading-tight">{user.email}</p>
       </div>
+      <Link
+        href="/app/security"
+        title="Account security"
+        className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors shrink-0"
+      >
+        <ShieldCheck className="w-3.5 h-3.5" />
+      </Link>
       <button
         onClick={signOut}
         title="Sign out"
