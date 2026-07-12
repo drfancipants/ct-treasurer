@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/db'
+import { plaidClient } from '@/lib/plaid'
 import { requireCommitteeMemberById, requireFinanceRole } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import type { BankAccount, BankTransaction, TransactionMatchType } from '@/lib/types'
@@ -92,10 +93,37 @@ export async function removeBankAccount(accountId: string, committeeSlug: string
   const account = await prisma.bankAccount.findFirst({ where: { id: accountId, committeeId } })
   if (!account) throw new Error('Forbidden')
 
-  await prisma.$transaction([
-    prisma.transaction.deleteMany({ where: { bankAccountId: accountId } }),
-    prisma.bankAccount.delete({ where: { id: accountId } }),
-  ])
+  // Delete the row and decide whether this was the Item's last account inside
+  // one transaction, guarded by a per-Item advisory lock. Without the lock,
+  // two concurrent removals of accounts on the same Plaid Item each run their
+  // sibling count while the other's row still exists — both see siblings > 0,
+  // both skip itemRemove, and the Item is orphaned (still billing at Plaid).
+  // The xact-scoped advisory lock serializes the delete+count per Item and is
+  // released on commit, so it is safe under transaction-mode connection
+  // pooling. Rows without a Plaid Item (should not occur) just skip the lock.
+  const wasLastAccount = await prisma.$transaction(async (tx) => {
+    if (account.plaidItemId) {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${account.plaidItemId}))`
+    }
+    await tx.transaction.deleteMany({ where: { bankAccountId: accountId } })
+    await tx.bankAccount.delete({ where: { id: accountId } })
+    if (!account.plaidItemId) return false
+    const siblings = await tx.bankAccount.count({ where: { plaidItemId: account.plaidItemId } })
+    return siblings === 0
+  })
+
+  // Revoke the Plaid Item once its last linked account is gone — an Item left
+  // active at Plaid keeps billing monthly and keeps the access grant alive.
+  // Best-effort: local removal already committed, so a Plaid failure (network,
+  // or the Item already dead because it was revoked at the bank) must not throw.
+  if (wasLastAccount && account.plaidAccessToken) {
+    try {
+      await plaidClient.itemRemove({ access_token: account.plaidAccessToken })
+    } catch (err) {
+      console.error('[bank/removeBankAccount] plaid itemRemove failed — item may be orphaned at Plaid:', err)
+    }
+  }
+
   revalidatePath(`/app/${committeeSlug}/bank`)
 }
 

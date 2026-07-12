@@ -63,7 +63,8 @@ export default function PrivacyPage() {
               <li><strong>Vercel</strong> — application hosting</li>
               <li><strong>Supabase</strong> — authentication and database hosting</li>
               <li><strong>Stripe</strong> — subscription billing and payment processing</li>
-              <li><strong>Plaid</strong> — bank account connectivity (only if you connect a bank account)</li>
+              <li><strong>Plaid</strong> — bank account connectivity (only if you connect a bank account); Plaid&apos;s handling of your data is described in{' '}
+                <a href="https://plaid.com/legal/#end-user-privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Plaid&apos;s End User Privacy Policy</a></li>
               <li><strong>Anedot</strong> — donation import (only if you use the Anedot integration)</li>
               <li><strong>Google (Gmail)</strong> — newsletter delivery through your committee&apos;s own Gmail account (only if you connect one)</li>
             </ul>
