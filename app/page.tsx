@@ -51,6 +51,9 @@ function Nav() {
           <Link href="/quickstart" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
             Quickstart
           </Link>
+          <Link href="/guides" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
+            Guides
+          </Link>
           <Link href="#pricing" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
             Pricing
           </Link>
@@ -294,6 +297,7 @@ function Footer() {
         <div className="flex items-center gap-6 text-sm text-slate-400">
           <Link href="#features" className="hover:text-slate-600 transition-colors">Features</Link>
           <Link href="/quickstart" className="hover:text-slate-600 transition-colors">Quickstart</Link>
+          <Link href="/guides" className="hover:text-slate-600 transition-colors">Guides</Link>
           <Link href="#pricing" className="hover:text-slate-600 transition-colors">Pricing</Link>
           <Link href="/login" className="hover:text-slate-600 transition-colors">Sign in</Link>
           <Link href="/terms" className="hover:text-slate-600 transition-colors">Terms</Link>
