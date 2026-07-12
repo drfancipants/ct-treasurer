@@ -2,7 +2,7 @@
 
 **CT Committee Treasurer Suite**\
 Effective date: July 11, 2026\
-Last reviewed: July 11, 2026\
+Last reviewed: July 12, 2026\
 Policy owner: Todd Fanciullo (Founder / Operator)\
 Contact: support@cttreasurer.com
 
@@ -27,7 +27,7 @@ The Service is operated by its founder, who acts as security owner and is respon
 
 The Service deliberately minimizes sensitive data it holds:
 
-- **No bank credentials.** Bank connections use Plaid Link; users authenticate directly with their institution and the Service receives only a scoped access token and read-only transaction data.
+- **No bank credentials.** Bank connections use Plaid Link. For institutions that support OAuth (most major banks), the user authenticates on their bank's own website through the bank's OAuth flow — the Service, and Plaid on the Service's behalf, never see the user's online-banking username or password. For all institutions, the Service receives only a scoped, read-only transaction access token, never login credentials. OAuth return URLs are restricted to an allowlist registered with Plaid, so the authorization can only be completed back to the Service's own domain.
 - **No payment card data.** Billing is processed by Stripe Checkout; card numbers never touch the Service's infrastructure.
 - **No government identifiers.** The Service does not collect Social Security numbers or driver's license numbers.
 
