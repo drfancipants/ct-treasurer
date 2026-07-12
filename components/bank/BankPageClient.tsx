@@ -81,7 +81,12 @@ export default function BankPageClient({
               Connect your committee&apos;s checking account to reconcile transactions automatically
             </p>
           </div>
-          {canEdit && <PlaidLinkButton committeeId={committeeId} onSuccess={() => router.refresh()} />}
+          {/* Only when accounts exist — the empty state renders its own connect
+              button, and mounting both PlaidLinkButtons embeds Plaid's
+              link-initialize.js twice (an unsupported config that warns). */}
+          {canEdit && accounts.length > 0 && (
+            <PlaidLinkButton committeeId={committeeId} onSuccess={() => router.refresh()} />
+          )}
         </div>
 
         {/* Connected accounts */}
