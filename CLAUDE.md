@@ -22,7 +22,7 @@ The Prisma CLI only reads `.env`; Next.js runtime reads `.env.local`. Both must 
 
 ## Deployment
 
-Production runs on Vercel: **https://ct-treasurer.vercel.app** (project `ct-treasurer`, deployed via `npx vercel --prod` from this directory — no git integration yet). Most env vars from `.env.local` are mirrored in Vercel production, except: `NEXT_PUBLIC_APP_URL` (set to the production URL), `STRIPE_WEBHOOK_SECRET` (the production value is the signing secret of the Stripe webhook endpoint registered at `/api/webhooks/stripe`, not the local CLI one), and **all Supabase/database vars** (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL`) — local dev and production point at **separate Supabase projects** (separate Postgres databases and separate Auth user pools), so a `User.id` or committee that exists in one does not exist in the other. `postinstall` runs `prisma generate` for Vercel builds.
+Production runs on Vercel at **https://www.cttreasurer.com** (custom domain; `ct-treasurer.vercel.app` routes to the same deployment — project `ct-treasurer`, deployed via `npx vercel --prod` from this directory, no git integration yet). Most env vars from `.env.local` are mirrored in Vercel production, except: `NEXT_PUBLIC_APP_URL` (set to `https://www.cttreasurer.com`), all **Stripe vars** (production is **live mode** as of 2026-07-12: `sk_live_…` key, a live-mode `STRIPE_PRICE_ID` — must be the `price_…` API ID, not the `prod_…` product ID, which Checkout rejects with "No such price" — and `STRIPE_WEBHOOK_SECRET` from the **live-mode** webhook endpoint registered at `/api/webhooks/stripe`, not the local CLI one; the Customer Portal settings are saved in live mode, which `/api/stripe/portal` requires), and **all Supabase/database vars** (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL`) — local dev and production point at **separate Supabase projects** (separate Postgres databases and separate Auth user pools), so a `User.id` or committee that exists in one does not exist in the other. Production env vars are stored as **Sensitive** in Vercel — `vercel env pull` returns them as empty strings, so treat them as write-only. `postinstall` runs `prisma generate` for Vercel builds.
 
 ## Architecture
 
@@ -35,10 +35,12 @@ app/
   login/ signup/                 # public auth pages
   accept-invite/
   auth/callback/
-  terms/ privacy/
+  mfa/                           # TOTP challenge page (AAL1 sessions with a verified factor land here)
+  terms/ privacy/ quickstart/
   app/
     page.tsx                     # committee selector; single membership → redirects to dashboard
     create-committee/
+    security/                    # per-user account security (TOTP MFA enrollment)
     [committeeSlug]/
       layout.tsx                 # Sidebar shell, verifies committee membership
       dashboard/ members/ donations/ expenses/ bank/ filings/ settings/
@@ -91,6 +93,8 @@ Connecticut SEEC requires itemized donor details (address, employer, occupation)
 ### Auth / invite flow
 
 Access is invitation-only (plus self-serve signup). `POST /api/invite` calls `supabase.auth.admin.inviteUserByEmail()` (requires service role key). Invitees land on `/accept-invite` after clicking the email link; after setting their password, a `CommitteeMembership` row is created in Prisma. The Supabase `User.id` must match `auth.users.id` — do not generate separate IDs.
+
+**Optional TOTP MFA** (Supabase Auth native): users enroll from `/app/security` (`MfaSettings`), and the proxy enforces AAL2 — any session at `aal1` whose user has a verified factor is redirected to the `/mfa` challenge page before reaching *any* authenticated route, covering password and magic-link sign-ins alike. Gotcha: `listFactors().totp` contains only **verified** factors; stale unverified ones (abandoned enrollments) live in `.all` and block re-enrollment under the same friendly name until unenrolled. There are no recovery codes — a locked-out user needs their factor deleted via the Supabase admin API.
 
 ### Billing (Stripe)
 

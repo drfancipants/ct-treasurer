@@ -1,8 +1,8 @@
 # CT Committee Treasurer Suite
 
-Campaign-finance management and SEEC compliance for Connecticut town committees.
+Campaign-finance management and SEEC compliance for Connecticut town committees and candidate campaigns.
 
-**Live:** https://ct-treasurer.vercel.app
+**Live:** https://www.cttreasurer.com
 
 Each committee is a separate tenant with its own members, records, bank connection, and subscription. One login can manage several committees and switch between them.
 
@@ -15,7 +15,8 @@ Each committee is a separate tenant with its own members, records, bank connecti
   - **Individuals** (Section B) — manual entry, Anedot CSV import, and Anedot webhook ingestion; per-contribution SEEC status badges; phone, check number, and notes captured from CSV imports.
   - **Other committees** (Section C1) — contributions received from other committees.
   - **In-kind** (Section M) — donated goods or services with fair market value.
-- **Contribution limits** — tracks each donor's calendar-year total against CT's limits for town committees ($2,000 / individual / year; single cash contributions capped at $100 per CGS § 9-611). Donors are grouped even across duplicate records; warnings appear on the donations page, in the entry dialog as you type, and on CSV import.
+- **Committee types** — a committee is either a **town committee** (party) or a **candidate committee** (a single candidate's campaign, with office sought, district, primary/election dates, and Citizens' Election Program participation). The type drives contribution limits, the filing calendar, and which SEEC form is generated.
+- **Contribution limits** — tracks each donor's total against CT's limits: $2,000/donor/calendar year for town committees (single cash contributions capped at $100 per CGS § 9-611); office-based limits applied separately per primary/election phase for candidate committees; and CEP cycle caps (with committee/PAC/state-contractor prohibitions) for CEP participants. Donors are grouped even across duplicate records; warnings appear on the donations page, in the entry dialog as you type, and on CSV import.
 - **Expenses** — expenditure tracking with the full set of official SEEC Section P purpose codes (e.g. `A-RAD: Advertise on radio`); a saved payees directory autofills payee/category/purpose; worker reimbursements (Section T) track out-of-pocket spending separately; Anedot processing fees are auto-grouped into one expenditure per SEEC filing period (not a fixed calendar quarter) so each lands in the right filing.
 - **Events** — fundraising events (Section L1) with SEEC's event questions and food/tag-sale receipts; auto-assigned or hand-picked event letters. Contributions and expenses can be linked to an event, which fills the event columns in Sections B, C1, M, and P.
 - **Bank accounts** — Plaid bank link with cursor-based transaction sync (up to 24 months of history) and reconciliation against contributions/expenses.
@@ -23,7 +24,7 @@ Each committee is a separate tenant with its own members, records, bank connecti
 - **SEEC filings** — quarterly filing periods that can be split by treasurer-defined custom periods (e.g. a pre-election filing); each period tracks its own beginning/ending balance on hand (auto-calculated from that period's activity, overridable). One-click generation of the eCRIS Form 20 upload template, pre-filled with Sections **A** (small contributors), **B** (itemized contributions), **C1** (committee contributions), **M** (in-kind), **P** (expenses), **T** (worker reimbursements), and **L1** (events). Marking a period filed stamps every record in it with a filing date, shown per row.
 - **Members & roles** — two areas: the **committee roster** (the political committee's own membership list — dues tracking, CSV import, sortable/searchable) and **App access** (who can log into this app). Dues can be marked paid manually, or auto-detected once a donor's total gifts to a configured Anedot campaign meet a treasurer-set threshold. Only treasurers and assistant treasurers can modify financial records — everyone else is read-only. Add an existing user to a committee instantly, or invite a new person with a shareable link (no dependence on email delivery) — pending invites show a badge and can be resent; member name/phone can be edited after adding.
 - **Newsletter** — each committee connects its own Gmail account (app password) to send a roster email with an optional embedded contribution chart.
-- **Sessions** — a "remember me" login option controls whether a session persists (~30 days) or ends when the browser closes.
+- **Sessions & 2FA** — a "remember me" login option controls whether a session persists (~30 days) or ends when the browser closes; users can optionally enable TOTP two-factor authentication (authenticator app) from the account security page, enforced on every sign-in path.
 - **Billing** — per-committee Stripe subscription ($9.99/month) with a 14-day trial; an unpaid or expired committee is gated to a subscribe page.
 
 ---
@@ -36,7 +37,7 @@ Each committee is a separate tenant with its own members, records, bank connecti
 | Styling | Tailwind CSS |
 | Database | PostgreSQL via Supabase |
 | ORM | Prisma |
-| Auth | Supabase Auth (email/password + magic link) |
+| Auth | Supabase Auth (email/password + magic link, optional TOTP 2FA) |
 | Billing | Stripe (subscriptions) |
 | Bank sync | Plaid |
 | Charts | Recharts |
@@ -114,15 +115,19 @@ Access is invitation-only, so seed a committee and add yourself as treasurer —
 ```
 app/app/[committeeSlug]/   dashboard members donations expenses bank filings events reports settings newsletter
 app/app/subscribe/         per-committee paywall (outside the gated layout)
+app/app/security/          per-user TOTP 2FA enrollment
+app/mfa/                   TOTP challenge page at sign-in
+app/quickstart/            public setup tutorial
 app/api/                   invite  plaid/*  stripe/checkout|portal  webhooks/anedot|stripe
 actions/                   donations expenses committee-contributions in-kind-contributions events committees
                            members roster filings bank payees reimbursements newsletter
-lib/                       types  form20  limits  events  entitlement  analytics  anedot-csv  anedot-webhook
-                           anedot-fees  filing-periods  roster-csv  roster-links  auth  db  session  crypto
-                           mailer  newsletter-chart  supabase/*
+lib/                       types  form20  form30  seec-export  limits  events  entitlement  analytics
+                           anedot-csv  anedot-webhook  anedot-fees  filing-periods  roster-csv  roster-links
+                           auth  db  session  crypto  mailer  newsletter-chart  supabase/*
 lib/__tests__/             vitest unit tests
 prisma/schema.prisma       full database schema
-public/templates/          official SEEC eCRIS Form 20 template
+public/templates/          official SEEC eCRIS Form 20 + Form 30 templates
+docs/                      information security policy + privacy policy PDF
 ```
 
 ---
@@ -131,7 +136,7 @@ public/templates/          official SEEC eCRIS Form 20 template
 
 Filing periods default to standard quarters, generated automatically from the committee's election year. A treasurer can add a **custom filing period** (e.g. a pre-election filing) with its own date range and due date — any standard quarter it overlaps is automatically split into "(part)" remainder periods around it, and Anedot processing fees, which are auto-recorded as an expenditure, are grouped by these actual periods rather than a fixed calendar quarter. Each period tracks a **beginning and ending balance on hand**: the first period's beginning balance is set directly; every later period's beginning balance chains from the previous period's ending balance, and the ending balance auto-calculates from that period's donations minus expenses (excluding in-kind) but can be overridden.
 
-**Generate:** SEEC Filings → **Generate Form 20** for a period. The download is the official eCRIS template pre-filled:
+**Generate:** SEEC Filings → generate the filing for a period. The form is chosen automatically: **Form 20** for town committees and municipal/probate candidates, **Form 30** for statewide and General Assembly candidates (Form 30's sections use different letters and column layouts — `lib/form30.ts`). Candidate committees also get the statutory "7th day preceding" pre-primary/pre-election statements on their calendar. The download is the official eCRIS template pre-filled (Form 20 sections shown):
 
 | Section | Contents |
 |---|---|
@@ -175,7 +180,7 @@ Tests cover the compliance-critical pure logic: SEEC status, the Anedot CSV pars
 
 ## Deployment
 
-Hosted on Vercel (`npx vercel --prod`, or connect the repo for auto-deploy). `postinstall` runs `prisma generate` during the build. Set the production env vars in Vercel — `PLAID_ENV=production`, a production `STRIPE_WEBHOOK_SECRET`, and `NEXT_PUBLIC_APP_URL` pointing at the deployed domain — and register the Stripe/Anedot webhook URLs against that domain. Add the production `/auth/callback` URL to Supabase's redirect allowlist.
+Hosted on Vercel (`npx vercel --prod`, or connect the repo for auto-deploy) at **https://www.cttreasurer.com**. `postinstall` runs `prisma generate` during the build. Set the production env vars in Vercel — `PLAID_ENV=production`, `NEXT_PUBLIC_APP_URL` pointing at the deployed domain, and the **live-mode** Stripe values: `sk_live_…` secret key, the live `STRIPE_PRICE_ID` (the `price_…` API ID, not the `prod_…` product ID), and the signing secret of a live-mode webhook endpoint registered at `/api/webhooks/stripe`. Save the Stripe Customer Portal settings once in live mode (Settings → Billing → Customer portal) or the "Manage billing" flow will fail. Register the Anedot webhook URL against the same domain, and add the production `/auth/callback` URL to Supabase's redirect allowlist. Env var changes require a redeploy to take effect.
 
 ---
 
