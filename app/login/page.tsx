@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Scale, Mail, Lock, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -246,14 +247,14 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-navy-900 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        {/* Branding */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-blue-500 flex items-center justify-center mb-3">
+        {/* Branding — links back to the marketing home page */}
+        <Link href="/" className="flex flex-col items-center mb-8 group" aria-label="CT Committee Treasurer Suite home">
+          <div className="w-12 h-12 rounded-2xl bg-blue-500 flex items-center justify-center mb-3 group-hover:bg-blue-400 transition-colors">
             <Scale className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-lg font-semibold text-white">CT Committee</h1>
+          <h1 className="text-lg font-semibold text-white group-hover:text-slate-200 transition-colors">CT Committee</h1>
           <p className="text-sm text-slate-400">Treasurer Suite</p>
-        </div>
+        </Link>
 
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl p-6">
