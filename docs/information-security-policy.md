@@ -1,9 +1,9 @@
 # Information Security Policy
 
-**CT Committee Treasurer Suite**
-Effective date: July 11, 2026
-Last reviewed: July 11, 2026
-Policy owner: Todd Fanciullo (Founder / Operator)
+**CT Committee Treasurer Suite**\
+Effective date: July 11, 2026\
+Last reviewed: July 11, 2026\
+Policy owner: Todd Fanciullo (Founder / Operator)\
 Contact: support@cttreasurer.com
 
 ## 1. Purpose and Scope
