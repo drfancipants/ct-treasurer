@@ -5,10 +5,11 @@ import { Scale, Check, Loader2, LogOut } from 'lucide-react'
 import type { Committee } from '@/lib/types'
 
 const FEATURES = [
+  'Party & candidate committees',
   'Donation & expense tracking with SEEC compliance flags',
-  'Contribution limit tracking',
+  'Contribution limit tracking (incl. CEP)',
   'Bank sync & reconciliation',
-  'Form 20 generation for eCRIS',
+  'Form 20 & Form 30 generation for eCRIS',
 ]
 
 export default function SubscribeCard({
