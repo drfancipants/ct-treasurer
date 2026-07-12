@@ -31,21 +31,13 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
         const committeeId = subscription.metadata?.committeeId
-        if (!committeeId) {
-          // Fall back to lookup by stripeSubscriptionId
-          await prisma.committee.updateMany({
-            where: { stripeSubscriptionId: subscription.id },
-            data: {
-              subscriptionStatus: toSubscriptionStatus(subscription.status),
-              trialEndsAt: subscription.trial_end
-                ? new Date(subscription.trial_end * 1000)
-                : null,
-            },
-          })
-          break
-        }
-        await prisma.committee.update({
-          where: { id: committeeId },
+        // updateMany by committeeId when present, else by stripeSubscriptionId.
+        // updateMany never throws on a missing record (unlike update), so an
+        // event for an unknown committee returns 200 instead of a retried 500.
+        await prisma.committee.updateMany({
+          where: committeeId
+            ? { id: committeeId }
+            : { stripeSubscriptionId: subscription.id },
           data: {
             subscriptionStatus: toSubscriptionStatus(subscription.status),
             trialEndsAt: subscription.trial_end

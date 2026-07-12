@@ -40,7 +40,11 @@ export async function applyCheckoutSession(session: Stripe.Checkout.Session): Pr
   if (!committeeId || !session.subscription) return null
 
   const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
-  await prisma.committee.update({
+  // updateMany (not update) so an event whose committeeId no longer exists —
+  // a deleted committee, a Stripe test event, a cross-environment event —
+  // updates 0 rows instead of throwing P2025 and returning a 500 that Stripe
+  // then retries forever.
+  const { count } = await prisma.committee.updateMany({
     where: { id: committeeId },
     data: {
       stripeCustomerId: session.customer as string,
@@ -49,5 +53,9 @@ export async function applyCheckoutSession(session: Stripe.Checkout.Session): Pr
       trialEndsAt: subscription.trial_end ? new Date(subscription.trial_end * 1000) : null,
     },
   })
+  if (count === 0) {
+    console.warn(`[billing] checkout session for unknown committee ${committeeId} — skipped`)
+    return null
+  }
   return committeeId
 }
