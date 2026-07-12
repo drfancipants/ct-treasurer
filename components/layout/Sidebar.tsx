@@ -100,14 +100,14 @@ export default function Sidebar({ committees, activeCommittee }: Props) {
           <span>Settings</span>
         </Link>
 
-        <div className="px-3 py-2 rounded-lg bg-white/5">
-          <p className="text-[11px] text-slate-500 font-medium uppercase tracking-wide mb-0.5">
-            SEEC ID
-          </p>
-          <p className="text-[11px] text-slate-400 font-mono">
-            {activeCommittee.seecId ?? 'Not registered'}
-          </p>
-        </div>
+        {activeCommittee.seecId && (
+          <div className="px-3 py-2 rounded-lg bg-white/5">
+            <p className="text-[11px] text-slate-500 font-medium uppercase tracking-wide mb-0.5">
+              Reference
+            </p>
+            <p className="text-[11px] text-slate-400 font-mono">{activeCommittee.seecId}</p>
+          </div>
+        )}
 
         <UserProfile />
       </div>

@@ -41,7 +41,7 @@ model Committee {
   id           String   @id @default(cuid())
   name         String
   slug         String   @unique
-  seecId          String?  // SEEC registration ID (e.g. CT-DTC-20240142)
+  seecId          String?  // optional free-form committee reference (display-only: UI + PDF report cover). SEEC issues no user-facing registration ID, and this is never written into eCRIS exports
   anedotAccountId String?  @unique // Anedot account UID for webhook routing
   address1        String?
   address2     String?

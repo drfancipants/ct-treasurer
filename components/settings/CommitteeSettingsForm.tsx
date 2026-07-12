@@ -148,13 +148,13 @@ export default function CommitteeSettingsForm({ committee }: Props) {
             />
           </Field>
 
-          <Field label="SEEC registration ID">
+          <Field label="Committee reference (optional)">
             <input
               type="text"
               value={form.seecId}
               onChange={(e) => set('seecId', e.target.value)}
               className={inputCls}
-              placeholder={isCandidate ? 'e.g. CT-CAN-20260123' : 'e.g. CT-DTC-20240142'}
+              placeholder="Internal reference shown on reports"
             />
           </Field>
 

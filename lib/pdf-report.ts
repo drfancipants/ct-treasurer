@@ -226,7 +226,7 @@ function drawCover(doc: PDFKit.PDFDocument, data: ReportData) {
     y = doc.y + 2
   }
   if (data.seecId) {
-    doc.text(`SEEC ID: ${data.seecId}`, PAGE_MARGIN, y, { width: CONTENT_WIDTH, align: 'center' })
+    doc.text(`Committee ref: ${data.seecId}`, PAGE_MARGIN, y, { width: CONTENT_WIDTH, align: 'center' })
     y = doc.y + 2
   }
 

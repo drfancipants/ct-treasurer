@@ -103,8 +103,12 @@ export default function FilingsList({ contributions, expenditures, events, commi
         <div>
           <h1 className="text-xl font-semibold text-slate-900">SEEC Filings</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {formNumber === 30 ? 'Prepare Form 30 statements for eCRIS' : 'Generate Form 20 uploads for eCRIS'} · SEEC ID:{' '}
-            <span className="font-mono text-slate-700">{committee.seecId ?? '—'}</span>
+            {formNumber === 30 ? 'Prepare Form 30 statements for eCRIS' : 'Generate Form 20 uploads for eCRIS'}
+            {committee.seecId && (
+              <>
+                {' '}· Ref: <span className="font-mono text-slate-700">{committee.seecId}</span>
+              </>
+            )}
           </p>
         </div>
         <a

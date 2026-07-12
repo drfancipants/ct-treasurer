@@ -29,8 +29,8 @@ const STEPS = [
           </li>
         </ul>
         <p>
-          The committee type can&apos;t be changed later, so pick carefully. After creation, add your SEEC
-          registration ID from the <strong>Settings</strong> page — it appears on every exported filing.
+          The committee type can&apos;t be changed later, so pick carefully. Your committee&apos;s address
+          and contact details can be filled in anytime from the <strong>Settings</strong> page.
         </p>
       </>
     ),

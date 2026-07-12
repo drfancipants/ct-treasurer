@@ -184,7 +184,7 @@ function Features() {
 // ─── How it works ─────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { n: '1', title: 'Create your committee', body: 'Sign up and set up your town committee or candidate committee in minutes. Add your SEEC registration ID, office sought, and election dates.' },
+  { n: '1', title: 'Create your committee', body: 'Sign up and set up your town committee or candidate committee in minutes — office sought, district, and election dates for campaigns.' },
   { n: '2', title: 'Record your activity', body: 'Enter donations and expenses as they happen, or import from Anedot and sync your bank account via Plaid. Contribution limits are checked as you go.' },
   { n: '3', title: 'File with confidence', body: 'Generate a pre-filled SEEC Form 20 or Form 30 for any filing period — including statutory pre-primary and pre-election statements — and upload it directly to eCRIS at seec.ct.gov.' },
 ]
