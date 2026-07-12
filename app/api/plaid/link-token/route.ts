@@ -36,6 +36,12 @@ export async function POST(req: NextRequest) {
       country_codes: [CountryCode.Us],
       language: 'en',
       webhook: process.env.PLAID_WEBHOOK_URL,
+      // OAuth institutions (most large banks) redirect the browser to the bank
+      // and back. Only send redirect_uri when it's configured AND registered in
+      // the Plaid dashboard — sending an unregistered URI makes this call fail
+      // for every institution, so an unset var safely disables OAuth rather than
+      // breaking all linking. Must exactly match a registered Allowed redirect URI.
+      ...(process.env.PLAID_REDIRECT_URI ? { redirect_uri: process.env.PLAID_REDIRECT_URI } : {}),
       // Pull the maximum transaction history (24 months) instead of Plaid's
       // 90-day default. Set per-Item at link time, so an already-linked
       // account must be reconnected to widen its window.

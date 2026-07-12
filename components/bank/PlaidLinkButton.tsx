@@ -9,6 +9,12 @@ interface Props {
   onSuccess: () => void
 }
 
+// Link state persisted across an OAuth redirect. When Link sends the browser
+// to the bank and back to /app/plaid-oauth, this component is gone, so the
+// return page reads this to resume the exact same link_token. Kept in module
+// scope so the resume page can import the key.
+export const PLAID_OAUTH_KEY = 'plaid_oauth_link'
+
 export default function PlaidLinkButton({ committeeId, onSuccess }: Props) {
   const [linkToken, setLinkToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -36,6 +42,8 @@ export default function PlaidLinkButton({ committeeId, onSuccess }: Props) {
     async (publicToken: string) => {
       setLoading(true)
       try {
+        // Non-OAuth flow resolves here in-page; clear any persisted OAuth state
+        localStorage.removeItem(PLAID_OAUTH_KEY)
         await fetch('/api/plaid/exchange-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -55,6 +63,7 @@ export default function PlaidLinkButton({ committeeId, onSuccess }: Props) {
     token: linkToken,
     onSuccess: handleSuccess,
     onExit: () => {
+      localStorage.removeItem(PLAID_OAUTH_KEY)
       setLinkToken(null)
       setLoading(false)
     },
@@ -62,9 +71,26 @@ export default function PlaidLinkButton({ committeeId, onSuccess }: Props) {
 
   useEffect(() => {
     if (linkToken && ready) {
+      // Persist before opening: an OAuth institution navigates the browser away
+      // to the bank, so the return page needs this token + committee to resume.
+      // Harmless for non-OAuth links, which clear it on success/exit.
+      try {
+        localStorage.setItem(
+          PLAID_OAUTH_KEY,
+          JSON.stringify({
+            token: linkToken,
+            committeeId,
+            returnPath: window.location.pathname,
+            ts: Date.now(),
+          })
+        )
+      } catch {
+        // localStorage unavailable (private mode): OAuth resume won't work, but
+        // non-OAuth linking still does, so proceed.
+      }
       open()
     }
-  }, [linkToken, ready, open])
+  }, [linkToken, ready, open, committeeId])
 
   return (
     <div>

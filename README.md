@@ -158,7 +158,7 @@ Contributions/expenses linked to an event fill that event's date and letter in t
 
 **Anedot** — webhook (real-time) at `/api/webhooks/anedot` (HMAC-SHA256 verified, deduped by donation UID, routed to a committee by `anedotAccountId`), plus bulk CSV import (auto-detects column variants, dedupes, flags SEEC and contribution-limit issues before importing). Anedot has no public pull API; these are the two sync paths.
 
-**Plaid** — Connect on **Bank accounts** → cursor-based `transactionsSync` (paginated; requests up to 24 months of history). Sandbox creds for dev: `user_good` / `pass_good`. Only the synced account's transactions are stored; existing links must be reconnected to widen their history window.
+**Plaid** — Connect on **Bank accounts** → cursor-based `transactionsSync` (paginated; requests up to 24 months of history). Sandbox creds for dev: `user_good` / `pass_good`. Only the synced account's transactions are stored; existing links must be reconnected to widen their history window. Removing an account revokes the underlying Plaid Item once its last account is gone. OAuth banks (Chase, BofA, etc.) are supported via a registered redirect URI — set `PLAID_REDIRECT_URI` only after registering the exact URL in the Plaid dashboard (see `.env.example`).
 
 **Stripe** — per-committee subscription with a 14-day trial via checkout; the webhook (`/api/webhooks/stripe`) maps statuses through `toSubscriptionStatus()` (fails closed — `paused`/unknown → `past_due`). Unpaid committees are redirected to `/app/subscribe`.
 
