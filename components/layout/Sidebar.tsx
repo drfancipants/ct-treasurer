@@ -110,6 +110,35 @@ export default function Sidebar({ committees, activeCommittee }: Props) {
         )}
 
         <UserProfile />
+
+        <div className="flex items-center justify-center gap-3 pt-2 text-[11px] text-slate-500">
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-slate-300 transition-colors"
+          >
+            Terms
+          </a>
+          <span aria-hidden="true">·</span>
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-slate-300 transition-colors"
+          >
+            Privacy
+          </a>
+          <span aria-hidden="true">·</span>
+          <a
+            href="https://seec.ct.gov"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-slate-300 transition-colors"
+          >
+            SEEC ↗
+          </a>
+        </div>
       </div>
     </aside>
   )
