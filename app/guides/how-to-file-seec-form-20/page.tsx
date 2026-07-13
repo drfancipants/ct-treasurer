@@ -66,7 +66,7 @@ export default function Form20Guide() {
             <strong>Party committees</strong>, including Democratic and Republican town committees, file Form
             20. Some candidate committees do too — municipal and probate candidates generally use Form 20,
             while candidates for statewide office or the General Assembly file{' '}
-            <strong>Form 30</strong> instead. If you’re unsure which form applies to your committee, SEEC’s
+            <Link href="/guides/how-to-file-seec-form-30">Form 30</Link> instead. If you’re unsure which form applies to your committee, SEEC’s
             registration materials specify it, and it follows from the office being sought.
           </p>
         </Section>

@@ -21,6 +21,14 @@ export const GUIDES: GuideMeta[] = [
     blurb:
       'Everything a town-committee treasurer needs to prepare and upload a Form 20 filing to eCRIS — sections, the $50 itemization rule, deadlines, and pitfalls.',
   },
+  {
+    slug: 'how-to-file-seec-form-30',
+    title: 'How to File SEEC Form 30: A Guide for Candidate Committees',
+    description:
+      'How Connecticut candidate committees for statewide and General Assembly offices file SEEC Form 30 through eCRIS — per-phase limits, the CEP, statutory statements, and each section.',
+    blurb:
+      'For candidate campaigns filing Form 30 — how it differs from Form 20, per-phase contribution limits, the Citizens’ Election Program, statutory statements, and each section.',
+  },
 ]
 
 export function getGuide(slug: string): GuideMeta | undefined {
