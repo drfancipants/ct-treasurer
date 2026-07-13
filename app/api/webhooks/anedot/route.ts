@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { syncRosterContributorLinks } from '@/lib/roster-links'
-import { mapWebhookDonation } from '@/lib/anedot-webhook'
+import { anedotEventSchema, mapWebhookDonation } from '@/lib/anedot-webhook'
 
+// Anedot signs the raw body with the webhook's secret token (HMAC-SHA256 hex)
+// and sends the digest in the X-Request-Signature header
 function verifySignature(payload: string, signature: string): boolean {
   const secret = process.env.ANEDOT_WEBHOOK_SECRET
   if (!secret) return false
@@ -15,83 +16,38 @@ function verifySignature(payload: string, signature: string): boolean {
   return crypto.timingSafeEqual(sigBuf, expBuf)
 }
 
-const anedotDonationSchema = z.object({
-  event: z.string(),
-  donation: z.object({
-    uid: z.string(),
-    amount: z.string(),
-    created_at: z.string(),
-    first_name: z.string(),
-    middle_initial: z.string().optional(),
-    last_name: z.string(),
-    email: z.string().email().optional(),
-    phone: z.string().optional(),
-    employer: z.string().optional(),
-    occupation: z.string().optional(),
-    billing_address: z
-      .object({
-        street: z.string(),
-        street_2: z.string().optional(),
-        city: z.string(),
-        state: z.string(),
-        zip: z.string(),
-      })
-      .optional(),
-    payment_method: z.string().optional(),
-    note: z.string().optional(),
-    // Processor detail — shapes vary by payload version
-    fee: z.string().optional(),
-    net_amount: z.string().optional(),
-    card_type: z.string().optional(),
-    card_last4: z.string().optional(),
-    card: z
-      .object({ brand: z.string().optional(), last_four: z.string().optional(), last4: z.string().optional() })
-      .optional(),
-    recurring: z.union([z.boolean(), z.string()]).optional(),
-    commitment_uid: z.string().optional(),
-    campaign: z.union([z.string(), z.object({ name: z.string().optional() })]).optional(),
-    action_page: z.union([z.string(), z.object({ name: z.string().optional() })]).optional(),
-    // Account-specific custom questions (CT compliance fields)
-    custom_field_responses: z
-      .array(
-        z.object({
-          name: z.string().optional(),
-          label: z.string().optional(),
-          question: z.string().optional(),
-          response: z.string().optional(),
-          value: z.string().optional(),
-          answer: z.string().optional(),
-        })
-      )
-      .optional(),
-    custom_fields: z.record(z.string(), z.string()).optional(),
-  }),
-  account: z.object({ uid: z.string() }).optional(),
-})
-
 export async function POST(req: NextRequest) {
   const rawBody = await req.text()
 
-  const signature = req.headers.get('x-anedot-signature') ?? ''
+  const signature = req.headers.get('x-request-signature') ?? ''
   if (!verifySignature(rawBody, signature)) {
     console.warn('[anedot-webhook] Invalid signature')
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
-  let payload: z.infer<typeof anedotDonationSchema>
+  let body: unknown
   try {
-    payload = anedotDonationSchema.parse(JSON.parse(rawBody))
-  } catch (err) {
-    console.error('[anedot-webhook] Parse error', err)
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    body = JSON.parse(rawBody)
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  if (payload.event !== 'donation.created' && payload.event !== 'donation.completed') {
+  // Skip events we don't ingest before strict validation — refund/commitment
+  // payloads have different shapes, and Anedot disables a webhook after
+  // enough failed deliveries, so they must get a 200, not a 400
+  const event = (body as { event?: unknown } | null)?.event
+  if (event !== 'donation_completed') {
     return NextResponse.json({ skipped: true })
   }
 
-  const { donation } = payload
-  const mapped = mapWebhookDonation(donation)
+  const parsed = anedotEventSchema.safeParse(body)
+  if (!parsed.success) {
+    console.error('[anedot-webhook] Parse error', parsed.error.flatten())
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+  }
+  const payload = parsed.data.payload
+
+  const mapped = mapWebhookDonation(payload)
   const { amount } = mapped
 
   if (isNaN(amount) || amount <= 0) {
@@ -99,12 +55,12 @@ export async function POST(req: NextRequest) {
   }
 
   // Route to committee via Anedot account UID
-  const committee = payload.account?.uid
-    ? await prisma.committee.findFirst({ where: { anedotAccountId: payload.account.uid } })
-    : null
+  const committee = await prisma.committee.findFirst({
+    where: { anedotAccountId: payload.account_uid },
+  })
 
   if (!committee) {
-    console.warn('[anedot-webhook] No committee for account UID', payload.account?.uid)
+    console.warn('[anedot-webhook] No committee for account UID', payload.account_uid)
     return NextResponse.json({ error: 'Committee not found' }, { status: 404 })
   }
 
@@ -137,13 +93,13 @@ export async function POST(req: NextRequest) {
 
     // Upsert contribution — idempotent by anedotId
     await prisma.contribution.upsert({
-      where: { anedotId: donation.uid },
+      where: { anedotId: payload.donation.id },
       create: {
         committeeId: committee.id,
         contributorId: contributor.id,
         amount,
         source: 'ANEDOT',
-        anedotId: donation.uid,
+        anedotId: payload.donation.id,
         isItemized: amount >= 50,
         ...mapped.contribution,
       },

@@ -66,8 +66,12 @@ delete by tag afterward.
 ## Signed webhook testing
 
 - **Anedot** (`/api/webhooks/anedot`): HMAC-SHA256 hex of the raw body with
-  `ANEDOT_WEBHOOK_SECRET`, sent as `x-anedot-signature`. Routes to a committee
-  by `account.uid` → `Committee.anedotAccountId`. Idempotent by `donation.uid`.
+  `ANEDOT_WEBHOOK_SECRET`, sent as `X-Request-Signature` (Anedot's real header).
+  Body is Anedot's default template: `{ event: 'donation_completed', payload:
+  { account_uid, amount_in_dollars, first_name, …, donation: { id, … } } }` —
+  see the sample in `lib/__tests__/anedot-webhook.test.ts`. Routes to a
+  committee by `payload.account_uid` → `Committee.anedotAccountId`. Idempotent
+  by `payload.donation.id`. Non-`donation_completed` events are 200-skipped.
 - **Stripe** (`/api/webhooks/stripe`): sign with
   `stripe.webhooks.generateTestHeaderString({ payload, secret: STRIPE_WEBHOOK_SECRET })`,
   send as `stripe-signature`. Use a throwaway committee row; delete it after.
