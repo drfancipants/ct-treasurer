@@ -14,6 +14,10 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 
+export const metadata = {
+  alternates: { canonical: '/' },
+}
+
 // ─── Price — update this one value to change all pricing mentions ─────────────
 const MONTHLY_PRICE = 9.99
 

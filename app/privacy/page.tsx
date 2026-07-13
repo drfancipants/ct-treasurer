@@ -3,6 +3,7 @@ import { Scale } from 'lucide-react'
 
 export const metadata = {
   title: 'Privacy Policy · CT Committee Treasurer Suite',
+  alternates: { canonical: '/privacy' },
 }
 
 export default function PrivacyPage() {

@@ -3,6 +3,7 @@ import { Scale } from 'lucide-react'
 
 export const metadata = {
   title: 'Terms of Service · CT Committee Treasurer Suite',
+  alternates: { canonical: '/terms' },
 }
 
 export default function TermsPage() {

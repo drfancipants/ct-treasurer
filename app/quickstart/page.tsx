@@ -5,6 +5,7 @@ export const metadata = {
   title: 'Quickstart Tutorial · CT Committee Treasurer Suite',
   description:
     'Go from signup to your first SEEC filing: set up your committee, record donations and expenses, connect your bank, and export Form 20 or Form 30.',
+  alternates: { canonical: '/quickstart' },
 }
 
 const STEPS = [
