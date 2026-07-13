@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { syncRosterContributorLinks } from '@/lib/roster-links'
-import { anedotEventSchema, mapWebhookDonation } from '@/lib/anedot-webhook'
+import { anedotPayloadSchema, mapWebhookDonation } from '@/lib/anedot-webhook'
 
 // Anedot signs the raw body with the webhook's secret token (HMAC-SHA256 hex)
 // and sends the digest in the X-Request-Signature header
@@ -40,12 +40,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ skipped: true })
   }
 
-  const parsed = anedotEventSchema.safeParse(body)
+  // Anedot's docs nest the donation fields under `payload`, but real
+  // deliveries have arrived with them flat beside `event` — accept both
+  const record = body as Record<string, unknown>
+  const nested = record.payload
+  const { event: _event, ...flat } = record
+  const candidate = nested && typeof nested === 'object' ? nested : flat
+
+  const parsed = anedotPayloadSchema.safeParse(candidate)
   if (!parsed.success) {
-    console.error('[anedot-webhook] Parse error', parsed.error.flatten())
+    // Log key names only — donor details must stay out of the logs
+    console.error('[anedot-webhook] Parse error', {
+      bodyKeys: Object.keys(record),
+      candidateKeys: Object.keys(candidate as Record<string, unknown>),
+      issues: parsed.error.flatten().fieldErrors,
+    })
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
-  const payload = parsed.data.payload
+  const payload = parsed.data
 
   const mapped = mapWebhookDonation(payload)
   const { amount } = mapped

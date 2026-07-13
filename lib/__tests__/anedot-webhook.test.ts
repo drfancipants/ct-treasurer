@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { anedotEventSchema, mapWebhookDonation, type WebhookPayload } from '../anedot-webhook'
+import { anedotPayloadSchema, mapWebhookDonation, type WebhookPayload } from '../anedot-webhook'
 
 const base: WebhookPayload = {
   account_uid: 'aa3480c1cb0b039147824',
@@ -78,8 +78,8 @@ describe('mapWebhookDonation', () => {
         is_recurring_commitment: 'false',
       },
     }
-    const parsed = anedotEventSchema.parse(event)
-    const m = mapWebhookDonation(parsed.payload)
+    const parsed = anedotPayloadSchema.parse(event.payload)
+    const m = mapWebhookDonation(parsed)
     expect(m.amount).toBe(100)
     expect(m.contributor).toMatchObject({
       firstName: 'Annie', lastName: 'Dot', email: 'annie@anedot.com',

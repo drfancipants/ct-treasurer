@@ -3,58 +3,56 @@ import { parseMethod, parseAmount, parseBoolish, mapCustomAnswers } from './aned
 import type { PaymentMethod } from './types'
 
 /**
- * Anedot webhook event body (default template): flat donor/transaction fields
- * under `payload`, with processor detail nested in `payload.donation`.
- * Anedot sends empty strings rather than omitting fields, so everything
- * non-core is optional and empties are normalized away in the mapper.
+ * Anedot webhook donation fields (default template). Their docs show these
+ * nested under a `payload` key, but real deliveries have been seen with the
+ * fields flat beside `event` — the route accepts both and validates the
+ * donation fields with this schema either way. Anedot sends empty strings
+ * rather than omitting fields, so everything non-core is optional and
+ * empties are normalized away in the mapper.
  * Documented at https://help.anedot.com/knowledge/webhooks
  */
-export const anedotEventSchema = z.object({
-  event: z.string(),
-  payload: z.object({
-    account_uid: z.string().min(1),
-    first_name: z.string(),
-    last_name: z.string(),
-    middle_name: z.string().optional(),
-    email: z.string().optional(),
-    phone: z.string().optional(),
-    employer_name: z.string().optional(),
-    occupation: z.string().optional(),
-    address_line_1: z.string().optional(),
-    address_line_2: z.string().optional(),
-    address_city: z.string().optional(),
-    address_region: z.string().optional(),
-    address_postal_code: z.string().optional(),
-    // Payment method: credit_card, ach, check…
-    source: z.string().optional(),
-    amount_in_dollars: z.string(),
-    net_amount: z.string().optional(),
-    created_at_iso8601: z.string().optional(),
-    date_iso8601: z.string().optional(),
-    created_at: z.string().optional(),
-    recurring: z.string().optional(),
-    frequency: z.string().optional(),
-    commitment_uid: z.string().optional(),
-    action_page_name: z.string().optional(),
-    donation: z.object({
-      id: z.string().min(1),
-      fees: z
-        .object({
-          anedot_fees: z.object({ amount: z.string().optional() }).optional(),
-          vendor_fees: z.array(z.object({ amount: z.string().optional() })).optional(),
-        })
-        .optional(),
-      card_type: z.string().optional(),
-      card_last_digits: z.string().optional(),
-    }),
-    // Account-specific custom questions (CT compliance fields), keyed by
-    // snake_cased question name: { name_of_employer_: "NH BOE", … }
-    custom_field_responses: z.record(z.string(), z.string().nullable()).optional(),
+export const anedotPayloadSchema = z.object({
+  account_uid: z.string().min(1),
+  first_name: z.string(),
+  last_name: z.string(),
+  middle_name: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  employer_name: z.string().optional(),
+  occupation: z.string().optional(),
+  address_line_1: z.string().optional(),
+  address_line_2: z.string().optional(),
+  address_city: z.string().optional(),
+  address_region: z.string().optional(),
+  address_postal_code: z.string().optional(),
+  // Payment method: credit_card, ach, check…
+  source: z.string().optional(),
+  amount_in_dollars: z.string(),
+  net_amount: z.string().optional(),
+  created_at_iso8601: z.string().optional(),
+  date_iso8601: z.string().optional(),
+  created_at: z.string().optional(),
+  recurring: z.string().optional(),
+  frequency: z.string().optional(),
+  commitment_uid: z.string().optional(),
+  action_page_name: z.string().optional(),
+  donation: z.object({
+    id: z.string().min(1),
+    fees: z
+      .object({
+        anedot_fees: z.object({ amount: z.string().optional() }).optional(),
+        vendor_fees: z.array(z.object({ amount: z.string().optional() })).optional(),
+      })
+      .optional(),
+    card_type: z.string().optional(),
+    card_last_digits: z.string().optional(),
   }),
+  // Account-specific custom questions (CT compliance fields), keyed by
+  // snake_cased question name: { name_of_employer_: "NH BOE", … }
+  custom_field_responses: z.record(z.string(), z.string().nullable()).optional(),
 })
 
-export type AnedotEvent = z.infer<typeof anedotEventSchema>
-export type WebhookPayload = AnedotEvent['payload']
+export type WebhookPayload = z.infer<typeof anedotPayloadSchema>
 
 export interface MappedWebhookDonation {
   amount: number
