@@ -331,7 +331,7 @@ export default function CommitteeSettingsForm({ committee }: Props) {
       <Section title="Integrations">
         <Field
           label="Anedot account ID"
-          hint="Found in your Anedot dashboard → Settings → Account. Used to route webhook donations to this committee."
+          hint="Routes webhook donations to this committee. Must match the ?account= value in the webhook URL registered with Anedot, e.g. https://www.cttreasurer.com/api/webhooks/anedot?account=YOUR-VALUE"
         >
           <input
             type="text"

@@ -66,13 +66,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid amount' }, { status: 400 })
   }
 
-  // Route to committee via Anedot account UID
+  // Route to committee via Anedot account UID. Real deliveries omit
+  // account_uid despite the docs, so the registered webhook URL carries it
+  // as ?account=<uid>; the signed payload's value wins when present
+  const accountUid = payload.account_uid?.trim() || req.nextUrl.searchParams.get('account')?.trim()
+
+  if (!accountUid) {
+    console.warn('[anedot-webhook] No account UID in payload or ?account= URL param')
+    return NextResponse.json({ error: 'Committee not found' }, { status: 404 })
+  }
+
   const committee = await prisma.committee.findFirst({
-    where: { anedotAccountId: payload.account_uid },
+    where: { anedotAccountId: accountUid },
   })
 
   if (!committee) {
-    console.warn('[anedot-webhook] No committee for account UID', payload.account_uid)
+    console.warn('[anedot-webhook] No committee for account UID', accountUid)
     return NextResponse.json({ error: 'Committee not found' }, { status: 404 })
   }
 

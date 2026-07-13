@@ -12,7 +12,9 @@ import type { PaymentMethod } from './types'
  * Documented at https://help.anedot.com/knowledge/webhooks
  */
 export const anedotPayloadSchema = z.object({
-  account_uid: z.string().min(1),
+  // In the docs sample but absent from observed real deliveries — the
+  // registered webhook URL's ?account= param is the reliable route key
+  account_uid: z.string().optional(),
   first_name: z.string(),
   last_name: z.string(),
   middle_name: z.string().optional(),

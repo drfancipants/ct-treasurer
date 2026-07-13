@@ -156,6 +156,13 @@ describe('mapWebhookDonation', () => {
     expect(m.contributor.middleInitial).toBe('Q')
   })
 
+  it('accepts a payload without account_uid (real deliveries omit it)', () => {
+    const { account_uid: _omitted, ...rest } = base
+    const parsed = anedotPayloadSchema.parse(rest)
+    expect(parsed.account_uid).toBeUndefined()
+    expect(mapWebhookDonation(parsed).amount).toBe(52.4)
+  })
+
   it('normalizes empty strings and falls back to CT for a missing state', () => {
     const m = mapWebhookDonation({
       ...base,
