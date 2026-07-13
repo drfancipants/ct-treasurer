@@ -29,6 +29,30 @@ export const GUIDES: GuideMeta[] = [
     blurb:
       'For candidate campaigns filing Form 30 — how it differs from Form 20, per-phase contribution limits, the Citizens’ Election Program, statutory statements, and each section.',
   },
+  {
+    slug: 'connecticut-contribution-limits',
+    title: 'Connecticut Campaign Contribution Limits, Explained',
+    description:
+      'How Connecticut contribution limits work for committees — the calendar-year limit for town committees, per-phase office limits for candidates, cash caps, and CEP rules.',
+    blurb:
+      'The rules that trip treasurers up: town-committee calendar-year limits, per-phase candidate limits, the $100 cash cap, and what the CEP changes.',
+  },
+  {
+    slug: 'seec-filing-deadlines',
+    title: 'SEEC Filing Deadlines: The Connecticut Committee Calendar',
+    description:
+      'A plain-English look at when Connecticut committees file with SEEC — the quarterly schedule, election-year statutory statements, and how to never miss a deadline.',
+    blurb:
+      'When you actually have to file: the quarterly schedule, the extra election-year statements candidates owe, and how to stay ahead of every deadline.',
+  },
+  {
+    slug: 'reconciling-your-committee-bank-account',
+    title: 'Reconciling Your Committee Bank Account with SEEC Filings',
+    description:
+      'Why your SEEC balance on hand must match your committee bank account, and a simple routine for reconciling contributions and expenses every filing period.',
+    blurb:
+      'Your filing’s balance on hand has to match the bank. Here’s a simple reconciliation routine — and how bank sync makes it nearly automatic.',
+  },
 ]
 
 export function getGuide(slug: string): GuideMeta | undefined {

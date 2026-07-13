@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight, ArrowLeft } from 'lucide-react'
 import { getGuide } from '@/lib/guides'
+import { Section, Row } from '@/components/marketing/GuideParts'
 
 const guide = getGuide('how-to-file-seec-form-20')!
 
@@ -175,25 +176,5 @@ export default function Form20Guide() {
         </Link>
       </div>
     </main>
-  )
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="mt-8">
-      <h2 className="text-xl font-semibold text-slate-900 mb-3">{title}</h2>
-      <div className="text-slate-600 leading-7 space-y-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-2 [&_a]:text-blue-600 [&_a:hover]:underline [&_strong]:text-slate-900">
-        {children}
-      </div>
-    </section>
-  )
-}
-
-function Row({ s, d }: { s: string; d: string }) {
-  return (
-    <tr className="border-b border-slate-100 align-top">
-      <td className="py-2 pr-4 font-mono font-semibold text-slate-900">{s}</td>
-      <td className="py-2">{d}</td>
-    </tr>
   )
 }
