@@ -6,7 +6,6 @@ import type { MonthlyData, CategoryData, DonorTotal, MemberGivingSummary } from 
 
 export interface ReportData {
   committeeName: string
-  committeeAddress?: string
   seecId?: string
   periodLabel: string
   generatedAt: string
@@ -221,10 +220,6 @@ function drawCover(doc: PDFKit.PDFDocument, data: ReportData) {
   doc.text(data.committeeName, PAGE_MARGIN, y, { width: CONTENT_WIDTH, align: 'center' })
   y = doc.y + 6
   doc.fontSize(10).font('Helvetica').fillColor(COLOR.gray)
-  if (data.committeeAddress) {
-    doc.text(data.committeeAddress, PAGE_MARGIN, y, { width: CONTENT_WIDTH, align: 'center' })
-    y = doc.y + 2
-  }
   if (data.seecId) {
     doc.text(`Committee ref: ${data.seecId}`, PAGE_MARGIN, y, { width: CONTENT_WIDTH, align: 'center' })
     y = doc.y + 2

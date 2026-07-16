@@ -89,15 +89,8 @@ export async function POST(req: NextRequest) {
     committee.type === 'CANDIDATE' ? Promise.resolve(null) : renderDuesChart(duesStatus, rosterMembers.length),
   ])
 
-  const addressParts = [
-    committee.address1,
-    committee.city && committee.state ? `${committee.city}, ${committee.state}` : committee.city,
-    committee.zip,
-  ].filter(Boolean)
-
   const pdfBuffer = await renderReportPdf({
     committeeName: committee.name,
-    committeeAddress: addressParts.length ? addressParts.join(' ') : undefined,
     seecId: committee.seecId,
     periodLabel: `${formatDate(start)} – ${formatDate(end)}`,
     // Server-local date, not toISOString() — UTC would date evening
