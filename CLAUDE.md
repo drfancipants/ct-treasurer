@@ -14,6 +14,10 @@ npm run db:generate  # regenerate Prisma client after schema changes
 npm run db:push      # push schema to Supabase (uses .env, not .env.local)
 npm run db:studio    # open Prisma Studio GUI
 npm run db:seed      # seed database from prisma/seed.ts
+
+npm run admin -- <cmd>  # operator toolbox (list-committees, list-users, unlock-mfa,
+                        # set-subscription); --prod targets production via a hand-made
+                        # .env.prod — see scripts/README.md
 ```
 
 ## Two env files are required
