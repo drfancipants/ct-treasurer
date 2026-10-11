@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import type { CommitteeEvent } from '@/lib/types'
+import { EVENT_DESCRIPTIONS, type CommitteeEvent } from '@/lib/types'
 import { createEvent, updateEvent, type EventInput } from '@/actions/events'
 
 interface Props {
@@ -64,6 +64,9 @@ export default function EventDialog({ open, onClose, onSave, committeeId, commit
     (l) => !usedByOthers.has(l)
   )
   const defaultLetter = event?.letter ?? available[0] ?? 'A'
+  // Events saved before the list existed keep their free-text description as an option
+  const legacy = event?.description && !EVENT_DESCRIPTIONS.includes(event.description as never)
+  const descriptionOptions = legacy ? [event!.description, ...EVENT_DESCRIPTIONS] : EVENT_DESCRIPTIONS
   const isEdit = !!event
   const [form, setForm] = useState<FormState>(() => initial(event, defaultLetter))
   const [error, setError] = useState('')
@@ -77,7 +80,7 @@ export default function EventDialog({ open, onClose, onSave, committeeId, commit
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.description.trim()) return setError('Description is required')
+    if (!form.description.trim()) return setError('Select an event description')
     if (!form.date) return setError('Date is required')
 
     setSaving(true)
@@ -147,7 +150,12 @@ export default function EventDialog({ open, onClose, onSave, committeeId, commit
           </div>
 
           <Field label="Description" required>
-            <input value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="Annual spring dinner" className={inputCls} maxLength={100} />
+            <select value={form.description} onChange={(e) => set('description', e.target.value)} className={inputCls}>
+              <option value="">Select an event type…</option>
+              {descriptionOptions.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
           </Field>
 
           <Field label="Street address">

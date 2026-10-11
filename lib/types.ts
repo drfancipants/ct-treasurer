@@ -505,6 +505,37 @@ export interface InKindContribution {
 
 // ─── Fundraising events (SEEC Form 20 Section L1) ─────────────────────────────
 
+/** The event descriptions eCRIS accepts in the Section L1 / J1 "Event Description" column. */
+export const EVENT_DESCRIPTIONS = [
+  'Auction Event',
+  'BBQ Event',
+  'Boat Cruise Event',
+  'Breakfast Event',
+  'Clambake Event',
+  'Cocktail Event',
+  'Coffee/Tea Event',
+  'Concert Event',
+  'Convention Event',
+  'Dinner Event',
+  'Fair Event',
+  'Fashion Show Event',
+  'Golf Event',
+  'Home Fundraiser',
+  'Luncheon Event',
+  'Meet and Greet Event',
+  'Party Event',
+  'Picnic Event',
+  'Raffle Event',
+  'Reception Event',
+  'Sale Event',
+  'Theatre Event',
+  'Victory/Thank you Event',
+  'Other Event',
+  'Speech Event',
+] as const
+
+export type EventDescription = (typeof EVENT_DESCRIPTIONS)[number]
+
 export interface CommitteeEvent {
   id: string
   committeeId: string
